@@ -4,7 +4,8 @@ import { state, CT } from './state.js';
 // The Time Timer on the clock screen. It keeps its end time on the Mac's clock rather than
 // counting seconds, so it stays right while another screen is up or the backlight is off.
 export const PRESETS = [5, 10, 15, 30, 45, 60]; // minutes
-// meeting, when set, is the timer's other length: until the meeting going on now ends.
+// meeting, when set, is the timer's other length, a knob stop past 60 minutes: until the meeting
+// going on now ends (kind 'end'), or, with none on, until the next one today starts ('start').
 export const timer = reactive({ preset: 2, meeting: null, status: 'set', endsAt: 0, left: 0 }); // status: set | running | paused | done
 
 const keyOf = e => (e.calendarId || '') + '|' + e.start + '|' + (e.title || '');
@@ -16,19 +17,39 @@ export const currentMeeting = computed(() => {
 });
 /** Which meeting is on, as a key: it changes only when a different one starts (or none is on). */
 export const currentMeetingKey = computed(() => currentMeeting.value ? keyOf(currentMeeting.value) : '');
-const meetingOf = e => ({ key: keyOf(e), title: e.title || '', start: e.start, end: e.end });
+const meetingOf = (e, kind) => ({ key: keyOf(e), kind, title: e.title || '', start: e.start, end: e.end, length: 0 });
+/** The next timed event still to start today, or null. */
+const nextMeeting = computed(() => {
+  if (state.calendar.status !== 'ok') return null;
+  const today = CT.dayNumber(state.now);
+  const later = state.calendar.events.filter(e => !e.allDay && e.start > state.now && CT.dayNumber(e.start) === today);
+  return later.length ? later.reduce((a, b) => (b.start < a.start ? b : a)) : null;
+});
+/** The knob's meeting stop: the end of the meeting going on now, else the start of the next. */
+const meetingStop = computed(() => currentMeeting.value ? meetingOf(currentMeeting.value, 'end')
+  : nextMeeting.value ? meetingOf(nextMeeting.value, 'start') : null);
+const stopId = computed(() => meetingStop.value ? [meetingStop.value.kind, meetingStop.value.key, meetingStop.value.end].join('|') : '');
+const targetOf = m => (m.kind === 'start' ? m.start : m.end);
 
 const presetMs = () => PRESETS[timer.preset] * 60000;
-/** The timer's full turn: the preset, or the whole meeting (so the dial shows how much is left). */
-export const total = computed(() => timer.meeting ? timer.meeting.end - timer.meeting.start : presetMs());
+// Set to a meeting, it doesn't tick: it shows the whole minutes left, 9:00 for 9:49.
+const wholeMinutes = ms => Math.max(0, Math.floor(ms / 60000) * 60000);
+/** The timer's full turn: the preset; the whole meeting, counting to its end (so the dial shows
+ *  how much is left); or, counting to the next one's start, the time there was when it started. */
+export const total = computed(() => {
+  const m = timer.meeting;
+  if (!m) return presetMs();
+  if (m.kind === 'end') return m.end - m.start;
+  return timer.status === 'set' ? Math.max(60000, wholeMinutes(m.start - state.now)) : m.length;
+});
 export const remaining = computed(() => {
-  if (timer.status === 'set') return timer.meeting ? Math.max(0, timer.meeting.end - state.now) : presetMs();
+  if (timer.status === 'set') return timer.meeting ? wholeMinutes(targetOf(timer.meeting) - state.now) : presetMs();
   if (timer.status === 'running') return Math.max(0, timer.endsAt - state.now);
   return timer.left;
 });
 export const timerLabel = computed(() => {
   const minutes = PRESETS[timer.preset];
-  const name = timer.meeting ? 'Until ' + (timer.meeting.title || 'the meeting') + ' ends'
+  const name = timer.meeting ? (timer.meeting.kind === 'start' ? 'Next meeting in' : 'Meeting ends in')
     : minutes === 60 ? '1 hour timer' : minutes + ' minute timer';
   return timer.status === 'paused' ? name + ' · Paused' : timer.status === 'done' ? "Time's up" : name;
 });
@@ -39,35 +60,30 @@ export function timerText(ms) {
 }
 /** Set, it shows the full length, 5:00. Started, it drops to 4:59 straight away so you can see
  *  it going, and reads 0:00 through its last second. Once the time is up it counts on past it,
- *  1:23+, until the timer's put away. Set to a meeting, it's already counting down to its end. */
+ *  1:23+, until the timer's put away. Set to a meeting, it shows the whole minutes left. */
 export const timerTitle = computed(() =>
   timer.status === 'set' ? timerText(remaining.value)
     : timer.status === 'done' ? timerText(state.now - timer.endsAt) + '+'
     : timerText(Math.ceil(remaining.value / 1000) * 1000 - 1000));
 
-/** The knob's stops are the meeting's end, while there's a meeting on, then the presets. */
+/** The knob's stops are the presets, then, past 60 minutes, the meeting stop if there is one. */
 export function stepPreset(steps) {
-  const first = currentMeeting.value ? -1 : 0;
-  const at = Math.max(first, Math.min(PRESETS.length - 1, (timer.meeting ? -1 : timer.preset) + steps));
-  if (at < 0) timer.meeting = meetingOf(currentMeeting.value);
+  const last = meetingStop.value ? PRESETS.length : PRESETS.length - 1;
+  const at = Math.max(0, Math.min(last, (timer.meeting ? PRESETS.length : timer.preset) + steps));
+  if (at === PRESETS.length) timer.meeting = meetingStop.value;
   else { timer.meeting = null; timer.preset = at; }
   timer.status = 'set';
 }
 /** Opening the timer during a meeting sets it to the meeting's end, unless it's already going. */
 export function pickMeeting() {
-  if (timer.status === 'set' && currentMeeting.value) timer.meeting = meetingOf(currentMeeting.value);
+  if (timer.status === 'set' && currentMeeting.value) timer.meeting = meetingOf(currentMeeting.value, 'end');
 }
-/** Settings → Meeting timer: starts the timer on the meeting going on now, unless it's already
- *  running or paused on something else. True if it did. Back to back, the next meeting starts
- *  the moment the last one's timer runs out, maybe before the second's tick has said so. */
-export function autoStartMeeting() {
-  if (!state.settings.meetingTimer || !currentMeeting.value) return false;
-  if (timer.status === 'running' && timer.endsAt <= state.now) finish();
-  if (timer.status === 'running' || timer.status === 'paused') return false;
-  timer.meeting = meetingOf(currentMeeting.value);
+/** The meeting alert's Start timer, once the meeting has started: starts the timer to that
+ *  meeting's end, in place of whatever it was doing. It's the only way a meeting starts one. */
+export function startMeetingTimer(e) {
+  timer.meeting = meetingOf(e, 'end');
   timer.status = 'set';
   toggleTimer();
-  return true;
 }
 export function toggleTimer() {
   state.now = CT.now();
@@ -77,7 +93,8 @@ export function toggleTimer() {
   } else if (timer.status === 'done') resetTimer();
   else {
     timer.endsAt = endOnHalfSecond(timer.status === 'paused' ? state.now + timer.left
-      : timer.meeting ? timer.meeting.end : state.now + presetMs());
+      : timer.meeting ? targetOf(timer.meeting) : state.now + presetMs());
+    if (timer.status === 'set' && timer.meeting) timer.meeting.length = timer.endsAt - state.now;
     timer.status = 'running';
   }
 }
@@ -93,27 +110,27 @@ export function resetTimer() {
   if (timer.meeting) followMeeting();
 }
 /** Pressed twice: stop the timer and put it back to its preset. Set to a meeting, it's always
- *  counting down to the meeting's end, so reset leaves the meeting too; the knob's meeting stop
- *  (or opening the timer again) brings it back. */
+ *  counting down to the meeting, so reset leaves the meeting too; the knob's meeting stop (or
+ *  opening the timer again during a meeting) brings it back. */
 export function clearTimer() {
   timer.meeting = null;
   timer.status = 'set';
 }
-// Set to a meeting, the timer keeps up with it: a new end time, or, once it's over (or moved, or
-// gone from the calendar), back to its preset.
+// Set to the meeting stop, the timer keeps up with it: a new time, the next meeting's start
+// becoming that meeting's end as it begins, or, with no meeting left today, back to its preset.
 function followMeeting() {
-  const e = currentMeeting.value;
-  timer.meeting = e && keyOf(e) === timer.meeting.key ? meetingOf(e) : null;
+  timer.meeting = meetingStop.value;
 }
-watch(currentMeeting, () => { if (timer.meeting && timer.status === 'set') followMeeting(); });
-// Running on a meeting, it follows the meeting's end if that changes — unless it's been paused,
+watch(stopId, () => { if (timer.meeting && timer.status === 'set') followMeeting(); });
+// Running on a meeting, it follows the meeting's time if that changes — unless it's been paused,
 // when it's the timer's own time from then on.
 watch(() => state.calendar, () => {
-  if (!timer.meeting || timer.status !== 'running' || state.calendar.status !== 'ok') return;
-  const e = state.calendar.events.find(e => !e.allDay && keyOf(e) === timer.meeting.key);
-  if (!e || e.end === timer.meeting.end || e.end <= state.now) return;
-  timer.meeting = meetingOf(e);
-  timer.endsAt = endOnHalfSecond(e.end);
+  const m = timer.meeting;
+  if (!m || timer.status !== 'running' || state.calendar.status !== 'ok') return;
+  const e = state.calendar.events.find(e => !e.allDay && keyOf(e) === m.key);
+  if (!e || targetOf(meetingOf(e, m.kind)) === targetOf(m) || targetOf(meetingOf(e, m.kind)) <= state.now) return;
+  timer.meeting = { ...meetingOf(e, m.kind), length: m.length };
+  timer.endsAt = endOnHalfSecond(targetOf(timer.meeting));
 });
 
 function finish() {

@@ -1,10 +1,14 @@
 <script setup>
 import { computed, reactive } from 'vue';
 import { state, CT } from '../state.js';
-// Settings → Meeting alerts: a card over every screen from a timed event's alert (its own, from
-// the Mac's Calendar, or a fixed few minutes before) until a few minutes after it starts. Any button or knob press dismisses it (and does nothing
-// else); turning the knob still sets the volume.
-const AFTER_START_MS = 5 * 60000;
+import { startMeetingTimer } from '../timer.js';
+// Settings → Meeting alerts: a sheet over the bottom of every screen from a timed event's alert
+// (its own, from the Mac's Calendar, or a fixed few minutes before) until the meeting ends. Once
+// the meeting has started, the back button under the knob starts the clock's timer on it and
+// dismisses it; any other press (and the back button before then) only dismisses it. Turning the
+// knob still sets the volume.
+// A zero-length event (a reminder at 6:34) has no end to wait for: its card stays five minutes.
+const REMINDER_MS = 5 * 60000;
 // Of an event's own alerts, only those in the last hour count: a "1 day before" alert is a
 // reminder, not a reason to cover the screen for a day.
 const EVENT_ALERT_MAX_MS = 60 * 60000;
@@ -19,37 +23,45 @@ function save() {
   Object.keys(dismissed).forEach(key => { if (dismissed[key] < state.now) delete dismissed[key]; });
   try { localStorage.setItem(STORE, JSON.stringify(dismissed)); } catch (e) {}
 }
-// Every timed event whose card is due now. It never outlasts the meeting (bar a zero-length one).
-// How long before the start an event's card appears, or null for no card. "At time of event" is 0.
-function leadMs(e, setting) {
+// How long before the start an event's card appears, or null with alerts off. Every timed event
+// gets one: with "Event's alert", one without an alert of its own (in the last hour) gets it as
+// it starts, so its Start timer is there.
+function leadMs(e) {
+  const setting = state.settings.meetingAlert;
+  if (!setting) return null;
   if (setting !== 'event') return setting * 60000;
   const leads = (e.alerts || []).filter(ms => ms <= EVENT_ALERT_MAX_MS).map(ms => Math.max(0, ms));
-  return leads.length ? Math.max.apply(null, leads) : null;
+  return leads.length ? Math.max.apply(null, leads) : 0;
 }
+const untilOf = e => (e.end > e.start ? e.end : e.start + REMINDER_MS);
+// Every timed event whose card is due now.
 const due = computed(() => {
-  const setting = state.settings.meetingAlert;
-  if (!setting || state.calendar.status !== 'ok') return [];
+  if (state.calendar.status !== 'ok') return [];
   return state.calendar.events.filter(e => {
     if (e.allDay || dismissed[keyOf(e)]) return false;
-    const lead = leadMs(e, setting);
-    // A zero-length event (a reminder at 6:34) keeps its card for the full five minutes.
-    const until = e.end > e.start ? Math.min(e.end, e.start + AFTER_START_MS) : e.start + AFTER_START_MS;
-    return lead != null && e.start - lead <= state.now && state.now < until;
+    const lead = leadMs(e);
+    return lead != null && e.start - lead <= state.now && state.now < untilOf(e);
   });
 });
 // One meeting at a time: the card shows the first, and a press dismisses all of them, so
 // overlapping meetings don't bring up another card straight after.
 const event = computed(() => due.value[0] || null);
-CT.dismissModal = () => {
+// Only once the meeting has started (and a zero-length reminder has nothing to time).
+const canStart = computed(() => event.value.start <= state.now && state.now < event.value.end);
+CT.dismissModal = key => {
   if (!event.value) return false;
-  due.value.forEach(e => { dismissed[keyOf(e)] = e.start + AFTER_START_MS; });
+  if (key === 'Escape' && canStart.value) {
+    startMeetingTimer(event.value);
+    CT.showTimer();
+  }
+  due.value.forEach(e => { dismissed[keyOf(e)] = untilOf(e); });
   save();
   return true;
 };
 const when = computed(() => {
   const minutes = Math.round((event.value.start - state.now) / 60000);
   if (minutes > 0) return 'In ' + minutes + ' min';
-  if (minutes < 0) return 'Started ' + -minutes + ' min ago';
+  if (minutes < 0) return -minutes + ' min ago';
   return 'Starting now';
 });
 // "2:00 – 2:30 PM", keeping both AM/PMs only when the meeting spans noon or midnight; just
@@ -73,7 +85,7 @@ function place(location) {
 const where = computed(() => place(event.value.location) || place(event.value.call));
 </script>
 <template>
-  <div class="meeting-alert fill flex center" :class="{ on: !!event }">
+  <div class="meeting-alert fill flex" :class="{ on: !!event }">
     <div v-if="event" class="m-card flex-col">
       <div class="flex">
         <div class="m-bar flex-none" :style="{ background: event.color }" />
@@ -83,7 +95,10 @@ const where = computed(() => place(event.value.location) || place(event.value.ca
           <div v-if="where" class="m-where m-detail muted truncate">{{ where }}</div>
         </div>
       </div>
-      <div class="m-when">{{ when }}</div>
+      <div class="m-foot flex">
+        <div class="m-when">{{ when }}</div>
+        <div v-if="canStart" class="m-start">Start timer</div>
+      </div>
     </div>
   </div>
 </template>

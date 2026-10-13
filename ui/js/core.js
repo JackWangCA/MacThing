@@ -355,8 +355,9 @@ export function initializeRuntime(state) {
       holds[key] = { start: performance.now(), done: true }; // the wake was the whole press
       return;
     }
-    // An alert over the screen (the meeting alert) takes the whole press to dismiss it.
-    if (CT.dismissModal && CT.dismissModal()) {
+    // An alert over the screen (the meeting alert) takes the whole press to dismiss it (the back
+    // button can do one thing more there: start the meeting's timer).
+    if (CT.dismissModal && CT.dismissModal(key)) {
       holds[key] = { start: performance.now(), done: true };
       return;
     }

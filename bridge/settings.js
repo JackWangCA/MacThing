@@ -18,7 +18,6 @@ export const DEFAULTS = {
   calendars: null, // null = every calendar in the Mac's Calendar app; else an array of calendar ids
   calendarDays: 2, // days of events on the Calendar screen: today plus the next (n − 1)
   meetingAlert: 0, // when a timed event's alert covers the screen: 0 = off, 'event' = at the event's own alert, else minutes before
-  meetingTimer: false, // start the clock's timer, set to the meeting's end, as each timed event starts
 };
 
 const VALID = {
@@ -33,7 +32,6 @@ const VALID = {
   calendars: (v) => v === null || (Array.isArray(v) && v.every((id) => typeof id === 'string')),
   calendarDays: (v) => Number.isInteger(v) && v >= 1 && v <= 7,
   meetingAlert: (v) => [0, 'event', 1, 5, 10].includes(v),
-  meetingTimer: (v) => typeof v === 'boolean',
 };
 
 class Settings extends EventEmitter {

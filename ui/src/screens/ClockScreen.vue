@@ -5,15 +5,16 @@ import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
-import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, autoStartMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
+import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
 const next = computed(() => state.calendar.status === 'ok' ? state.calendar.events.find(e => !e.allDay && e.start > state.now && CT.dayNumber(e.start) === CT.dayNumber(state.now)) : null);
 // The clock button, pressed on the clock, swaps it for the timer and back. Knob and wheel work
 // the timer only while it's up: turn to pick a length, press to start or pause, press twice to reset.
-// During a meeting it opens set to the meeting's end, a stop just left of 5 minutes; reset there
-// drops back to the preset, stopped.
+// Past 60 minutes there's a meeting stop: the end of the meeting going on now, or the start of
+// the next one today. During a meeting the timer opens on it; reset there drops back to the
+// preset, stopped.
 const mode = ref('clock');
 const screen = CT.screen('clock');
 screen.reselect = () => {
@@ -21,16 +22,14 @@ screen.reselect = () => {
   if (mode.value === 'timer') pickMeeting();
 };
 // While it's up and not started, a meeting that starts sets it too, as does one that turns up
-// when the calendar first loads (after a reload that reopened the timer). With Settings → Meeting
-// timer on, a meeting that starts (or is on when it's turned on) starts the timer, puts it up in
-// place of the clock and switches to it — unless Settings is open on the device.
-watch([currentMeetingKey, () => state.settings.meetingTimer], ([key]) => {
-  if (!key) return;
-  if (autoStartMeeting()) {
-    mode.value = 'timer';
-    if (state.current !== 'settings') CT.show('clock');
-  } else if (mode.value === 'timer') pickMeeting();
-});
+// when the calendar first loads (after a reload that reopened the timer). It never starts or comes
+// up by itself: that's the meeting alert's Start timer.
+watch(currentMeetingKey, key => { if (key && mode.value === 'timer') pickMeeting(); });
+// The meeting alert's start button: brings the timer up on the clock screen.
+CT.showTimer = () => {
+  mode.value = 'timer';
+  CT.show('clock');
+};
 // A finished timer counts up past its time until you leave it, then goes back to its preset.
 watch(() => mode.value === 'timer' && state.current === 'clock', up => { if (!up && timer.status === 'done') resetTimer(); });
 // A meeting's timer counts on past its end for ten minutes at most, then puts itself away.
