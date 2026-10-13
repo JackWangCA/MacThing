@@ -81,5 +81,12 @@ fi
 tmpmount=$(grep " /tmp " /proc/mounts || true)
 case "$tmpmount" in *tmpfs*) ;; *) echo "  warning: /tmp is not tmpfs — the heartbeat file would write to flash" ;; esac
 '
-adb -s "$serial" shell 'supervisorctl reread >/dev/null 2>&1; supervisorctl update >/dev/null 2>&1; supervisorctl start carthing-sleep >/dev/null 2>&1; supervisorctl status carthing-sleep backlight'
+# `update` restarts the backlight program for its new command, even if the bridge had stopped it
+# for the screen being off. Put it back the way it was so it stays out of the way until screen-on.
+adb -s "$serial" shell '
+lit=yes
+supervisorctl status backlight 2>/dev/null | grep -q STOPPED && lit=no
+supervisorctl reread >/dev/null 2>&1; supervisorctl update >/dev/null 2>&1
+[ "$lit" = no ] && supervisorctl stop backlight >/dev/null 2>&1
+supervisorctl start carthing-sleep >/dev/null 2>&1; supervisorctl status carthing-sleep backlight'
 echo "Done. Start the bridge (npm start) — it deploys the UI and takes over the screen."

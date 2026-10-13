@@ -14,7 +14,8 @@
 set -u
 
 CONF=/var/lib/carthing/dimmer.conf
-BL=/sys/class/backlight/aml-bl/brightness # the level; on/off is /sys/class/aml_bl/power
+BL=/sys/class/backlight/aml-bl/brightness # the level
+POWER=/sys/class/aml_bl/power             # on/off: "backlight power state: 0|1"
 
 # Defaults. dimmer.conf, generated from bridge/config.js, overrides them.
 DELAY=10 # seconds the room must stay darker before the screen dims to match
@@ -23,6 +24,15 @@ POLL=1   # seconds between sensor readings
 [ -f "$CONF" ] && . "$CONF"
 
 say() { echo "[dimmerd] $*"; }
+
+# The bridge and sleepd.sh stop this program while the screen is off, since a new level could light
+# the backlight again. Check anyway, in case something starts it then (supervisorctl update does).
+set_level() {
+  p=""
+  read -r p < "$POWER" 2>/dev/null
+  case "$p" in *0) return 0 ;; esac
+  echo "$1" > "$BL" 2>/dev/null
+}
 
 # Read off sp-als-backlight's own log (raw reading → level, ALS ≥ threshold:level). Higher is
 # dimmer on this panel. Below the first entry it holds the dimmest level; past the last one each
@@ -81,7 +91,7 @@ while :; do
     hold=""
     if [ "$LEVEL" -ne "$cur" ]; then
       cur=$LEVEL
-      echo "$cur" > "$BL" 2>/dev/null
+      set_level "$cur"
     fi
   else
     since=$((since + POLL))
@@ -90,7 +100,7 @@ while :; do
       # Only as dim as every reading in the window agreed on.
       say "dark for ${since}s: $cur → $hold (sensor $als)"
       cur=$hold
-      echo "$cur" > "$BL" 2>/dev/null
+      set_level "$cur"
       since=0
       hold=""
     fi
