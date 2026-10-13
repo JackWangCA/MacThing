@@ -17,7 +17,7 @@ CONF=/var/lib/carthing/dimmer.conf
 BL=/sys/class/backlight/aml-bl/brightness # the level; on/off is /sys/class/aml_bl/power
 
 # Defaults. dimmer.conf, generated from bridge/config.js, overrides them.
-DELAY=30 # seconds the room must stay darker before the screen dims to match
+DELAY=10 # seconds the room must stay darker before the screen dims to match
 POLL=1   # seconds between sensor readings
 
 [ -f "$CONF" ] && . "$CONF"

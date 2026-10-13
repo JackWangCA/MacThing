@@ -204,7 +204,7 @@ The device this was built on runs Spotify's final firmware, `v8.9.2`, community-
 
 ### Auto-brightness
 
-The light sensor sits where your hand goes when you reach for the knob or a button. Spotify's `sp-als-backlight` sets the backlight straight from each reading, so the screen dimmed under your fingers. `dimmerd.sh` uses the same curve, taken from that daemon's own log, but it only dims once every reading for `deviceDimDelaySeconds` (30) has been darker. It then dims only as far as the brightest of those readings. Getting brighter happens on the next one-second reading.
+The light sensor sits where your hand goes when you reach for the knob or a button. Spotify's `sp-als-backlight` sets the backlight straight from each reading, so the screen dimmed under your fingers. `dimmerd.sh` uses the same curve, taken from that daemon's own log, but it only dims once every reading for `deviceDimDelaySeconds` (10) has been darker. It then dims only as far as the brightest of those readings. Getting brighter happens on the next one-second reading.
 
 - It keeps the `backlight` program name, so the bridge and `sleepd.sh` still stop it while the screen is off and start it again when the screen comes back.
 - When it starts, it keeps whatever brightness is already lit. The screen is often woken by a press, with the hand still over the sensor.

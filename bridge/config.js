@@ -89,7 +89,7 @@ export const config = {
   // Auto-brightness (device/dimmerd.sh, installed by `npm run setup-device` in place of Spotify's
   // daemon). The light sensor is where your hand goes when you reach for the controls, so the
   // screen only dims once the room has read darker for this long. Brighter happens right away.
-  deviceDimDelaySeconds: 30,
+  deviceDimDelaySeconds: 10,
 
   // Sources that don't get an app badge on the artwork (your "home" player).
   unbadgedApps: ['com.apple.Music'],
