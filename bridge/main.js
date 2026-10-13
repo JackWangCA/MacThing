@@ -247,10 +247,12 @@ async function setFavorite(command) {
   }
 }
 
+const FINE_KEY_STEP = 1 / 64; // one Option+Shift volume-key press
+
 function changeVolume(delta) {
   if (!Number.isFinite(delta) || delta === 0) return;
   if (config.macVolumeIndicator && volume.state?.keys) {
-    const steps = Math.round(Math.abs(delta) / config.volumeStep);
+    const steps = Math.round(Math.abs(delta) / FINE_KEY_STEP);
     for (let i = 0; i < steps; i++) volume.pressKey(delta > 0);
   } else {
     volume.delta(delta);

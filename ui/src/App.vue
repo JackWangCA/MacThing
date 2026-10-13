@@ -27,7 +27,7 @@ watch(() => state.current, current => { if (NOTCHED.includes(current)) notchAt.v
     <MeetingAlert />
     <div class="volume-hud fill flex items-center gap-16">
       <svg class="vol-icon flex-none"><use :href="state.volume === 0 ? '#i-muted' : '#i-speaker'" /></svg>
-      <UiProgress v-show="!state.volumeUnsupported" :value="state.volume" /><span v-show="!state.volumeUnsupported" class="vol-value flex-none text-right tabular font-small semibold">{{ Math.round(state.volume * 100) }}</span><span v-show="state.volumeUnsupported" class="font-small weight-light truncate">{{ state.volumeNote }}</span>
+      <UiProgress v-show="!state.volumeUnsupported" :value="state.volume" /><span v-show="state.volumeUnsupported" class="font-small weight-light truncate">{{ state.volumeNote }}</span>
     </div>
     <div :key="state.flash.key" class="flash disc flex center" :class="{ on: state.flash.key > 0 && !pausedBadge }" :style="{ color: state.flash.color }"><svg><use :href="'#i-' + state.flash.icon" /></svg></div>
     <div class="toast" :class="{ on: !!state.toast }">{{ state.toast }}</div>

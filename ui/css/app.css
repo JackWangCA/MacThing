@@ -533,9 +533,6 @@ h3 {
   width: 28px;
   height: 28px;
 }
-.vol-value {
-  min-width: 36px;
-} /* steadies the bar as the number changes width */
 /* "No volume control on <device>" replaces the bar, and the pill fits the message. */
 .volume-unsupported .volume-hud {
   width: -webkit-max-content;

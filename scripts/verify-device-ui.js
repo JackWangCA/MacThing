@@ -192,7 +192,7 @@ try {
   await message({ type: 'volume', volume: { supported: true, volume: 0.4, muted: false } });
   await message({ type: 'volume', volume: { supported: true, volume: 0.6, muted: false } });
   await capture('volume');
-  assert.equal(await evaluate('document.querySelector(".vol-value").textContent'), '60');
+  assert.equal(await evaluate('document.querySelector(".volume-hud .ui-progress").getAttribute("aria-valuenow")'), '60');
   await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
   // The page batches knob turns for 40ms; on the device that can take a few hundred.
   const sentVolume = 'window.fixtureSent.some(m => m.type === "volume" && m.delta > 0)';
@@ -200,7 +200,7 @@ try {
   assert.equal(await evaluate(sentVolume), true, 'Knob rotation sends volume');
   await message({ type: 'volume', volume: { supported: false, device: 'Digital output', volume: 0.6 } });
   await capture('volume-unsupported');
-  assert.equal(await evaluate('getComputedStyle(document.querySelector(".vol-value")).display'), 'none');
+  assert.equal(await evaluate('getComputedStyle(document.querySelector(".volume-hud .ui-progress")).display'), 'none');
   await message({ type: 'screen', on: false });
   await capture('asleep');
   assert.equal(await evaluate('document.getElementById("app").classList.contains("asleep")'), true);

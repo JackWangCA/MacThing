@@ -19,7 +19,7 @@ export function initializeRuntime(state) {
     buttonClicks: { Escape: { 1: 'favorite', 2: 'unfavorite' } },
     knobClicks: { 1: 'playpause', 2: 'next', 3: 'previous' },
     buttonHolds: { m: 'sleep' }, holdMs: 1200, offlineSleepMs: 90000,
-    multiClickMs: 350, volumeStep: 1 / 64, knobDirection: 1, debug: false
+    multiClickMs: 350, volumeStep: 1 / 16, knobDirection: 1, debug: false
   };
   Object.defineProperty(CT, 'settings', { get: function () { return state.settings; } });
 
