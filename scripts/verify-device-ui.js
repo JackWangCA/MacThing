@@ -76,7 +76,7 @@ try {
   await message({ type: 'settings', settings });
   await message({ type: 'nowPlaying', np: { active: false } });
   await capture('idle');
-  assert.equal(await evaluate('document.querySelector(".np-title").textContent'), 'Nothing playing');
+  assert.equal(await evaluate('document.querySelector(".np-title").textContent'), 'Song Title');
   await message({ type: 'weather', weather: { status: 'noLocation', reason: 'denied' } });
   await evaluate("CT.show('weather')");
   await capture('weather-denied');

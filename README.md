@@ -28,7 +28,7 @@ background turned on, the second doesn't._
 
 The four screens:
 
-- **Now Playing** follows whatever is playing in Control Center's Now Playing: Apple Music, Spotify, Podcasts, YouTube in a browser, and so on. It shows the artist, title, album, progress and artwork, plus a paused state, an app badge for non-Music sources, and the analog clock face when nothing is playing. Optionally the artwork also fills the screen behind everything, blurred and tinted.
+- **Now Playing** follows whatever is playing in Control Center's Now Playing: Apple Music, Spotify, Podcasts, YouTube in a browser, and so on. It shows the artist, title, album, progress and artwork, plus a paused state and an app badge for non-Music sources. When nothing is playing it keeps the same layout with placeholder text and a note in place of the cover, and the Car Thing opens on the Clock instead (moving to Now Playing once something starts, until you pick a screen). Optionally the artwork also fills the screen behind everything, blurred and tinted.
 - **Calendar** shows today's remaining events and, by default, tomorrow's under their own heading. Choose how many days (1–7) and which calendars on the Mac settings page. Press the calendar button again while it's up to see the whole month, with today circled; press it once more to go back to the agenda.
 - **Weather** shows the current conditions, the next five hours and four days. It uses [Open-Meteo](https://open-meteo.com) (free, no account) for your Mac's location or a place you pick. Press the weather button again while it's up to list the next six hours (Today), once more for the next six days (This Week), and a third time to go back to the forecast. If the forecast can't be fetched, the weather button asks again instead; each failed try makes the next wait longer (4 seconds, then 8, 16 and so on), and the screen says how long.
 - **Clock** shows an analog face (plain or with numbers) or a digital one — pick which on the Mac settings page — plus the next event still to come today, or "No events today". Press the clock button again while the clock is up to swap in a timer: turn the knob to pick 5, 10, 15, 30, 45 or 60 minutes, press it to start or pause, and press twice to reset. The screen flashes when the time is up, and the timer then counts on past it (1:23+) until you reset it or leave it. Press the clock button again to go back to the clock; while the timer is running or paused, the knob still sets the volume.
@@ -54,7 +54,7 @@ Nothing is required for the device to work: Now Playing and the clock need no pe
 
 | Screen                                    | Without permission                                          | How it's fixed                                 |
 | ----------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------- |
-| Now Playing                               | works; shows the clock face when nothing is playing         | —                                              |
+| Now Playing                               | works; shows a placeholder when nothing is playing          | —                                              |
 | Calendar                                  | "Calendar access is off", naming the System Settings pane   | allow Calendars for Car Thing Helper           |
 | Weather                                   | "Location access is off" with the place-picker hint         | allow Location, or pick a city on the Mac page |
 | Clock                                     | works; no event line or meeting timer until Calendar is allowed | allow Calendars for Car Thing Helper           |
@@ -80,7 +80,7 @@ npm run setup-device   # makes the Car Thing boot into this UI (reversible; see 
 npm run install-agent  # starts the bridge now and at every login
 ```
 
-That's it. The Car Thing switches to the Now Playing screen within a few seconds.
+That's it. Within a few seconds the Car Thing switches to Now Playing, or to the Clock if nothing is playing.
 
 Re-run `npm run setup-device` if the bridge logs `boot web app not pointed at our UI yet` or `no sleep watchdog`. The rootfs edit normally survives a reboot, but it has been seen to revert, and a device that's been reflashed or restored will need it again. Nothing breaks meanwhile — the bridge points the device at this UI on every connect — but until you do, the Car Thing shows Spotify's own app before the bridge connects, and doesn't sleep on its own when the Mac goes away.
 

@@ -66,6 +66,7 @@ export function initializeRuntime(state) {
   var offlineSince = 0; // when the Mac was last seen; 0 means "not since this page loaded"
   function setConnected(on) {
     if (on !== connected) offlineSince = on ? 0 : performance.now();
+    if (on && !connected) opening = true;
     connected = on;
     state.offline = !on;
   }
@@ -154,7 +155,8 @@ export function initializeRuntime(state) {
   // new one in from that side; Settings, which has no top button, fades.
   var PAGES = ['nowplaying', 'calendar', 'weather', 'clock'];
 
-  CT.show = function (name) {
+  /** Shows a screen. `fade` crossfades even between pages, rather than sliding to the side. */
+  CT.show = function (name, fade) {
     var next = CT.screens[name];
     if (!next) return;
     if (name !== CT.current) {
@@ -162,7 +164,7 @@ export function initializeRuntime(state) {
       if (name === 'settings') beforeSettings = CT.current;
       if (prev.hide) prev.hide();
       var from = PAGES.indexOf(CT.current), to = PAGES.indexOf(name);
-      state.screenSwitch = from < 0 || to < 0 ? 'fade' : to > from ? 'next' : 'previous';
+      state.screenSwitch = fade || from < 0 || to < 0 ? 'fade' : to > from ? 'next' : 'previous';
       state.leaving = CT.current;
       CT.current = name;
       state.current = name;
@@ -171,6 +173,24 @@ export function initializeRuntime(state) {
     }
   };
   CT.closeSettings = function () { CT.show(beforeSettings); };
+
+  // Whenever the Mac connects (the page loading, or the bridge coming back), an empty Now Playing
+  // gives way to the Clock. From there, or from the page's first screen, it moves to Now Playing
+  // when something starts — until a screen is picked on the device (or restored in dev). It
+  // doesn't leave Now Playing while connected: a player can drop out between tracks.
+  var autoScreen = true, opening = true; // opening: no Now Playing message yet since connecting
+  CT.on('nowPlaying', function (msg) {
+    var first = opening;
+    opening = false;
+    if (first && !msg.np.active && CT.current === 'nowplaying') {
+      autoScreen = true;
+      return CT.show('clock', true); // under "Waiting for your Mac" as it fades
+    }
+    if (autoScreen && msg.np.active) {
+      autoScreen = false;
+      CT.show('nowplaying');
+    }
+  });
 
   // Dev only (npm run dev): the watcher reloads the page on every change, so remember the screen
   // and how many times each screen's button was pressed again (weather Today/This Week, the
@@ -186,6 +206,7 @@ export function initializeRuntime(state) {
     var saved;
     try { saved = JSON.parse(sessionStorage.getItem('ct-dev-screen')); } catch (e) {}
     if (!saved || !CT.screens[saved.name]) return;
+    autoScreen = opening = false;
     Object.keys(saved.reselects || {}).forEach(function (name) {
       var screen = CT.screens[name];
       for (var i = 0; screen && screen.reselect && i < saved.reselects[name]; i++) screen.reselect();
@@ -265,6 +286,7 @@ export function initializeRuntime(state) {
 
   function runButton(action) {
     if (!action) return;
+    if (action.indexOf('screen:') === 0 || action === 'settings') autoScreen = false;
     if (action.indexOf('screen:') === 0) {
       var name = action.slice(7), screen = CT.screens[name];
       if (name === CT.current && screen && screen.reselect) {

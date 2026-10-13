@@ -4,11 +4,12 @@ import { state, CT, elapsed, durationText, artworkUrl, artworkDirection, hasArt 
 import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import UiProgress from '../components/UiProgress.vue';
-import AnalogClock from '../components/AnalogClock.vue';
 import Artwork from '../components/Artwork.vue';
 const root = ref(null), rail = ref(null);
 const np = computed(() => state.np);
 const album = computed(() => !np.value.active ? '' : np.value.album || (np.value.kind !== 'music' && np.value.source ? np.value.source.name : '') || '');
+// Nothing playing: the same layout as a track, with placeholder text and cover.
+const IDLE = { eyebrow: 'Artist', title: 'Song Title', subtitle: 'Album' };
 const icon = computed(() => np.value.active && np.value.source ? np.value.source.icon : '');
 const fraction = ref(0);
 function updateProgress() { fraction.value = np.value.duration ? elapsed() / np.value.duration : 0; }
@@ -36,7 +37,6 @@ function fitTitle() {
   const content = root.value.querySelector('.left-rail-content');
   t.style.webkitLineClamp = '';
   t.classList.remove('break-word');
-  if (!np.value.active) { t.style.fontSize = '32px'; t.style.lineHeight = '40px'; return; }
   // The browser can wrap after a hyphen or en dash, so "Three-Legged" is measured as "Three-"
   // and "Legged" rather than as one word.
   const words = (t.textContent || '').match(/[^\s\-‐–]+[\-‐–]*|[\-‐–]+/g) || [];
@@ -69,15 +69,15 @@ onMounted(() => {
 onUnmounted(() => clearInterval(timer));
 </script>
 <template>
-  <section ref="root" id="screen-nowplaying" class="screen fill flex" :class="{ active: state.current === 'nowplaying', leaving: state.leaving === 'nowplaying', idle: !np.active, paused: np.active && !np.playing, 'no-duration': !np.duration }">
-    <LeftRail ref="rail" variant="media" :eyebrow="np.active ? np.artist : ''" :title="np.active ? np.title : 'Nothing playing'" :subtitle="album" :muted-subtitle="!np.album">
+  <section ref="root" id="screen-nowplaying" class="screen fill flex" :class="{ active: state.current === 'nowplaying', leaving: state.leaving === 'nowplaying', idle: !np.active, paused: np.active && !np.playing, 'no-duration': np.active && !np.duration }">
+    <LeftRail ref="rail" variant="media" :eyebrow="np.active ? np.artist : IDLE.eyebrow" :title="np.active ? np.title : IDLE.title" :subtitle="np.active ? album : IDLE.subtitle" :muted-subtitle="!np.album">
       <template #lower>
-        <div class="np-progress flex items-center gap-8 primary"><UiProgress :value="fraction" /><span class="np-duration flex-none regular">{{ np.duration ? durationText(np.duration) : '' }}</span></div>
+        <div class="np-progress flex items-center gap-8 primary"><UiProgress :value="fraction" /><span class="np-duration flex-none regular">{{ np.duration ? durationText(np.duration) : np.active ? '' : '0:00' }}</span></div>
       </template>
     </LeftRail>
-    <ScreenStage :class="{ 'bg-panel': !np.active || hasArt }"><!-- idle, or behind art: one continuous background, so nothing is left as a square when the art fades -->
+    <ScreenStage :class="{ 'bg-panel': hasArt }"><!-- behind art: one continuous background, so nothing is left as a square when the art fades -->
       <Artwork :url="artworkUrl" :direction="artworkDirection" />
-      <AnalogClock v-if="!np.active" :now="state.current === 'nowplaying' ? state.now : 0" />
+      <div v-if="!hasArt" class="np-placeholder fill flex center"><svg><use href="#i-note" /></svg></div><!-- the cover's stand-in, idle or for a track without art -->
       <div class="paused-glyph disc fill flex center" :style="{ color: state.flashing ? state.flash.color : '' }"><svg><use :href="'#i-' + (state.flashing ? state.flash.icon : 'pause')" /></svg></div><!-- a flash here swaps its icon into this badge for a moment, in place of a second disc -->
       <img v-if="icon" class="badge" :src="icon" alt="" />
     </ScreenStage>
