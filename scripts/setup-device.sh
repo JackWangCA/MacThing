@@ -10,6 +10,9 @@
 #  3. Installs device/sleepd.sh as a supervisord program, so the Car Thing turns its own
 #     backlight off when the Mac stops talking to it — shut down, asleep, or unplugged from
 #     everything but power. Any button or the knob wakes it.
+#  4. Runs device/dimmerd.sh as supervisord's `backlight` program instead of Spotify's
+#     sp-als-backlight: same brightness curve, but it waits for the room to stay darker before
+#     dimming, so a hand reaching for the controls (and over the light sensor) doesn't dim it.
 #
 # Undo everything with scripts/restore-device.sh.
 set -euo pipefail
@@ -21,6 +24,7 @@ serial=$(adb devices -l | awk '/spotify-car-thing|Car_Thing/ && $2=="device" {pr
 
 adb -s "$serial" shell 'mkdir -p /var/lib/carthing'
 adb -s "$serial" push "$here/../device/sleepd.sh" /var/lib/carthing/sleepd.sh >/dev/null
+adb -s "$serial" push "$here/../device/dimmerd.sh" /var/lib/carthing/dimmerd.sh >/dev/null
 
 adb -s "$serial" shell '
 set -e
@@ -65,8 +69,17 @@ EOF
 else
   echo "• sleep watchdog already installed"
 fi
+chmod +x /var/lib/carthing/dimmerd.sh
+if ! grep -q "^command=/bin/sh /var/lib/carthing/dimmerd.sh" /etc/supervisord.conf; then
+  # swap the command only inside the [program:backlight] section, keeping its name: the bridge
+  # and sleepd.sh stop and start it as "backlight" around turning the screen off
+  sed -i "/^\[program:backlight\]/,/^\[/ s|^command=.*|command=/bin/sh /var/lib/carthing/dimmerd.sh|" /etc/supervisord.conf
+  echo "• dimmer installed (a hand on the controls no longer dims the screen)"
+else
+  echo "• dimmer already installed"
+fi
 tmpmount=$(grep " /tmp " /proc/mounts || true)
 case "$tmpmount" in *tmpfs*) ;; *) echo "  warning: /tmp is not tmpfs — the heartbeat file would write to flash" ;; esac
 '
-adb -s "$serial" shell 'supervisorctl reread >/dev/null 2>&1; supervisorctl update >/dev/null 2>&1; supervisorctl start carthing-sleep >/dev/null 2>&1; supervisorctl status carthing-sleep'
+adb -s "$serial" shell 'supervisorctl reread >/dev/null 2>&1; supervisorctl update >/dev/null 2>&1; supervisorctl start carthing-sleep >/dev/null 2>&1; supervisorctl status carthing-sleep backlight'
 echo "Done. Start the bridge (npm start) — it deploys the UI and takes over the screen."

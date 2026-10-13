@@ -9,6 +9,7 @@ export const paths = {
   uiSource: path.join(root, 'ui'),
   bin: path.join(root, 'native', 'bin'),
   sleepd: path.join(root, 'device', 'sleepd.sh'),
+  dimmerd: path.join(root, 'device', 'dimmerd.sh'),
 };
 
 export const config = {
@@ -84,6 +85,11 @@ export const config = {
   deviceUsbHealSeconds: 180, // 0 turns it off
   heartbeatMs: 10 * 1000,
   deviceHeartbeat: '/tmp/carthing-heartbeat', // tmpfs: the rootfs is read-only and flash wears out
+
+  // Auto-brightness (device/dimmerd.sh, installed by `npm run setup-device` in place of Spotify's
+  // daemon). The light sensor is where your hand goes when you reach for the controls, so the
+  // screen only dims once the room has read darker for this long. Brighter happens right away.
+  deviceDimDelaySeconds: 30,
 
   // Sources that don't get an app badge on the artwork (your "home" player).
   unbadgedApps: ['com.apple.Music'],

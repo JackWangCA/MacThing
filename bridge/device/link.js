@@ -3,7 +3,7 @@ import { config, paths } from '../config.js';
 import { log } from '../log.js';
 import { adb, shell } from './adb.js';
 import { CDP, listTargets } from './cdp.js';
-import { isBootInstalled, syncSleepd, syncUi } from './deploy.js';
+import { isBootInstalled, syncDaemon, syncUi } from './deploy.js';
 
 const BINDING = '__carthingSend'; // page → Mac (Runtime.addBinding)
 const CONSOLE_MARK = '⁣carthing '; // fallback channel if bindings are unavailable
@@ -15,6 +15,11 @@ const sleepConf = () => ({
   WAKE: config.deviceWakeSeconds,
   POWERSAVE: config.devicePowersave ? 1 : 0,
   HEAL: config.deviceUsbHealSeconds,
+});
+
+/** What device/dimmerd.sh reads out of /var/lib/carthing/dimmer.conf. */
+const dimmerConf = () => ({
+  DELAY: config.deviceDimDelaySeconds,
 });
 
 /**
@@ -41,13 +46,26 @@ export class DeviceLink extends EventEmitter {
     if (sync.changed) log.info(`[device] UI deployed (${sync.version})`);
     this.uiVersion = sync.version;
 
-    const sleepd = await syncSleepd(this.serial, paths.sleepd, config.deviceDir, sleepConf()).catch((err) => {
+    const sleepd = await syncDaemon(this.serial, {
+      name: 'sleepd', program: 'carthing-sleep', confFile: 'sleep.conf',
+      localScript: paths.sleepd, remoteDir: config.deviceDir, conf: sleepConf(),
+    }).catch((err) => {
       log.warn('[device] sleep watchdog:', err.message);
       return { installed: false, changed: false };
     });
     this.sleepd = sleepd.installed;
     if (sleepd.changed) log.info('[device] sleep watchdog updated');
     else if (!sleepd.installed) log.warn('[device] no sleep watchdog — run `npm run setup-device` so the screen sleeps when the Mac is off');
+
+    const dimmer = await syncDaemon(this.serial, {
+      name: 'dimmerd', program: 'backlight', confFile: 'dimmer.conf',
+      localScript: paths.dimmerd, remoteDir: config.deviceDir, conf: dimmerConf(),
+    }).catch((err) => {
+      log.warn('[device] dimmer:', err.message);
+      return { installed: false, changed: false };
+    });
+    if (dimmer.changed) log.info('[device] dimmer updated');
+    else if (!dimmer.installed) log.warn("[device] stock dimmer still running — run `npm run setup-device` so a hand on the controls doesn't dim the screen");
 
     const installed = await isBootInstalled(this.serial, config.deviceUiDir);
     this.pageUrl = installed ? config.deviceBootUrl : `file://${config.deviceUiDir}/index.html`;
