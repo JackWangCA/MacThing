@@ -860,67 +860,6 @@ h3 {
 .art-img {
   background: center / cover no-repeat;
 }
-/* After a skip the new art wipes across behind a soft edge instead of fading: next comes in from
-   the right, previous from the left. Only transforms animate. .art-wipe carries a fixed gradient
-   mask on its leading edge and slides in; .art-slide slides back just as far inside it, so the art
-   itself stays still. The mask never changes, so nothing is redrawn while it runs. .art-wipe is
-   the edge's width wider than the art, so at rest the edge sits just outside it. */
-.art-layer.wiping {
-  transition: none;
-}
-.art-wipe.wipe-next {
-  left: -160px;
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 160px);
-  mask-image: linear-gradient(to right, transparent, #000 160px);
-  animation: wipe-from-right 0.45s ease-out backwards;
-}
-.art-wipe.wipe-previous {
-  right: -160px;
-  -webkit-mask-image: linear-gradient(to left, transparent, #000 160px);
-  mask-image: linear-gradient(to left, transparent, #000 160px);
-  animation: wipe-from-left 0.45s ease-out backwards;
-}
-.art-wipe.wipe-next .art-slide {
-  animation: wipe-from-left 0.45s ease-out backwards;
-}
-.art-wipe.wipe-previous .art-slide {
-  animation: wipe-from-right 0.45s ease-out backwards;
-}
-/* Skipped again mid-wipe: the covered art finishes at once, so nothing shows through behind it. */
-.art-layer.under .art-wipe,
-.art-layer.under .art-slide {
-  animation: none;
-}
-.art-wipe.wipe-next .art-img {
-  left: 160px;
-}
-.art-wipe.wipe-previous .art-img {
-  right: 160px;
-}
-/* On Now Playing's stage the wipe spans the screen like the album art background's, so the two
-   share one edge crossing the screen; the stage (right of the 320px rail) shows its part of it. */
-.screen-stage .art-wipe.wipe-next {
-  left: -480px;
-}
-.screen-stage .art-wipe.wipe-next .art-img {
-  left: 480px;
-}
-.screen-stage .art-wipe.wipe-previous {
-  left: -320px;
-}
-.screen-stage .art-wipe.wipe-previous .art-img {
-  left: 320px;
-}
-@keyframes wipe-from-right {
-  from {
-    transform: translateX(100%);
-  }
-}
-@keyframes wipe-from-left {
-  from {
-    transform: translateX(-100%);
-  }
-}
 
 /* Paused: the flash's disc, left in place (the art isn't dimmed). */
 .paused-glyph {
@@ -944,14 +883,19 @@ h3 {
   filter: drop-shadow(0 2px 6px var(--shadow));
 }
 
-/* Nothing playing: the Clock screen's face in the art area, and a muted line in the panel. */
-.idle .art-layer,
-.idle .np-progress {
+/* No cover: a note where the art goes (the stage's own shade keeps the square). Nothing playing:
+   the track's layout with muted placeholder text, an empty bar and no duration. */
+.np-placeholder svg {
+  width: 160px;
+  height: 160px;
+  color: var(--line);
+}
+.idle .art-layer {
   visibility: hidden;
 }
-.idle .np-title {
-  font-family: Inter, sans-serif;
-  font-weight: 600;
+.idle .left-rail-content > p,
+.idle .np-title,
+.idle .np-duration {
   color: var(--muted);
 }
 

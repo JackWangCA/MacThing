@@ -34,6 +34,9 @@
           stroke-linejoin="round"
         />
       </symbol>
+      <symbol id="i-note" viewBox="0 0 24 24">
+        <path d="M9 7.2a1 1 0 0 1 .78-.98l10-2.2A1 1 0 0 1 21 5v11a3 3 0 1 1-2-2.83V8.25l-8 1.76V18a3 3 0 1 1-2-2.83z" />
+      </symbol>
       <symbol id="i-timer" viewBox="0 0 24 24">
         <path fill-rule="evenodd" d="M9 1.5h6a1 1 0 0 1 0 2h-2v1.56A8.5 8.5 0 1 1 11 5.06V3.5H9a1 1 0 0 1 0-2zM12 7a6.5 6.5 0 1 0 0 13a6.5 6.5 0 0 0 0-13z" />
         <path d="M12 8.5v5h5a5 5 0 0 0-5-5z" />

@@ -28,7 +28,7 @@ background turned on, the second doesn't._
 
 The four screens:
 
-- **Now Playing** follows whatever is playing in Control Center's Now Playing: Apple Music, Spotify, Podcasts, YouTube in a browser, and so on. It shows the artist, title, album, progress and artwork, plus a paused state, an app badge for non-Music sources, and the analog clock face when nothing is playing. Optionally the artwork also fills the screen behind everything, blurred and tinted.
+- **Now Playing** follows whatever is playing in Control Center's Now Playing: Apple Music, Spotify, Podcasts, YouTube in a browser, and so on. It shows the artist, title, album, progress and artwork, plus a paused state and an app badge for non-Music sources. When nothing is playing it keeps the same layout with placeholder text and a note in place of the cover, and the Car Thing opens on the Clock instead (moving to Now Playing once something starts, until you pick a screen). Optionally the artwork also fills the screen behind everything, blurred and tinted.
 - **Calendar** shows today's remaining events and, by default, tomorrow's under their own heading. Choose how many days (1–7) and which calendars on the Mac settings page. Press the calendar button again while it's up to see the whole month, with today circled; press it once more to go back to the agenda.
 - **Weather** shows the current conditions, the next five hours and four days. It uses [Open-Meteo](https://open-meteo.com) (free, no account) for your Mac's location or a place you pick. Press the weather button again while it's up to list the next six hours (Today), once more for the next six days (This Week), and a third time to go back to the forecast. If the forecast can't be fetched, the weather button asks again instead; each failed try makes the next wait longer (4 seconds, then 8, 16 and so on), and the screen says how long.
 - **Clock** shows an analog face (plain or with numbers) or a digital one — pick which on the Mac settings page — plus the next event still to come today, or "No events today". Press the clock button again while the clock is up to swap in a timer: turn the knob to pick 5, 10, 15, 30, 45 or 60 minutes, press it to start or pause, and press twice to reset. The screen flashes when the time is up, and the timer then counts on past it (1:23+) until you reset it or leave it. Press the clock button again to go back to the clock; while the timer is running or paused, the knob still sets the volume.
@@ -54,7 +54,7 @@ Nothing is required for the device to work: Now Playing and the clock need no pe
 
 | Screen                                    | Without permission                                          | How it's fixed                                 |
 | ----------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------- |
-| Now Playing                               | works; shows the clock face when nothing is playing         | —                                              |
+| Now Playing                               | works; shows a placeholder when nothing is playing          | —                                              |
 | Calendar                                  | "Calendar access is off", naming the System Settings pane   | allow Calendars for Car Thing Helper           |
 | Weather                                   | "Location access is off" with the place-picker hint         | allow Location, or pick a city on the Mac page |
 | Clock                                     | works; no event line or meeting timer until Calendar is allowed | allow Calendars for Car Thing Helper           |
@@ -80,9 +80,9 @@ npm run setup-device   # makes the Car Thing boot into this UI (reversible; see 
 npm run install-agent  # starts the bridge now and at every login
 ```
 
-That's it. The Car Thing switches to the Now Playing screen within a few seconds.
+That's it. Within a few seconds the Car Thing switches to Now Playing, or to the Clock if nothing is playing.
 
-Re-run `npm run setup-device` if the bridge logs `boot web app not pointed at our UI yet` or `no sleep watchdog`. The rootfs edit normally survives a reboot, but it has been seen to revert, and a device that's been reflashed or restored will need it again. Nothing breaks meanwhile — the bridge points the device at this UI on every connect — but until you do, the Car Thing shows Spotify's own app before the bridge connects, and doesn't sleep on its own when the Mac goes away.
+Re-run `npm run setup-device` if the bridge logs `boot web app not pointed at our UI yet`, `no sleep watchdog` or `stock dimmer still running`. The rootfs edit normally survives a reboot, but it has been seen to revert, and a device that's been reflashed or restored will need it again. Nothing breaks meanwhile — the bridge points the device at this UI on every connect — but until you do, the Car Thing shows Spotify's own app before the bridge connects, doesn't sleep on its own when the Mac goes away, and dims whenever a hand covers the light sensor.
 
 The first time you favorite a song with the back button, macOS asks whether **musicctl** may control Music. That's `native/bin/musicctl`, a small helper that sends the favorite and play commands to Apple Music.
 
@@ -120,7 +120,7 @@ Don't run a manual copy while the agent is running, because both would fight ove
 npm ci                # install dependency updates from the lockfile
 npm run build         # needed if native/ changed; also builds the Vue UI
 npm run restart       # rebuilds Vue, restarts the bridge, and deploys the compiled UI
-npm run setup-device  # only if you set the device up before the sleep watchdog existed
+npm run setup-device  # only if you set the device up before the sleep watchdog or the dimmer existed
 ```
 
 ## Customizing
@@ -195,11 +195,21 @@ The device this was built on runs Spotify's final firmware, `v8.9.2`, community-
 - Weston compositor
 - 32-bit userland on a 64-bit kernel, 512 MB RAM
 
-`npm run setup-device` changes three things, and `npm run restore-device` reverts all of them:
+`npm run setup-device` changes four things, and `npm run restore-device` reverts all of them:
 
 - `/usr/share/qt-superbird-app/webapp` becomes a symlink to `/var/lib/carthing/ui`. Spotify's original is kept as `webapp.spotify`.
 - Spotify's background app (`qt-superbird-app`) no longer autostarts. It was using about 15% CPU on wake-word listening and Bluetooth pairing. The original config is kept as `/etc/supervisord.conf.spotify`.
 - `device/sleepd.sh` is installed at `/var/lib/carthing/sleepd.sh` and registered with supervisord as `carthing-sleep`, so the device can sleep without the Mac (below). The bridge keeps the script and its `sleep.conf` up to date on every connect; `supervisorctl status carthing-sleep` and `/tmp/carthing-sleep.log` on the device show what it's doing.
+- supervisord's `backlight` program runs `device/dimmerd.sh` (installed at `/var/lib/carthing/dimmerd.sh`) instead of Spotify's `sp-als-backlight`. See [Auto-brightness](#auto-brightness).
+
+### Auto-brightness
+
+The light sensor sits where your hand goes when you reach for the knob or a button. Spotify's `sp-als-backlight` sets the backlight straight from each reading, so the screen dimmed under your fingers. `dimmerd.sh` uses the same curve, taken from that daemon's own log, but it only dims once every reading for `deviceDimDelaySeconds` (10) has been darker. It then dims only as far as the brightest of those readings. Getting brighter happens on the next one-second reading.
+
+- It keeps the `backlight` program name, so the bridge and `sleepd.sh` still stop it while the screen is off and start it again when the screen comes back.
+- When it starts, it keeps whatever brightness is already lit. The screen is often woken by a press, with the hand still over the sensor.
+- It sets the level through `/sys/class/backlight/aml-bl/brightness`. On this panel a higher number is dimmer: 235 in the dark, about 130 in a lit room. Its log, with each dim it made, goes to `/var/log/backlight.info` on the device.
+- It doesn't serve the stock daemon's `/tmp/light` socket, which only Spotify's own app read.
 
 ### Sleeping without the Mac
 
@@ -220,7 +230,7 @@ The page does its own small version of this: after the same timeout with no mess
 - macOS has no RNDIS driver, so the device's USB network interface is unused.
 - The kernel has no USB HID gadget driver, so the Car Thing can't simply act as a USB media-key device.
 - The device clock is never set, so the idle clock uses the Mac's time and timezone.
-- The backlight switch is `/sys/class/aml_bl/power` (`echo 0|1`). The standard `/sys/class/backlight/aml-bl/bl_power` and its `brightness` accept writes and do nothing: the LEDs stay lit while the page goes black.
+- The backlight switch is `/sys/class/aml_bl/power` (`echo 0|1`). The standard `/sys/class/backlight/aml-bl/bl_power` accepts writes and does nothing, and its `brightness` only sets the level, so neither turns the LEDs off. Writing either leaves them lit while the page goes black.
 - `npm run setup-device` doesn't survive a power cycle (see Setup).
 - Userland is 32-bit, so a raw `input_event` is 16 bytes, not 24. This matters only if you read or inject `/dev/input/event*` yourself.
 - The UI must be plain ES2017 and CSS that Chromium 69 supports: no `?.`, `??`, flex `gap`, `inset`, `aspect-ratio` or `clamp()`.
@@ -283,7 +293,7 @@ ui/               device UI source (Vue 3, 800×480)
   css/app.css     one stylesheet: tokens, components, bespoke controls, then utility classes
 dist/ui/          generated device bundle and local assets (git-ignored)
 vite.config.js    Vue compiler and Chromium 69 classic-script build
-device/           sleepd.sh — the device's own sleep watchdog, installed by setup-device
+device/           sleepd.sh (sleep watchdog) and dimmerd.sh (auto-brightness), installed by setup-device
 scripts/          device setup/restore, screenshots, LaunchAgent
   util/           one-off comparisons (art-compare.js: album art background versions side by side)
 vendor/           mediaremote-adapter source (cloned by native/build.sh, git-ignored)
@@ -293,7 +303,7 @@ vendor/           mediaremote-adapter source (cloned by native/build.sh, git-ign
 ## Contributing
 
 Issues and pull requests are welcome, especially from anyone running different Car Thing firmware —
-the device-side assumptions in `device/sleepd.sh` and `scripts/setup-device.sh` were written against
+the device-side assumptions in `device/sleepd.sh`, `device/dimmerd.sh` and `scripts/setup-device.sh` were written against
 one image and one panel, and are the most likely things to differ.
 
 The device UI is a Vue 3 app. Repeated layouts live in `ui/src/components/`; screens supply
