@@ -53,7 +53,7 @@ export const config = {
   // Mac-side settings page (weather location etc.), loopback only.
   settingsPort: Number(process.env.CARTHING_SETTINGS_PORT || 4747),
 
-  volumeStep: 1 / 64, // per knob detent — macOS's fine (Option+Shift) volume-key step
+  volumeStep: 1 / 16, // per knob detent — one press of the Mac's volume keys (16 steps)
   // true: turn the knob by pressing the Mac's volume keys so macOS shows its volume indicator.
   // Needs native/bin/volumectl allowed under Privacy & Security → Accessibility (software
   // can't press keys without it). false: set the volume directly — silent, no permission.
