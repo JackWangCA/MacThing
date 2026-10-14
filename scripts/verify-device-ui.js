@@ -227,7 +227,7 @@ try {
   await pause(400);
   await press('Escape');
   await pause(400);
-  assert.equal(await evaluate('document.querySelector(".meeting-alert.on .m-start").textContent'), 'Cancel', 'The back button queues it, and the card stays');
+  assert.equal(await evaluate('document.querySelector(".meeting-alert.on .m-start").textContent'), 'Cancel timer', 'The back button queues it, and the card stays');
   await press('1');
   await tick(now + 181000);
   await pause(1100);

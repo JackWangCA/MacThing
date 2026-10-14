@@ -5,7 +5,7 @@ import { startMeetingTimer } from '../timer.js';
 // Settings → Meeting alerts: a sheet over the bottom of every screen from a timed event's alert
 // (its own, from the Mac's Calendar, or a fixed few minutes before) until the meeting ends. The
 // back button under the knob works the clock's timer: before the meeting, it queues a timer for
-// it (and, pressed again, cancels that), leaving the card up; once it's started, it starts the
+// it (and, pressed again, cancels that: "Cancel timer", in red), leaving the card up; once it's started, it starts the
 // timer and dismisses the card. Any other press only dismisses it — until the meeting starts, if
 // it hasn't yet, so every meeting's card is up at its start time. Turning the knob still sets the
 // volume.
@@ -73,7 +73,7 @@ const event = computed(() => {
 const action = computed(() => {
   const e = event.value;
   if (e.end <= e.start) return '';
-  if (e.start > state.now) return queued.value === keyOf(e) ? 'Cancel' : 'Queue ' + Math.ceil((e.end - e.start) / 60000) + ' min timer';
+  if (e.start > state.now) return queued.value === keyOf(e) ? 'Cancel timer' : 'Queue ' + Math.ceil((e.end - e.start) / 60000) + ' min timer';
   return 'Start ' + Math.ceil((e.end - state.now) / 60000) + ' min timer';
 });
 CT.dismissModal = key => {
@@ -145,7 +145,7 @@ const where = computed(() => place(event.value.location) || place(event.value.ca
       </div>
       <div class="m-foot flex">
         <div class="m-when">{{ when }}</div>
-        <div v-if="action" class="m-start">{{ action }}</div>
+        <div v-if="action" class="m-start" :class="{ cancel: action === 'Cancel timer' }">{{ action }}</div>
       </div>
     </div>
   </div>
