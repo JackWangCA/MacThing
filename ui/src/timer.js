@@ -82,8 +82,8 @@ export function stepPreset(steps) {
 export function pickMeeting() {
   if (timer.status === 'set' && currentMeeting.value) timer.meeting = meetingOf(currentMeeting.value, 'end');
 }
-/** The meeting alert's Start timer, once the meeting has started: starts the timer to that
- *  meeting's end, in place of whatever it was doing. It's the only way a meeting starts one. */
+/** The meeting alert's Start timer, or one queued from it as the meeting starts: starts the timer
+ *  to that meeting's end, in place of whatever it was doing. It's the only way a meeting starts one. */
 export function startMeetingTimer(e) {
   timer.meeting = meetingOf(e, 'end');
   timer.status = 'set';

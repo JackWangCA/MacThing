@@ -205,11 +205,10 @@ try {
   await evaluate("CT.show('weather')");
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await pause(400);
-  assert.equal(await evaluate('!!document.querySelector(".m-start")'), false, 'No start option before the meeting starts');
+  assert.equal(await evaluate('document.querySelector(".m-start").textContent'), 'Queue 30 min timer', 'Before the meeting starts, it offers to queue the timer');
   await tick(now + 181000);
   await pause(400);
-  assert.equal(await evaluate('!!document.querySelector(".m-start")'), true, 'The start option once it has');
-  assert.equal(await evaluate('document.querySelector(".m-start").textContent'), 'Start 30 min timer', 'saying how long the timer is');
+  assert.equal(await evaluate('document.querySelector(".m-start").textContent'), 'Start 30 min timer', 'and to start it once it has');
   await evaluate('window.fixtureSent = []');
   await press('Escape');
   await pause(400);
@@ -218,6 +217,23 @@ try {
   await pause(700);
   assert.equal(await evaluate('CT.current'), 'clock', 'and brings the meeting\'s timer up');
   assert.match(await rail(), /Meeting ends in29:5\d/, 'and is running');
+  await press('Enter'); await press('Enter');
+  await press('4');
+  await pause(400);
+  await tick(now);
+  // Queued before it starts, the timer starts with the meeting, and the card doesn't come back.
+  await evaluate("CT.show('weather')");
+  await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Review', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
+  await pause(400);
+  await press('Escape');
+  await pause(400);
+  assert.equal(await evaluate('document.querySelector(".meeting-alert.on .m-start").textContent'), 'Cancel', 'The back button queues it, and the card stays');
+  await press('1');
+  await tick(now + 181000);
+  await pause(1100);
+  assert.equal(await evaluate('CT.current'), 'clock', 'A queued timer comes up as the meeting starts');
+  assert.match(await rail(), /Meeting ends in29:5\d/, 'running');
+  assert.equal(await evaluate('document.querySelector(".meeting-alert").classList.contains("on")'), false, 'in place of the card');
   await press('Enter'); await press('Enter');
   await press('4');
   await pause(400);

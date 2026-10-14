@@ -1,19 +1,20 @@
 <script setup>
-import { computed, reactive } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { state, CT } from '../state.js';
 import { startMeetingTimer } from '../timer.js';
 // Settings → Meeting alerts: a sheet over the bottom of every screen from a timed event's alert
-// (its own, from the Mac's Calendar, or a fixed few minutes before) until the meeting ends. Once
-// the meeting has started, the back button under the knob starts the clock's timer on it and
-// dismisses it; any other press (and the back button before then) only dismisses it — until the
-// meeting starts, if it hasn't yet, so every meeting's card is up at its start time. Turning the
-// knob still sets the volume.
+// (its own, from the Mac's Calendar, or a fixed few minutes before) until the meeting ends. The
+// back button under the knob works the clock's timer: before the meeting, it queues a timer for
+// it (and, pressed again, cancels that), leaving the card up; once it's started, it starts the
+// timer and dismisses the card. Any other press only dismisses it — until the meeting starts, if
+// it hasn't yet, so every meeting's card is up at its start time. Turning the knob still sets the
+// volume.
 // A zero-length event (a reminder at 6:34) has no end to wait for: its card stays five minutes.
 const REMINDER_MS = 5 * 60000;
 // Of an event's own alerts, only those in the last hour count: a "1 day before" alert is a
 // reminder, not a reason to cover the screen for a day.
 const EVENT_ALERT_MAX_MS = 60 * 60000;
-const STORE = 'ct-dismissed-meetings';
+const STORE = 'ct-dismissed-meetings', QUEUE_STORE = 'ct-queued-meeting';
 const keyOf = e => (e.calendarId || '') + '|' + e.start + '|' + (e.title || '');
 // Each dismissed card's key → when it may come back. Kept across page reloads (dev, a bridge
 // restart) so a dismissed alert doesn't come back early.
@@ -24,6 +25,16 @@ function load() {
 function save() {
   Object.keys(dismissed).forEach(key => { if (dismissed[key] < state.now) delete dismissed[key]; });
   try { localStorage.setItem(STORE, JSON.stringify(dismissed)); } catch (e) {}
+}
+// The meeting whose timer was queued from its card (its key), or ''. One at a time, as the timer
+// is; kept across page reloads too.
+const queued = ref(loadQueued());
+function loadQueued() {
+  try { return localStorage.getItem(QUEUE_STORE) || ''; } catch (e) { return ''; }
+}
+function setQueued(key) {
+  queued.value = key;
+  try { localStorage.setItem(QUEUE_STORE, key); } catch (e) {}
 }
 // How long before the start an event's card appears, or null with alerts off. Every timed event
 // gets one: with "Event's alert", one without an alert of its own (in the last hour) gets it as
@@ -55,22 +66,46 @@ const event = computed(() => {
   return due.value.length ? due.value.reduce(pick(false)) : null;
 });
 // Only once the meeting has started (and a zero-length reminder has nothing to time).
-const canStart = computed(() => event.value.start <= state.now && state.now < event.value.end);
-// The timer it starts runs to the meeting's end: "Start 30 min timer", in minutes rounded up as
-// the timer's own meeting stop shows them. With meetings at once, it says which one it is.
-const startMinutes = computed(() => Math.ceil((event.value.end - state.now) / 60000));
+// The back button's part, bottom right. The timer runs to the meeting's end, so its length is the
+// minutes from the start (queued) or from now (started) to then, rounded up as the timer's own
+// meeting stop shows them; with meetings at once, it says which one it's for. A zero-length
+// reminder has nothing to time.
+const action = computed(() => {
+  const e = event.value;
+  if (e.end <= e.start) return '';
+  if (e.start > state.now) return queued.value === keyOf(e) ? 'Cancel' : 'Queue ' + Math.ceil((e.end - e.start) / 60000) + ' min timer';
+  return 'Start ' + Math.ceil((e.end - state.now) / 60000) + ' min timer';
+});
 CT.dismissModal = key => {
   if (!event.value) return false;
-  if (key === 'Escape' && canStart.value) {
-    startMeetingTimer(event.value);
+  const e = event.value;
+  if (key === 'Escape' && action.value) {
+    if (e.start > state.now) { // queue it, or cancel that; the card stays
+      setQueued(queued.value === keyOf(e) ? '' : keyOf(e));
+      return true;
+    }
+    startMeetingTimer(e);
     CT.showTimer();
   }
   // A press dismisses only this card. Before the meeting starts, it comes back as it does.
-  const e = event.value;
   dismissed[keyOf(e)] = e.start > state.now ? e.start : untilOf(e);
   save();
   return true;
 };
+// A queued timer starts with its meeting, and comes up in place of the meeting's card. Gone from
+// the calendar, or over, the queue empties.
+const queuedEvent = computed(() => (queued.value && state.calendar.status === 'ok'
+  ? state.calendar.events.find(e => keyOf(e) === queued.value) || null : undefined));
+watch(() => queuedEvent.value && queuedEvent.value.start <= state.now, due => {
+  const e = queuedEvent.value;
+  if (e === null || (e && e.end <= state.now)) return setQueued('');
+  if (!due) return;
+  setQueued('');
+  startMeetingTimer(e);
+  CT.showTimer();
+  dismissed[keyOf(e)] = untilOf(e);
+  save();
+}, { immediate: true });
 const when = computed(() => {
   const minutes = Math.round((event.value.start - state.now) / 60000);
   if (minutes > 0) return 'In ' + minutes + ' min';
@@ -110,7 +145,7 @@ const where = computed(() => place(event.value.location) || place(event.value.ca
       </div>
       <div class="m-foot flex">
         <div class="m-when">{{ when }}</div>
-        <div v-if="canStart" class="m-start">Start {{ startMinutes }} min timer</div>
+        <div v-if="action" class="m-start">{{ action }}</div>
       </div>
     </div>
   </div>
