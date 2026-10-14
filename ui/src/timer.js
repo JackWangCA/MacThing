@@ -32,8 +32,8 @@ const stopId = computed(() => meetingStop.value ? [meetingStop.value.kind, meeti
 const targetOf = m => (m.kind === 'start' ? m.start : m.end);
 
 const presetMs = () => PRESETS[timer.preset] * 60000;
-// Set to a meeting, it doesn't tick: it shows the whole minutes left, 9:00 for 9:49.
-const wholeMinutes = ms => Math.max(0, Math.floor(ms / 60000) * 60000);
+// Set to a meeting, it doesn't tick: it shows the minutes left, rounded up, "10 min" for 9:49.
+const wholeMinutes = ms => Math.max(0, Math.ceil(ms / 60000) * 60000);
 /** The timer's full turn: the preset; the whole meeting, counting to its end (so the dial shows
  *  how much is left); or, counting to the next one's start, the time there was when it started. */
 export const total = computed(() => {
@@ -58,11 +58,15 @@ export function timerText(ms) {
   const s = Math.floor(Math.max(0, ms) / 1000);
   return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 }
+// Set to a meeting, the title is the minutes left, with timerUnit after it: 10 min.
+const minutesOnly = computed(() => timer.status === 'set' && !!timer.meeting);
+export const timerUnit = computed(() => (minutesOnly.value ? 'min' : ''));
 /** Set, it shows the full length, 5:00. Started, it drops to 4:59 straight away so you can see
  *  it going, and reads 0:00 through its last second. Once the time is up it counts on past it,
- *  1:23+, until the timer's put away. Set to a meeting, it shows the whole minutes left. */
+ *  1:23+, until the timer's put away. Set to a meeting, it's the minutes left (timerUnit). */
 export const timerTitle = computed(() =>
-  timer.status === 'set' ? timerText(remaining.value)
+  minutesOnly.value ? String(remaining.value / 60000)
+    : timer.status === 'set' ? timerText(remaining.value)
     : timer.status === 'done' ? timerText(state.now - timer.endsAt) + '+'
     : timerText(Math.ceil(remaining.value / 1000) * 1000 - 1000));
 

@@ -139,14 +139,14 @@ try {
   assert.match(await rail(), /30 minute timer30:00/, 'Double press resets');
   await press('4');
   await tick(now);
-  // Past 60 minutes, the knob's meeting stop counts to the next meeting's start, in whole minutes
-  // until it's started (9:49 to go reads 9:00).
+  // Past 60 minutes, the knob's meeting stop counts to the next meeting's start, in minutes
+  // (rounded up) until it's started: 9:49 to go reads 10 min.
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 589000, end: now + 2389000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await press('4');
   await pause(400);
   for (let i = 0; i < 7; i++) await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
   await pause(100);
-  assert.match(await rail(), /Next meeting in9:00/, 'Past 60 minutes: the next meeting\'s start');
+  assert.match(await rail(), /Next meeting in10\s*min/, 'Past 60 minutes: the next meeting\'s start');
   await press('Enter'); await press('Enter');
   await press('4');
   await pause(400);
@@ -154,7 +154,7 @@ try {
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now - 600000, end: now + 1200000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await press('4');
   await pause(400);
-  assert.match(await rail(), /Meeting ends in20:00/, 'The timer opens on the meeting\'s end');
+  assert.match(await rail(), /Meeting ends in20\s*min/, 'The timer opens on the meeting\'s end');
   await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:-53, cancelable:true}))");
   await pause(100);
   assert.match(await rail(), /1 hour timer60:00/, 'Turning left goes back to the presets');

@@ -5,7 +5,7 @@ import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
-import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
+import { timer, total, remaining, timerLabel, timerTitle, timerUnit, stepPreset, currentMeetingKey, pickMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
@@ -52,7 +52,7 @@ screen.press = () => {
 </script>
 <template>
   <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer' }">
-    <LeftRail :view="mode" :views="{ clock: { eyebrow: CT.MONTHS[parts.month], title: parts.date, subtitle: CT.DAYS[parts.day] }, timer: { eyebrow: timerLabel, title: timerTitle, subtitle: time.time } }">
+    <LeftRail :view="mode" :views="{ clock: { eyebrow: CT.MONTHS[parts.month], title: parts.date, subtitle: CT.DAYS[parts.day] }, timer: { eyebrow: timerLabel, title: timerTitle, unit: timerUnit, subtitle: time.time } }">
       <template #lower>
         <template v-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template>
       </template>

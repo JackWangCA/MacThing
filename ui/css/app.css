@@ -1292,6 +1292,14 @@ h3 {
   font-weight: 600;
   white-space: nowrap;
 }
+/* A unit after a huge title (the timer's "24 min"): the eyebrow's sans, on the same baseline. */
+.lr-unit {
+  margin-left: 12px;
+  font-family: Inter, sans-serif;
+  font-size: 32px;
+  line-height: 1; /* or its own line box makes the title's line taller */
+  font-weight: 600;
+}
 .weight-light {
   font-weight: 300;
 }

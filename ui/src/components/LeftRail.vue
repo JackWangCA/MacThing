@@ -7,8 +7,9 @@ const props = defineProps({
   lowerContent: { type: String, default: '' },
   variant: { type: String, default: 'display' },
   view: { type: String, default: '' }, // a change fades the text out and the new text in
-  // Optional { [view]: { eyebrow, title, subtitle } }: every view's text stays drawn and `view`
-  // picks the one showing, so a switch only fades (see .fade-view) instead of building new text.
+  // Optional { [view]: { eyebrow, title, unit, subtitle } }: every view's text stays drawn and
+  // `view` picks the one showing, so a switch only fades (see .fade-view) instead of building new
+  // text. unit, if any, follows the title in small type (24 min).
   views: { type: Object, default: null },
   mutedSubtitle: Boolean
 });
@@ -24,7 +25,7 @@ const subtitleClass = computed(() => [props.variant === 'media' || props.variant
     <div v-if="views" class="left-rail-views">
       <div v-for="(v, key) in views" :key="key" class="left-rail-content left-rail-view fade-view flex-col gap-12" :class="{ on: key === view }" :data-view="key">
         <p v-if="v.eyebrow" :class="eyebrowClass">{{ v.eyebrow }}</p>
-        <h2 :class="titleClass">{{ v.title }}</h2>
+        <h2 :class="titleClass">{{ v.title }}<span v-if="v.unit" class="lr-unit">{{ v.unit }}</span></h2>
         <div v-if="v.subtitle" :class="subtitleClass">{{ v.subtitle }}</div>
       </div>
     </div>
