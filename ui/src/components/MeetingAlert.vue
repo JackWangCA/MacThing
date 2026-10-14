@@ -46,14 +46,19 @@ const due = computed(() => {
   });
 });
 // One meeting at a time: the one that started last, so each meeting's card is up as it starts
-// even when it overlaps another; before any has started, the next to start.
+// even when it overlaps another; before any has started, the next to start. Of meetings that
+// start together, the one that ends first, as the timer's meeting stop picks.
+const pick = (later) => (a, b) => (b.start !== a.start ? (b.start > a.start) === later : b.end < a.end) ? b : a;
 const event = computed(() => {
   const started = due.value.filter(e => e.start <= state.now);
-  if (started.length) return started.reduce((a, b) => (b.start > a.start ? b : a));
-  return due.value.length ? due.value.reduce((a, b) => (b.start < a.start ? b : a)) : null;
+  if (started.length) return started.reduce(pick(true));
+  return due.value.length ? due.value.reduce(pick(false)) : null;
 });
 // Only once the meeting has started (and a zero-length reminder has nothing to time).
 const canStart = computed(() => event.value.start <= state.now && state.now < event.value.end);
+// The timer it starts runs to the meeting's end: "Start 30 min timer", in minutes rounded up as
+// the timer's own meeting stop shows them. With meetings at once, it says which one it is.
+const startMinutes = computed(() => Math.ceil((event.value.end - state.now) / 60000));
 CT.dismissModal = key => {
   if (!event.value) return false;
   if (key === 'Escape' && canStart.value) {
@@ -105,7 +110,7 @@ const where = computed(() => place(event.value.location) || place(event.value.ca
       </div>
       <div class="m-foot flex">
         <div class="m-when">{{ when }}</div>
-        <div v-if="canStart" class="m-start">Start timer</div>
+        <div v-if="canStart" class="m-start">Start {{ startMinutes }} min timer</div>
       </div>
     </div>
   </div>

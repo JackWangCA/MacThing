@@ -209,6 +209,7 @@ try {
   await tick(now + 181000);
   await pause(400);
   assert.equal(await evaluate('!!document.querySelector(".m-start")'), true, 'The start option once it has');
+  assert.equal(await evaluate('document.querySelector(".m-start").textContent'), 'Start 30 min timer', 'saying how long the timer is');
   await evaluate('window.fixtureSent = []');
   await press('Escape');
   await pause(400);
