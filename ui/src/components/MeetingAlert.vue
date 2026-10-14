@@ -5,7 +5,8 @@ import { startMeetingTimer } from '../timer.js';
 // Settings → Meeting alerts: a sheet over the bottom of every screen from a timed event's alert
 // (its own, from the Mac's Calendar, or a fixed few minutes before) until the meeting ends. Once
 // the meeting has started, the back button under the knob starts the clock's timer on it and
-// dismisses it; any other press (and the back button before then) only dismisses it. Turning the
+// dismisses it; any other press (and the back button before then) only dismisses it — until the
+// meeting starts, if it hasn't yet, so every meeting's card is up at its start time. Turning the
 // knob still sets the volume.
 // A zero-length event (a reminder at 6:34) has no end to wait for: its card stays five minutes.
 const REMINDER_MS = 5 * 60000;
@@ -14,7 +15,8 @@ const REMINDER_MS = 5 * 60000;
 const EVENT_ALERT_MAX_MS = 60 * 60000;
 const STORE = 'ct-dismissed-meetings';
 const keyOf = e => (e.calendarId || '') + '|' + e.start + '|' + (e.title || '');
-// Kept across page reloads (dev, a bridge restart) so a dismissed alert doesn't come back.
+// Each dismissed card's key → when it may come back. Kept across page reloads (dev, a bridge
+// restart) so a dismissed alert doesn't come back early.
 const dismissed = reactive(load());
 function load() {
   try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch (e) { return {}; }
@@ -38,14 +40,18 @@ const untilOf = e => (e.end > e.start ? e.end : e.start + REMINDER_MS);
 const due = computed(() => {
   if (state.calendar.status !== 'ok') return [];
   return state.calendar.events.filter(e => {
-    if (e.allDay || dismissed[keyOf(e)]) return false;
+    if (e.allDay || dismissed[keyOf(e)] > state.now) return false;
     const lead = leadMs(e);
     return lead != null && e.start - lead <= state.now && state.now < untilOf(e);
   });
 });
-// One meeting at a time: the card shows the first, and a press dismisses all of them, so
-// overlapping meetings don't bring up another card straight after.
-const event = computed(() => due.value[0] || null);
+// One meeting at a time: the one that started last, so each meeting's card is up as it starts
+// even when it overlaps another; before any has started, the next to start.
+const event = computed(() => {
+  const started = due.value.filter(e => e.start <= state.now);
+  if (started.length) return started.reduce((a, b) => (b.start > a.start ? b : a));
+  return due.value.length ? due.value.reduce((a, b) => (b.start < a.start ? b : a)) : null;
+});
 // Only once the meeting has started (and a zero-length reminder has nothing to time).
 const canStart = computed(() => event.value.start <= state.now && state.now < event.value.end);
 CT.dismissModal = key => {
@@ -54,7 +60,9 @@ CT.dismissModal = key => {
     startMeetingTimer(event.value);
     CT.showTimer();
   }
-  due.value.forEach(e => { dismissed[keyOf(e)] = untilOf(e); });
+  // A press dismisses only this card. Before the meeting starts, it comes back as it does.
+  const e = event.value;
+  dismissed[keyOf(e)] = e.start > state.now ? e.start : untilOf(e);
   save();
   return true;
 };

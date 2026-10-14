@@ -195,10 +195,15 @@ try {
   await pause(400);
   assert.equal(await evaluate('document.querySelector(".meeting-alert").classList.contains("on")'), false, 'A button dismisses the alert');
   assert.equal(await evaluate('CT.current'), 'clock', 'without also acting');
+  await tick(now + 181000);
+  await pause(400);
+  assert.equal(await evaluate('document.querySelector(".meeting-alert").classList.contains("on")'), true, 'Dismissed early, it comes back as the meeting starts');
+  await press('1');
+  await tick(now);
   // Once the meeting has started, the back button starts its timer and brings it up.
   await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
   await evaluate("CT.show('weather')");
-  await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Example meeting', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
+  await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await pause(400);
   assert.equal(await evaluate('!!document.querySelector(".m-start")'), false, 'No start option before the meeting starts');
   await tick(now + 181000);
