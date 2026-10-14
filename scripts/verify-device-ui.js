@@ -154,7 +154,7 @@ try {
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now - 600000, end: now + 1200000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await press('4');
   await pause(400);
-  assert.match(await rail(), /Meeting ends in20\s*min/, 'The timer opens on the meeting\'s end');
+  assert.match(await rail(), /Standup20\s*min/, 'The timer opens on the meeting\'s end');
   await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:-53, cancelable:true}))");
   await pause(100);
   assert.match(await rail(), /1 hour timer60:00/, 'Turning left goes back to the presets');
@@ -163,7 +163,7 @@ try {
   await press('Enter');
   await tick(now + 600000);
   await pause(1100);
-  assert.match(await rail(), /Meeting ends in9:5\d/, 'The meeting timer counts down to its end');
+  assert.match(await rail(), /Standup9:5\d/, 'The meeting timer counts down to its end');
   await press('Enter'); await press('Enter');
   await press('4');
   await pause(400);
@@ -216,7 +216,7 @@ try {
   assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "command")'), false, 'without favoriting the song');
   await pause(700);
   assert.equal(await evaluate('CT.current'), 'clock', 'and brings the meeting\'s timer up');
-  assert.match(await rail(), /Meeting ends in29:5\d/, 'and is running');
+  assert.match(await rail(), /Standup29:5\d/, 'and is running');
   await press('Enter'); await press('Enter');
   await press('4');
   await pause(400);
@@ -232,7 +232,7 @@ try {
   await tick(now + 181000);
   await pause(1100);
   assert.equal(await evaluate('CT.current'), 'clock', 'A queued timer comes up as the meeting starts');
-  assert.match(await rail(), /Meeting ends in29:5\d/, 'running');
+  assert.match(await rail(), /Review29:5\d/, 'running');
   assert.equal(await evaluate('document.querySelector(".meeting-alert").classList.contains("on")'), false, 'in place of the card');
   await press('Enter'); await press('Enter');
   await press('4');

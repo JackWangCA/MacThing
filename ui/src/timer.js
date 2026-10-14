@@ -49,9 +49,11 @@ export const remaining = computed(() => {
 });
 export const timerLabel = computed(() => {
   const minutes = PRESETS[timer.preset];
-  const name = timer.meeting ? (timer.meeting.kind === 'start' ? 'Next meeting in' : 'Meeting ends in')
+  // Counting to a meeting's end, the label is the meeting's name.
+  const name = timer.meeting ? (timer.meeting.kind === 'start' ? 'Next meeting in' : timer.meeting.title || 'Meeting ends in')
     : minutes === 60 ? '1 hour timer' : minutes + ' minute timer';
-  return timer.status === 'paused' ? name + ' · Paused' : timer.status === 'done' ? "Time's up" : name;
+  // Paused goes first, so a long meeting name cut short on the rail doesn't take it with it.
+  return timer.status === 'paused' ? 'Paused · ' + name : timer.status === 'done' ? "Time's up" : name;
 });
 /** 35:23 — whole seconds, rounded down. */
 export function timerText(ms) {
