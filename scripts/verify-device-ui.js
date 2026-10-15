@@ -146,7 +146,7 @@ try {
   assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets inSession 2h · Week 2d$/);
   // The session (42% used, 56% of its time gone) is behind its pace; the week (86%, 75%) is ahead of it.
   assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-over").length'), 1, 'Usage past the pace takes the accent');
-  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 1, 'Ahead of its pace, the week marks it with a dot');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 2, 'Both usage windows mark their pace with a dot');
   assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-behind").length'), 1, 'Behind its pace, the session shows it as a black arc');
   assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .u-label")).map(l => l.textContent).join()'), 'S,W', 'Each ring is named');
   await capture('usage');

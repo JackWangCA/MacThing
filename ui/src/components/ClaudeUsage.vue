@@ -7,9 +7,9 @@ import { SESSION_MS, WEEK_MS, elapsed, usageOf } from '../usage.js';
 // and the timer, the five-hour session outside and the week inside. Each ring, clockwise from 12:
 // the faint track is the whole allowance and the solid arc (rounded at both ends) is what's been
 // used. The pace — how much of the window's time has gone, where an even pace through it would
-// be — shows two ways. Behind it, a black arc carries on from the usage to the pace. Ahead of
-// it, a black dot as wide as the ring marks the pace on the usage, and the usage past it is
-// drawn in the accent. Each ring's initial, S or W, sits at 12 in a disc the colour of the usage,
+// be — is marked by a black dot just outside the session ring or inside the week ring. Behind
+// it, a black arc carries on from the usage to the pace; usage past it is drawn in the accent.
+// Each ring's initial, S or W, sits at 12 in a disc the colour of the usage,
 // which the usage's rounded start fits under; at 0% the disc is still there to hold it. The
 // numbers come from the Mac (bridge/widgets/usage.js, codex-usage.js), and the provider's mark
 // sits in the middle.
@@ -28,13 +28,12 @@ function point(r, turns) {
   const angle = turns * 2 * Math.PI;
   return { x: 240 + r * Math.sin(angle), y: 240 - r * Math.cos(angle) };
 }
-function ring(r, w, length, initial) {
+function ring(r, w, length, initial, paceOffset) {
   const used = clamp(w.percent / 100), pace = elapsed(w.resetsAt, length, state.now);
   // Each arc as a dash on a circle that starts at 12 (the circle is turned back a quarter). Arcs
   // are rounded with a disc at each end, in the colour of the arc there, rather than with round
   // line caps, which would overlap where two arcs meet.
   const arc = (from, to) => to > from ? { array: (to - from) * C(r) + ' ' + C(r), offset: -from * C(r) } : null;
-  const ahead = w.resetsAt && used >= pace;
   const behind = w.resetsAt && used < pace;
   const caps = [];
   if (behind) {
@@ -48,13 +47,14 @@ function ring(r, w, length, initial) {
     used: arc(0, Math.min(used, pace)),
     over: arc(pace, used),
     caps,
-    pace: ahead ? point(r, pace) : null,
+    pace: w.resetsAt ? point(r + paceOffset, pace) : null,
     initial
   };
 }
 const rings = computed(() => !ok.value ? [] : [
-  ring(166, usage.value.session, SESSION_MS, 'S'),
-  ring(126, usage.value.week, WEEK_MS, 'W')
+  // A 32px offset leaves 5px between the 28px ring and the outlined pace dot.
+  ring(166, usage.value.session, SESSION_MS, 'S', 32),
+  ring(126, usage.value.week, WEEK_MS, 'W', -32)
 ]);
 const message = computed(() => ({
   ok: {},

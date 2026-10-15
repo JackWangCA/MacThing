@@ -1134,9 +1134,10 @@ h3 {
 /* The clock button a third time (ClaudeUsage.vue): two rings across the stage, reaching as far
    out as the clock's ticks and the timer's dots, the session outside and the week inside. Each
    ring layers its whole allowance, then the usage, rounded at both ends. The pace (an even share
-   of the time gone) is a black arc on from the usage when it's behind, and when it's ahead, a
-   dot as wide as the ring, black ringed in white in every theme, with the usage past it in the
-   accent. Each ring's initial sits at 12 in a disc of the usage's colour, there even at 0%, in
+   of the time gone) is marked by a dot beside the ring (outside the session, inside the week),
+   black ringed in white in every theme. A black arc extends from usage to pace when behind;
+   usage past the pace takes the accent. Each ring's initial sits at 12 in a disc of the usage's
+   colour, there even at 0%, in
    the background's colour. The Claude mark sits in the middle, faint. */
 .u-face {
   position: absolute;
