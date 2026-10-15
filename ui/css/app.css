@@ -1135,7 +1135,7 @@ h3 {
    out as the clock's ticks and the timer's dots, the session outside and the week inside. Each
    ring layers its whole allowance, then the usage, rounded at both ends. The pace (an even share
    of the time gone) is marked by a dot beside the ring (outside the session, inside the week),
-   in black without a border. Usage past the pace takes the accent. Each ring's initial sits at
+   in white without a border. Usage past the pace takes the accent. Each ring's initial sits at
    12 in a disc of the usage's colour, there even at 0%, in the background's colour. The Claude
    mark sits in the middle, faint. */
 .u-face {
@@ -1178,7 +1178,7 @@ h3 {
   fill: var(--panel);
 }
 .u-pace {
-  fill: var(--black);
+  fill: var(--white);
 }
 
 /* ===== calendar ===== */

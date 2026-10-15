@@ -7,7 +7,7 @@ import { SESSION_MS, WEEK_MS, elapsed, usageOf } from '../usage.js';
 // and the timer, the five-hour session outside and the week inside. Each ring, clockwise from 12:
 // the faint track is the whole allowance and the solid arc (rounded at both ends) is what's been
 // used. The pace — how much of the window's time has gone, where an even pace through it would
-// be — is marked by a black dot just outside the session ring or inside the week ring.
+// be — is marked by a white dot just outside the session ring or inside the week ring.
 // Usage past it is drawn in the accent.
 // Each ring's initial, S or W, sits at 12 in a disc the colour of the usage,
 // which the usage's rounded start fits under; at 0% the disc is still there to hold it. The
