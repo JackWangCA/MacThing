@@ -13,15 +13,15 @@ export const elapsed = (resetsAt, length, now) => resetsAt ? clamp(1 - (resetsAt
 // little ahead is fine. Late in a window there's little time and little usage left, so even a
 // small lead means slowing right down to make the rest last. The first 10% of the window counts
 // as 10%, so one big first message doesn't read as a runaway. Under 1 you'd end the window under
-// its limit even at this rate. At 97% used, always warn Severe regardless of pace; 100% is Over.
-//   42/56 → 0.6 Good · 28/22 → 1.4 OK · 25/15 → 1.9 Ahead · 61/41 → 2.3 Ahead · 98/93 → Severe
+// its limit even at this rate. At 97% used, always show Max regardless of pace; 100% is Over.
+//   42/56 → 0.6 Good · 28/22 → 1.4 OK · 25/15 → 1.9 Ahead · 61/41 → 2.3 Ahead · 98/93 → Max
 //   45/15 → 4.6 High · 70/30 → 5.4 High · 95/60 → 12.7 Severe · 90/30 → 21 Severe · 95/15 → 108 Severe
 const FLOOR = 0.1, OK = 1, AHEAD = 1.5, HIGH = 3, SEVERE = 10;
-/** 'Good', 'OK', 'Ahead', 'High', 'Severe', or 'Over' (the limit's been hit), for a window from the Mac. */
+/** 'Good', 'OK', 'Ahead', 'High', 'Severe', 'Max', or 'Over' (the limit's been hit), for a window from the Mac. */
 export function paceLevel(w, length, now) {
   const used = clamp(w.percent / 100);
   if (used >= 1) return 'Over';
-  if (used >= 0.97) return 'Severe';
+  if (used >= 0.97) return 'Max';
   if (!w.resetsAt) return 'Good';
   const t = Math.max(FLOOR, elapsed(w.resetsAt, length, now));
   const k = (used / (1 - used)) / (t / (1 - t));
