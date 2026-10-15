@@ -7,15 +7,27 @@ No reflashing: this runs on the community firmware you already have, replaces th
 device shows, and can be undone with one command. Nothing is installed on the device that a
 `npm run restore-device` doesn't put back.
 
-https://github.com/user-attachments/assets/f47f9c9d-7ae7-4c24-92b9-900ebb423bcd
+[Version 0.3.0](https://github.com/srcurran/MacThing/releases) · [Figma artwork and video source](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=327-1567)
 
-![Now Playing on the Car Thing](docs/deviice-now--hug.png)
+![Now Playing on the Car Thing](docs/0.3.0/device-nowplaying.png)
 
-![Weather, Calendar, Now Playing, Clock and Settings on the Car Thing](docs/device-polvo.png)
+![Calendar, Weather, Clock, timer, Claude usage and ChatGPT usage on the Car Thing](docs/0.3.0/device-overview.png)
 
-_The screens are captured from the Car Thing itself at 800×480 with fixture data
-(`npm run mock-screens`), then mounted in the device mockups. The first shot has the album art
-background turned on, the second doesn't._
+_Release artwork uses the current UI at 800×480 with fixture data, rendered locally in Chromium
+and mounted in the Figma device mockups. The 0.3.0 Figma page also contains the video cuts and
+individual screen assets._
+
+## New in 0.3.0
+
+Seven updates since 0.2:
+
+- **Claude and ChatGPT usage:** session and weekly rings, actual percentages, pace labels and reset times.
+- **Meeting alerts with timer controls:** queue a timer before a meeting or start it from the alert once it begins.
+- **Meeting-aware timers:** count down to the current meeting's end or the next one's start, with pause, reset and up to ten minutes of overrun.
+- **More weather detail:** step through the forecast, today's hours and the coming days with the weather button.
+- **Smoother artwork:** a blurred album-art background with contrast-aware tinting and crossfades when tracks change; browser media without a thumbnail uses a generic placeholder.
+- **Consistent circular views:** the clock, timer and usage rings share radial spacing, with outer marks and dots aligned.
+- **Better desk behavior:** open on the Clock when idle, change volume in Mac volume-key steps, wait through brief shadows before dimming, and sleep the display with the Mac.
 
 | Control                               | Action                                                                                                                       |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
@@ -31,14 +43,16 @@ The four screens:
 - **Now Playing** follows whatever is playing in Control Center's Now Playing: Apple Music, Spotify, Podcasts, YouTube in a browser, and so on. It shows the artist, title, album, progress and artwork, plus a paused state and an app badge for non-Music sources. When nothing is playing it keeps the same layout with placeholder text and a note in place of the cover, and the Car Thing opens on the Clock instead (moving to Now Playing once something starts, until you pick a screen). Optionally the artwork also fills the screen behind everything, blurred and tinted.
 - **Calendar** shows today's remaining events and, by default, tomorrow's under their own heading. Choose how many days (1–7) and which calendars on the Mac settings page. Press the calendar button again while it's up to see the whole month, with today circled; press it once more to go back to the agenda.
 - **Weather** shows the current conditions, the next five hours and four days. It uses [Open-Meteo](https://open-meteo.com) (free, no account) for your Mac's location or a place you pick. Press the weather button again while it's up to list the next six hours (Today), once more for the next six days (This Week), and a third time to go back to the forecast. If the forecast can't be fetched, the weather button asks again instead; each failed try makes the next wait longer (4 seconds, then 8, 16 and so on), and the screen says how long.
-- **Clock** shows an analog face (plain or with numbers) or a digital one — pick which on the Mac settings page — plus the next event still to come today, or "No events today". Press the clock button again while the clock is up to swap in a timer: turn the knob to pick 5, 10, 15, 30, 45 or 60 minutes, press it to start or pause, and press twice to reset. The screen flashes when the time is up, and the timer then counts on past it (1:23+) until you reset it or leave it. Press the clock button again to go back to the clock; while the timer is running or paused, the knob still sets the volume.
-  - **Until the meeting ends.** While a timed Calendar event is going on, the timer opens set to that meeting's end ("Until Standup ends"), already counting down; it's a knob stop just left of 5 minutes, there only during a meeting. The dial's full turn is the whole meeting, so it shows how much of it is left. Started, it runs to the meeting's actual end time, and follows it if the meeting is moved in Calendar — unless you've paused it. Once the meeting's over it counts on past the end (1:23+) for ten minutes at most, then goes back to the clock. With overlapping meetings it uses the one that ends first; all-day events don't count. Turn on **Meeting timer → Auto-start** in Settings and it starts by itself as each meeting begins (or straight away, if you turn it on mid-meeting). It takes the clock's place on the Clock screen without leaving the screen you're on, and flashes at the meeting's end like any timer. It leaves a timer you've started or paused alone; back-to-back meetings follow on from one another.
+- **Clock** shows an analog face (plain or with numbers) or a digital one — pick which on the Mac settings page — plus the next event still to come today, or "No events today". Press the clock button again while the clock is up to swap in a timer: turn the knob to pick 5, 10, 15, 30, 45 or 60 minutes, press it to start or pause, and press twice to reset. The screen flashes when the time is up, and the timer then counts on past it (1:23+) until you reset it or leave it. Press the clock button again for Claude usage, and once more to go back to the clock; while the timer is running or paused, the knob still sets the volume.
+  - **Until the meeting ends, or starts.** Past 60 minutes there's one more knob stop: while a timed Calendar event is going on, the time until it ends, labelled with the meeting's name; otherwise the time until the next one today starts ("Next meeting in"); with neither, no stop. Until you start it, it shows the minutes left, rounded up, and doesn't tick: 9:49 to go reads 10 min. During a meeting the timer opens on this stop. Counting to a meeting's end, the dial's full turn is the whole meeting, so it shows how much of it is left. Started, it runs to the meeting's actual time, and follows it if the meeting is moved in Calendar — unless you've paused it. Once the meeting's over it counts on past the end (1:23+) for ten minutes at most, then goes back to the clock. With overlapping meetings it uses the one that ends first; all-day events don't count. With meeting alerts on, the card's **Queue**/**Start** option starts it, as the meeting begins or once it has, and switches to it; nothing else starts it, or switches screens, by itself. It flashes at the meeting's end like any timer.
+  - **Claude usage.** The clock button's third press shows how much of your Claude plan you've used — the same numbers as Claude Code's `/usage` — as two rings the size of the clock: the current five-hour session outside and the week inside. Each ring's faint track is the whole allowance and the white arc is what you've used. The pace — how much of that window's time has gone, where you'd be using it evenly — is marked by a white dot outside the session ring and inside the weekly ring. The dots are solid white with no border; usage past the dot is orange. Each ring is marked with its initial, S or W, in a white circle at 12 o'clock, and the bottom line says how long until each resets (Session 1.5h · Week 5d) in place of the next event. The left side says how worried to be about each: **Good**, **OK**, **Ahead**, **High**, **Severe**, **Max** or **Over**, big for the session and smaller for the week. It compares how fast you've been using the window with how fast you can still afford to — (used ÷ time gone) ÷ (what's left ÷ time left). Early in a window that's mostly your burn rate, so being a little ahead is fine (28% used 22% of the way in is OK) but burning hot isn't (45% at 15% is High). Late in a window there's little left either way, so even a small lead means slowing down (96% at 93% is High). Under 1× is Good (you'd finish the window under its limit even at this rate), 1–1.5× OK, 1.5–3× Ahead, 3–10× High, 10× or more Severe. At 97% used or more it always says Max regardless of pace; at 100% it says Over. It uses the Claude Code command line's sign-in on your Mac (the "Claude Code-credentials" Keychain item; the first time, macOS asks whether `security` may read it, so choose Always Allow), and only ever reads the access token, so it never signs Claude Code out. Signing in to the Claude desktop app doesn't count: if it says "Not signed in to Claude", run `claude auth login` in Terminal. The numbers refresh every five minutes, and when you open the view (at most once a minute). If the sign-in has expired, the screen says so until Claude Code renews it, or run `claude auth login` again.
+  - **ChatGPT, both or neither.** **Usage** in Settings (or on the Mac settings page) picks Claude (the default), ChatGPT, Both (a Claude view and then a ChatGPT one, each a press of the clock button) or None (no usage view, and nothing read on the Mac). The ChatGPT view shows your ChatGPT plan's limits: the five-hour and weekly limits Codex runs under, with the OpenAI mark in the middle. They come from the session logs Codex writes on your Mac (`~/.codex/sessions`) — no sign-in, nothing sent anywhere — so they're as of the last time you used Codex (the app or the command line). A window whose reset has passed since then shows as fresh. With no Codex use in the last month, it says "No ChatGPT usage yet".
 
-<img src="docs/weather-today-polvo.png" width="49%" alt="Weather's Today view: the next six hours"> <img src="docs/weather-week-polvo.png" width="49%" alt="Weather's This Week view: the next six days">
+<img src="docs/0.3.0/weather-today.png" width="49%" alt="Weather's Today view: the next six hours"> <img src="docs/0.3.0/weather-week.png" width="49%" alt="Weather's This Week view: the next six days">
 
 _Weather's Today and This Week views, from the same fixture data (rendered in Chromium rather than captured on the device)._
 
-**Meeting alerts** (off by default; turn them on in Settings): at a timed event's alert, a card with its title, start and end time and location covers whatever screen is up. A video call is named by its service (Zoom, Google Meet, Microsoft Teams, Webex, FaceTime) rather than shown as a link, including when the link is only in the event's URL or notes. "Event's alert" uses the alert set on the event in Calendar (only alerts within an hour of the start; events without one are skipped); or pick a fixed 1, 5 or 10 minutes before every event. It stays until you press any button or the knob — that press only dismisses it — or until five minutes after the meeting starts (sooner if the meeting ends first). It shows one meeting at a time: when meetings overlap, the card shows the first, and one press dismisses them all. Turning the knob still sets the volume.
+**Meeting alerts** (off by default; turn them on in Settings): at a timed event's alert, a sheet with its title, start and end time and location comes up over the bottom of whatever screen is up. A video call is named by its service (Zoom, Google Meet, Microsoft Teams, Webex, FaceTime) rather than shown as a link, including when the link is only in the event's URL or notes. "Event's alert" uses the alert set on the event in Calendar (only alerts within an hour of the start; an event without one gets the card as it starts); or pick a fixed 1, 5 or 10 minutes before every event. The back button under the knob works the Clock screen's timer from the card. Before the meeting, the card shows **Queue 30 min timer** (the meeting's length): press back to queue it (the card stays and says **Cancel timer**, in red; press back again to un-queue it), and the timer starts as the meeting does and comes up on the Clock screen, in place of the card. Once the meeting has started, it shows **Start 30 min timer** (the minutes left until it ends): press back to start the timer to the meeting's end (it comes up on the Clock screen). Only one timer can be queued. Only one timer runs at a time, so with two meetings at once each card says which one its timer is for. Any other button or the knob — or the back button before the meeting starts — cancels — that press only dismisses the card. It stays until then, or until the meeting ends, its "In 3 min" turning to "22 min ago" once it's started (a zero-length event's stays five minutes). Dismissed before the meeting starts, it comes back as it does, so every meeting's card is up at its start time. It shows one meeting at a time: when meetings overlap, the one that started last (before any has, the next to start; of two that start together, the one that ends first), and a press dismisses only that one. Turning the knob still sets the volume.
 
 **Sleep:** the Car Thing's screen turns off whenever your Mac's display sleeps, when you hold the settings button, and — this part runs on the device itself — about a minute and a half after the Mac stops talking to it at all: shut down, unplugged from the Mac but still powered, or just the bridge stopped. Press any button or turn the knob to wake it; while the Mac is away it stays lit for 20 seconds, and while the Mac is only asleep, for a minute. That first input only wakes it.
 
@@ -46,7 +60,7 @@ The backlight is the part that wears out, so "off" means the backlight really is
 
 **Lock:** while your Mac is locked — the lock screen, or switched to another account — the backlight stays off and no button wakes it. It comes back when you log in.
 
-**Settings** covers appearance (dark, light or match the Mac), the album art background, meeting alerts, the meeting timer's auto-start and the weather location. Anything that needs typing or a longer list, or that you set once — a city, °F/°C, 12/24-hour time, and which calendars and how many days the Calendar screen shows — opens a settings page on your Mac at http://127.0.0.1:4747.
+**Settings** covers appearance (dark, light or match the Mac), the album art background, meeting alerts, whose usage the Clock shows (Claude, ChatGPT, both or none) and the weather location. Anything that needs typing or a longer list, or that you set once — a city, °F/°C, 12/24-hour time, and which calendars and how many days the Calendar screen shows — opens a settings page on your Mac at http://127.0.0.1:4747.
 
 ### Before you grant anything
 
@@ -58,6 +72,7 @@ Nothing is required for the device to work: Now Playing and the clock need no pe
 | Calendar                                  | "Calendar access is off", naming the System Settings pane   | allow Calendars for Car Thing Helper           |
 | Weather                                   | "Location access is off" with the place-picker hint         | allow Location, or pick a city on the Mac page |
 | Clock                                     | works; no event line or meeting timer until Calendar is allowed | allow Calendars for Car Thing Helper           |
+| Clock → Claude usage                      | "Not signed in to Claude" or "Claude sign-in expired"       | run `claude auth login` in Terminal; Always Allow the Keychain prompt |
 | Back button (favorite)                    | toast: "Allow musicctl to control Music"                    | allow Automation for musicctl                  |
 | Knob on an output with no software volume | "No volume control on <device>"                             | use an output that has one                     |
 | Bridge not running                        | "Waiting for your Mac"                                      | start it, or `npm run install-agent`           |
@@ -150,9 +165,9 @@ npm run restore-device    # put Spotify's original web app and config back, then
 
 ## Design
 
-Every screen is drawn in the Figma file [spotify-now-playing-2026](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/spotify-now-playing-2026?node-id=0-1) — Now Playing and its states, the three widgets, Settings, and light copies of them all. The type scale is by size, so the same numbers turn up everywhere:
+The screen designs and release artwork are in the Figma file [MacThing](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=327-1567) — Now Playing and its states, the three widgets, Settings, and light copies of them all. The type scale is by size, so the same numbers turn up everywhere:
 
-- 112 / 120 semibold, Merriweather: the big number (weather temperature, clock date, calendar time)
+- 104 / 120 semibold, Merriweather: the big number (weather temperature, clock date, calendar time, the timer, Claude usage's level)
 - 30 regular, Merriweather: the numerals on the Numbers clock face
 - 40 / 56 semibold, Merriweather: the song title
 - 32 / 40 semibold: second line of a panel, weather conditions
@@ -266,7 +281,7 @@ this shows. If Control Center is also empty, `npm run build` self-tests the Medi
 
 - **Now Playing relies on a workaround.** Since macOS 15.4, Apple only lets its own entitled processes read MediaRemote. [ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) gets around this by running inside `/usr/bin/perl`, which Apple signs. `npm run build` self-tests it. A future macOS update could break it. An AppleScript fallback for Music.app would be the plan B, and `bridge/nowplaying/mediaremote.js` documents the interface such a source would implement.
 - **Only one source at a time.** Control Center can list several players; this shows the one macOS considers current.
-- **Browser video artwork.** macOS only gets a small thumbnail for browser video. When the playing tab is in Chrome, Safari, Arc, Brave, Edge, Vivaldi or Opera, the bridge finds it by title and loads a larger image instead (for YouTube, the full-size thumbnail; otherwise the page's `og:image`). The first time, macOS asks to let the bridge control that browser; if you decline, you get the small thumbnail. The art is still centre-cropped to the square panel, so the sides of a 16:9 frame are cut off.
+- **Browser video artwork.** macOS only gets a small thumbnail for browser video. When the playing tab is in Chrome, Safari, Arc, Brave, Edge, Vivaldi or Opera, the bridge finds it by title and loads a larger image instead (for YouTube, the full-size thumbnail; otherwise the page's `og:image`). The first time, macOS asks to let the bridge control that browser; if you decline, you get the small thumbnail. The art is still centre-cropped to the square panel, so the sides of a 16:9 frame are cut off. If the browser supplies the default Chromium icon instead of a thumbnail, the device shows its generic music-note placeholder.
 - **Non-Latin scripts.** The device has no CJK font, so Japanese, Chinese or Korean titles render as boxes. Adding a Noto Sans CJK subset to `ui/fonts` would fix it.
 - **Volume depends on the output device.** HDMI, S/PDIF and some USB DACs have no software volume. The screen then says "No volume control on …".
 - **Weather data.** Your location leaves the Mac rounded to about 1 km, and only to Open-Meteo. Hourly and daily labels use the forecast place's own timezone.
@@ -343,6 +358,12 @@ grabs whatever is on screen now. `node scripts/util/art-compare.js [covers-dir] 
 background four ways (current, Mac blur with the usual tint, CSS blur with mirrored edges, the original CSS
 blur) over each cover in a folder, in both themes, over whatever screen is up, and writes an `index.html`
 that lays them side by side.
+
+## Contributing
+
+Outside pull requests are labelled **needs-triage** for maintainer review. Open a focused PR with a description of the change and how you checked it. Device UI changes should include screenshots and note whether they were tested on a Car Thing.
+
+Release artwork and video assets for 0.3.0 are documented in [docs/0.3.0](docs/0.3.0/README.md).
 
 ## Credits
 

@@ -4,7 +4,7 @@ native/bin/
 vendor/
 *.png
 !ui/images/*.png
-!docs/*.png
+!docs/**/*.png
 .DS_Store
 .claude/
 .idea/

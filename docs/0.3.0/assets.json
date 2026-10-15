@@ -1,0 +1,166 @@
+{
+  "version": "0.3.0",
+  "previewCommit": "1909276299cec127eee22aa99eca6248a424a4a2",
+  "uiHash": "9d4d5db51bf5",
+  "pullRequests": [
+    {
+      "number": 37,
+      "commit": "833a76743e48c73857e7486a372ecc0705cae35a"
+    },
+    {
+      "number": 40,
+      "commit": "462ba9993b709fb068f08a3a0a8de4327ad08e0f"
+    },
+    {
+      "number": 41,
+      "commit": "1581fc9af49d5add4bc11a7a14ba7e227f64e775"
+    },
+    {
+      "number": 42,
+      "commit": "e03cd6880a9e6d85e57dd1db2b55a4d7e55bd2e3"
+    },
+    {
+      "number": 43,
+      "commit": "4ddb571559671d3b67e1d33306720d6d0c6b3519"
+    }
+  ],
+  "renderer": "Local Chromium, 800×480, device scale factor 1",
+  "physicalDeviceVerification": "Deferred at the user’s request; the device was left unchanged.",
+  "figma": {
+    "fileKey": "Xw7pn5j4QZ8Ns237keo3ev",
+    "pageId": "327:1567",
+    "fullCut": "327:1643",
+    "shortCut": "327:1691",
+    "deviceOverview": "333:1567"
+  },
+  "albums": [
+    {
+      "artist": "Björk",
+      "album": "Post",
+      "source": "https://en.wikipedia.org/wiki/Post_(Bj%C3%B6rk_album)",
+      "file": "artwork/post.png",
+      "screens": [
+        "claude",
+        "nowplaying-post"
+      ]
+    },
+    {
+      "artist": "Do Make Say Think",
+      "album": "Goodbye Enemy Airship the Landlord Is Dead",
+      "source": "https://en.wikipedia.org/wiki/Goodbye_Enemy_Airship_the_Landlord_Is_Dead",
+      "file": "artwork/goodbye-enemy-airship.jpg",
+      "screens": [
+        "chatgpt",
+        "nowplaying-goodbye"
+      ]
+    },
+    {
+      "artist": "The Books",
+      "album": "Lost and Safe",
+      "source": "https://en.wikipedia.org/wiki/Lost_and_Safe",
+      "file": "artwork/lost-and-safe.jpg",
+      "screens": [
+        "meeting-timer",
+        "nowplaying-books"
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "file": "calendar-month.png",
+      "sha256": "2b84f11a43ba0071833c28d38547994590080b6f3a21aa5923390e165a9c7189"
+    },
+    {
+      "file": "calendar.png",
+      "sha256": "6b9124101cba75a8495fe5bb9837c57c611785382a33da68c512cf0f341ae1f3"
+    },
+    {
+      "file": "chatgpt.png",
+      "sha256": "b20e5fa0215a1be44e29df5c2f46ac3a60bbc2c8bff04571c7f1a26c77d67222"
+    },
+    {
+      "file": "claude.png",
+      "sha256": "09150f2bdf3f9fce7bc4510c47407fa6febb487691a19cd3259b6a56eb15c237"
+    },
+    {
+      "file": "clock.png",
+      "sha256": "4ba4986fb832949803f147df097490039c1ce3471042640554e23fea4204b0b7"
+    },
+    {
+      "file": "device-nowplaying.png",
+      "sha256": "f6bb561f0eb2a5dcdcb8f4b9893eb94304e3bb1306e635d6ba400c0cea9eb3f3"
+    },
+    {
+      "file": "device-overview.png",
+      "sha256": "9087d77aada57b7ff0e4199ff02634110014dc81271c8b24ff05ce19dc23f3d5"
+    },
+    {
+      "file": "meeting-alert.png",
+      "sha256": "a9e9b3ff468e13fd67281396d0194986e4e181e977d104c201cb8b5621143f80"
+    },
+    {
+      "file": "meeting-timer.png",
+      "sha256": "ddd91857f748ec240a872da1bf4757d6fe6d6d8d41a35fad239e694546183968"
+    },
+    {
+      "file": "nowplaying-books.png",
+      "sha256": "63cc3e0d4c7480aff569a6316cb47c30a49c0e410aec31f7ed7db028f1aae93f"
+    },
+    {
+      "file": "nowplaying-empty.png",
+      "sha256": "66fab5bb5f45fe4e0f3081926b4ec767adb29a5564e65a14aa77e19a26f62ecc"
+    },
+    {
+      "file": "nowplaying-goodbye.png",
+      "sha256": "a12c944c7706f33388979b005d7d673e943869a6c55c4a9a8cd3d653f7fb7aff"
+    },
+    {
+      "file": "nowplaying-post.png",
+      "sha256": "0bbe89838e7096c11a736d3042f3f787d3a3123c3ccef98e76b5e3d6f84dec7c"
+    },
+    {
+      "file": "nowplaying.png",
+      "sha256": "ce7bf76ad044b9a89f29ee9f9b598974f57b879684370dcaf5ceaf496b8b86b8"
+    },
+    {
+      "file": "settings.png",
+      "sha256": "a63cf03d685d2cfc24b275649d0c854f1950aeeab244bb0a44ff97ac0e30f5cb"
+    },
+    {
+      "file": "timer-countdown-32-19.png",
+      "sha256": "bcb8f1381beacb59905521d6a5a3a9020f9f3b3ee248a07d80c3e1fb06b70b0d"
+    },
+    {
+      "file": "timer-countdown-32-20.png",
+      "sha256": "aae3089d3f77284ffbb0fd1a6d45989b890b808a5249023d61515544a8728cb4"
+    },
+    {
+      "file": "timer-countdown-32-21.png",
+      "sha256": "f9080e145798bf35b87dcd50c553f9c6cbb40430cc20430b1f5b80e5d369e9a7"
+    },
+    {
+      "file": "timer-countdown-32-22.png",
+      "sha256": "21aa78896bd02475d9e70b8a726fc245e70cdb8844570a73b00eaf2d6c9331e3"
+    },
+    {
+      "file": "timer-running.png",
+      "sha256": "02e9792e57fe5681f934fe95155628a9eec582c6ed84b2723bffd9e9182e01c9"
+    },
+    {
+      "file": "timer.png",
+      "sha256": "04e3421bf08f231bd4842ed0c75367c8f64255749e5d3972a3a90a9e354c8fb8"
+    },
+    {
+      "file": "weather-today.png",
+      "sha256": "72c572db1a8aea724cac4cfbe02c849f07b74981d59f5ea873af0d0cf7b79bdf"
+    },
+    {
+      "file": "weather-week.png",
+      "sha256": "11fbaa52161ae80c997492692292124070c804f02e45198b8c452e787f8a2431"
+    },
+    {
+      "file": "weather.png",
+      "sha256": "bf91b7a9676f60bdd771505d430b29816f2a906ff73a35a503d61876b9b8d4de"
+    }
+  ]
+}
