@@ -115,10 +115,16 @@ try {
   await evaluate("CT.show('clock')");
   await capture('clock');
   assert.match(await evaluate('document.querySelector("#screen-clock .left-rail").textContent'), /3:35 PM.*Example event 1/);
-  // The clock button on the clock swaps in the timer; the knob sets, runs and resets it.
+  // The clock button on the clock steps to the timer, then the usage Settings → Usage asks for (Claude
+  // by default); the knob sets, runs and resets the timer.
   const press = key => evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {key:'${key}'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'${key}'}))`);
   const rail = () => evaluate('document.querySelector("#screen-clock .left-rail-view.on").textContent');
-  while (await evaluate('!!document.querySelector("#screen-clock .c-view-timer.on")')) await press('4'); // start from the clock
+  const clockView = () => evaluate('document.querySelector("#screen-clock .left-rail-view.on").getAttribute("data-view")');
+  async function toClock() {
+    while (await clockView() !== 'clock') await press('4');
+    await pause(400);
+  }
+  await toClock(); // start from the clock
   await press('4');
   await pause(400); // the clock's text fades out (0.3 s) before the timer's is the only one
   await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
@@ -129,15 +135,54 @@ try {
   await pause(1100);
   assert.match(await rail(), /30 minute timer1[67]:\d\d/, 'Timer counts down');
   await capture('timer');
+  await message({ type: 'usage', usage: { status: 'ok', session: { percent: 42, resetsAt: now + 754000 + 133 * 60000 }, week: { percent: 86, resetsAt: Date.UTC(2026, 8, 24, 9) }, updatedAt: now + 754000 } });
   await press('4');
   await pause(400); // the timer fades out (0.3 s)
-  assert.equal(await evaluate('!!document.querySelector("#screen-clock .c-view-timer.on")'), false, 'The clock button goes back to the clock');
+  assert.equal(await clockView(), 'claude', 'The clock button goes on to Claude usage');
+  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "refreshUsage")'), true, 'Opening usage asks the Mac for fresh numbers');
+  // The session (42% used, 56% of its time gone) is under pace; the week (86%, 75%) is twice it.
+  assert.match(await rail(), /Session usageGoodWeek usage: Ahead/);
+  // In place of the next event: the session resets in 2 h 13 min, the week on Thursday at 9.
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets inSession 2h · Week 2d$/);
+  // The session (42% used, 56% of its time gone) is behind its pace; the week (86%, 75%) is ahead of it.
+  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-over").length'), 1, 'Usage past the pace takes the accent');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 1, 'Ahead of its pace, the week marks it with a dot');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-behind").length'), 1, 'Behind its pace, the session shows it as a black arc');
+  assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .u-label")).map(l => l.textContent).join()'), 'S,W', 'Each ring is named');
+  await capture('usage');
+  await message({ type: 'usage', usage: { status: 'expired' } });
+  assert.match(await evaluate('document.querySelector("#screen-clock .stage-message").textContent'), /Claude sign-in expired/);
+  await capture('usage-expired');
+  // Settings → Usage → Both adds ChatGPT's view after Claude's: Codex's limits the same way, the
+  // session (82%, 80% of it gone) just over pace, the week (10%, 32% gone) under it.
+  await message({ type: 'settings', settings: { ...settings, usageSource: 'both' } });
+  await message({ type: 'chatgptUsage', usage: { status: 'ok', session: { percent: 82, resetsAt: now + 754000 + 60 * 60000 }, week: { percent: 10, resetsAt: Date.UTC(2026, 8, 27, 9) }, updatedAt: now } });
+  await press('4');
+  await pause(400);
+  assert.equal(await clockView(), 'chatgpt', 'With Both, the clock button goes on to ChatGPT usage');
+  assert.equal(await evaluate('document.querySelector("#screen-clock .fade-view.on .u-face").getAttribute("aria-label")'), 'ChatGPT usage');
+  assert.match(await rail(), /Session usageOKWeek usage: Good/);
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets inSession 1h · Week 5d$/);
+  await capture('usage-chatgpt');
+  await message({ type: 'chatgptUsage', usage: { status: 'none' } });
+  assert.match(await evaluate('document.querySelector("#screen-clock .fade-view.on .stage-message").textContent'), /No ChatGPT usage yet/);
+  await press('4');
+  await pause(400);
+  assert.equal(await clockView(), 'clock', 'and then back to the clock');
+  // Usage → None: the clock button only swaps the clock and the timer.
+  await message({ type: 'settings', settings: { ...settings, usageSource: 'none' } });
+  await press('4');
+  await pause(400);
+  await press('4');
+  await pause(400);
+  assert.equal(await clockView(), 'clock', 'With Usage → None there is no usage view');
+  await message({ type: 'settings', settings });
   await press('4');
   await pause(400);
   await press('Enter'); await press('Enter');
   await pause(100);
   assert.match(await rail(), /30 minute timer30:00/, 'Double press resets');
-  await press('4');
+  await toClock();
   await tick(now);
   // During a meeting the timer opens set to its end, and runs to it.
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now - 600000, end: now + 1200000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
@@ -154,8 +199,7 @@ try {
   await pause(1100);
   assert.match(await rail(), /Until Standup ends9:5\d/, 'The meeting timer counts down to its end');
   await press('Enter'); await press('Enter');
-  await press('4');
-  await pause(400);
+  await toClock();
   await tick(now);
   // Settings → Meeting timer starts it on its own, without leaving the screen you're on.
   await evaluate("CT.show('weather')");
@@ -167,8 +211,7 @@ try {
   await message({ type: 'settings', settings });
   await evaluate("CT.show('clock')");
   await press('Enter'); await press('Enter');
-  await press('4');
-  await pause(400);
+  await toClock();
   await tick(now);
   // Meeting alerts: a card over the screen before a meeting; any press only dismisses it.
   await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
@@ -183,7 +226,7 @@ try {
   await message({ type: 'settings', settings });
   await evaluate("CT.show('settings'); CT.screens.settings.turn(3); CT.screens.settings.press()");
   await pause(100);
-  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "meetingTimer" && m.value === true)'), true);
+  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "usageSource" && m.value === "chatgpt")'), true, 'Settings → Usage steps Claude to ChatGPT');
   await capture('settings');
   await message({ type: 'settings', settings: { ...settings, theme: 'light' } });
   await evaluate("CT.show('clock')");

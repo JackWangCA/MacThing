@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Car Thing bridge: macOS Now Playing, volume, weather and calendar ⇄ the Car Thing's screen,
+// Car Thing bridge: macOS Now Playing, volume, weather, calendar and Claude/ChatGPT usage ⇄ the Car Thing's screen,
 // knob and buttons. Also serves the Mac-side settings page.
 //   npm start          run the bridge
 //   npm run dev        …and redeploy the device UI whenever ui/ changes
@@ -22,6 +22,8 @@ import { MacPower } from './mac/power.js';
 import { settings } from './settings.js';
 import { startSettingsPage } from './settings-page/server.js';
 import { Calendar } from './widgets/calendar.js';
+import { ClaudeUsage } from './widgets/usage.js';
+import { CodexUsage } from './widgets/codex-usage.js';
 import { Weather } from './widgets/weather.js';
 
 const source = new MediaRemoteSource(paths.bin);
@@ -31,6 +33,10 @@ const artwork = new ArtworkCache(path.join(paths.bin, 'artwork'), { blur: config
 const helper = new MacHelper(paths.bin);
 const weather = new Weather(helper, settings);
 const calendar = new Calendar(helper, settings);
+// Settings → Usage: only the providers it names are read (none: no Keychain or Codex logs at all).
+const wantsUsage = (provider) => [provider, 'both'].includes(settings.get().usageSource);
+const usage = new ClaudeUsage({ enabled: () => wantsUsage('claude') });
+const chatgptUsage = new CodexUsage({ enabled: () => wantsUsage('chatgpt') });
 const appearance = new MacAppearance();
 const power = new MacPower(paths.bin);
 
@@ -146,6 +152,8 @@ function pushAll(target) {
   pushNowPlaying(target);
   target.send({ type: 'weather', weather: weather.state });
   target.send({ type: 'calendar', calendar: calendar.state });
+  target.send({ type: 'usage', usage: usage.state });
+  target.send({ type: 'chatgptUsage', usage: chatgptUsage.state });
   target.send({ type: 'screen', on: screenOn !== false }); // the page may have gone dark by itself
 }
 
@@ -291,6 +299,9 @@ function onDeviceMessage(msg) {
       return openSettingsPage(msg.section);
     case 'retryWeather':
       return retryWeather(msg.quiet);
+    case 'refreshUsage':
+      chatgptUsage.refresh();
+      return usage.ask();
     case 'log':
       return log.info('[device]', msg.message);
   }
@@ -385,8 +396,15 @@ volume.on('change', (v) => {
   link?.send({ type: 'volume', volume: v });
 });
 settings.on('change', (values) => link?.send({ type: 'settings', settings: values }));
+settings.on('change', (_, changed) => {
+  if (!changed.includes('usageSource')) return;
+  usage.refresh();
+  chatgptUsage.refresh();
+});
 weather.on('change', (state) => link?.send({ type: 'weather', weather: state }));
 calendar.on('change', (state) => link?.send({ type: 'calendar', calendar: state }));
+usage.on('change', (state) => link?.send({ type: 'usage', usage: state }));
+chatgptUsage.on('change', (state) => link?.send({ type: 'chatgptUsage', usage: state }));
 appearance.on('change', (dark) => link?.send({ type: 'appearance', dark }));
 power.on('display', () => applyScreen());
 power.on('lock', (locked) => {
@@ -411,6 +429,8 @@ volume.start();
 helper.start();
 weather.start();
 calendar.start();
+usage.start();
+chatgptUsage.start();
 appearance.start();
 power.start();
 startSettingsPage({ port: config.settingsPort, settings, status: macStatus });

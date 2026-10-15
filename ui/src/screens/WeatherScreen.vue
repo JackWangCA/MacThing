@@ -26,7 +26,7 @@ const message = computed(() => {
         ? "Location access is off"
         : "Can’t find your location",
       detail:
-        "Press the settings button and choose Weather location to pick a place.",
+        "Press the settings button and choose Weather to pick a place.",
     };
   return data.value.status === "error"
     ? { title: "Weather unavailable", detail: "Press the weather button to try again." }

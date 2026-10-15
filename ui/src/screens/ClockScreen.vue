@@ -5,21 +5,48 @@ import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
+import ClaudeUsage from '../components/ClaudeUsage.vue';
+import { SESSION_MS, WEEK_MS, paceLevel, untilText, usageProviders, usageOf } from '../usage.js';
 import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, autoStartMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
 const next = computed(() => state.calendar.status === 'ok' ? state.calendar.events.find(e => !e.allDay && e.start > state.now && CT.dayNumber(e.start) === CT.dayNumber(state.now)) : null);
-// The clock button, pressed on the clock, swaps it for the timer and back. Knob and wheel work
-// the timer only while it's up: turn to pick a length, press to start or pause, press twice to reset.
-// During a meeting it opens set to the meeting's end, a stop just left of 5 minutes; reset there
-// drops back to the preset, stopped.
+// The clock button, pressed on the clock, steps it to the timer, then each usage Settings → Usage
+// asks for (Claude, ChatGPT, both or none), then back. Knob and wheel work the timer only while
+// it's up: turn to pick a length, press to start or pause, press twice to reset. During a meeting
+// it opens set to the meeting's end, a stop just left of 5 minutes; reset there drops back to the
+// preset, stopped. Opening a usage asks the Mac for fresh numbers (Claude's at most once a minute).
+const providers = computed(() => usageProviders(state));
+const modes = computed(() => ['clock', 'timer', ...providers.value]);
+const isUsage = m => m === 'claude' || m === 'chatgpt';
 const mode = ref('clock');
 const screen = CT.screen('clock');
 screen.reselect = () => {
-  mode.value = mode.value === 'clock' ? 'timer' : 'clock';
+  mode.value = modes.value[(modes.value.indexOf(mode.value) + 1) % modes.value.length];
   if (mode.value === 'timer') pickMeeting();
+  if (isUsage(mode.value)) CT.send({ type: 'refreshUsage' });
 };
+screen.show = () => { if (isUsage(mode.value)) CT.send({ type: 'refreshUsage' }); };
+// A usage that's been taken out of Settings → Usage while it's up gives way to the clock.
+watch(providers, list => { if (isUsage(mode.value) && !list.includes(mode.value)) mode.value = 'clock'; });
+// Each usage's rail says how worried to be about the session, and the week under it (see usage.js).
+function usageRail(provider) {
+  const u = usageOf(state, provider);
+  if (u.status !== 'ok') return { eyebrow: 'Session usage', title: '--', subtitle: '' };
+  return { eyebrow: 'Session usage', title: paceLevel(u.session, SESSION_MS, state.now), subtitle: 'Week usage: ' + paceLevel(u.week, WEEK_MS, state.now) };
+}
+const railViews = computed(() => {
+  const views = { clock: { eyebrow: CT.MONTHS[parts.value.month], title: parts.value.date, subtitle: CT.DAYS[parts.value.day] }, timer: { eyebrow: timerLabel.value, title: timerTitle.value, subtitle: time.value.time } };
+  providers.value.forEach(p => { views[p] = usageRail(p); });
+  return views;
+});
+// On a usage, the line at the bottom is when its windows reset instead of the next event.
+const resets = computed(() => {
+  if (!isUsage(mode.value)) return null;
+  const u = usageOf(state, mode.value);
+  return u.status === 'ok' ? { session: untilText(u.session.resetsAt, state.now), week: untilText(u.week.resetsAt, state.now) } : null;
+});
 // While it's up and not started, a meeting that starts sets it too, as does one that turns up
 // when the calendar first loads (after a reload that reopened the timer). With Settings → Meeting
 // timer on, a meeting that starts (or is on when it's turned on) starts the timer, puts it up in
@@ -41,27 +68,29 @@ CT.onSecond(now => {
   mode.value = 'clock';
 });
 screen.turn = steps => {
-  if (mode.value === 'clock' || timer.status === 'running' || timer.status === 'paused') return false;
+  if (mode.value !== 'timer' || timer.status === 'running' || timer.status === 'paused') return false;
   stepPreset(steps);
 };
 let lastPress = 0;
 screen.press = () => {
-  if (mode.value === 'clock') return false;
+  if (mode.value !== 'timer') return false;
   const t = performance.now();
   if (t - lastPress < (CT.config.multiClickMs || 350)) { clearTimer(); lastPress = 0; } else { toggleTimer(); lastPress = t; }
 };
 </script>
 <template>
   <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer' }">
-    <LeftRail :view="mode" :views="{ clock: { eyebrow: CT.MONTHS[parts.month], title: parts.date, subtitle: CT.DAYS[parts.day] }, timer: { eyebrow: timerLabel, title: timerTitle, subtitle: time.time } }">
+    <LeftRail :view="mode" :views="railViews">
       <template #lower>
-        <template v-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template>
+        <template v-if="resets"><div>Resets in</div><div>Session <b class="primary medium">{{ resets.session }}</b> · Week <b class="primary medium">{{ resets.week }}</b></div></template>
+        <template v-else-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template>
       </template>
     </LeftRail>
     <ScreenStage class="bg-panel">
-      <!-- Both faces stay drawn and only fade (see .fade-view), so a press doesn't have to build and
+      <!-- Every view stays drawn and only fades (see .fade-view), so a press doesn't have to build and
            paint the incoming one while the other is fading out. -->
       <div class="fade-view c-view-timer fill" :class="{ on: mode === 'timer' }"><TimeTimer :remaining="remaining" :total="total" :idle="timer.status === 'set' && !timer.meeting" /></div>
+      <div v-for="p in providers" :key="p" class="fade-view fill" :class="{ on: mode === p }"><ClaudeUsage :provider="p" /></div>
       <div class="fade-view fill" :class="{ on: mode === 'clock' }">
         <AnalogClock v-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />
         <div v-else class="c-digital fill flex gap-10 tabular semibold"><span>{{ time.time }}</span><span class="c-digital-sec accent">{{ String(parts.seconds).padStart(2, '0') }}</span></div>

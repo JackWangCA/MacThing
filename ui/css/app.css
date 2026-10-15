@@ -177,6 +177,7 @@
   --orange: var(--orange-500); /* the one accent: clock-screen date, calendar clock and NOW label, meeting pill */
   --hand: var(--white);
   --timer-used: var(--white-a20); /* the timer's spent minutes */
+  --usage-track: var(--white-a30); /* a Claude usage ring's whole allowance */
   --timer-hand: var(--orange-500);
   --timer-hand-ink: var(--black); /* text on the hand colour */
   --today: var(--orange-500); /* today's circle in the month: the timer hand's colour */
@@ -214,6 +215,7 @@
   --bar-track: var(--black-a20);
   --hand: var(--gray-950);
   --timer-used: var(--black-a10);
+  --usage-track: var(--black-a20);
   --c-mark-fill: var(--black-a10);
   --c-mark-edge: var(--black);
   --c-hand: var(--black);
@@ -429,6 +431,11 @@ h3 {
   width: 320px;
   padding: var(--panel-inset-y) var(--panel-inset-x);
   background: var(--panel);
+}
+/* The big label sits close under its eyebrow, with more room below it. */
+.left-rail .left-rail-content > .font-huge {
+  margin-top: 8px;
+  margin-bottom: 12px;
 }
 .screen-stage {
   position: relative;
@@ -1113,11 +1120,74 @@ h3 {
   animation: fade-in 1.5s ease-out;
 }
 
-/* Even-width digits keep the countdown from shuffling each second; at 112px they'd run past the
-   rail's inset for 60:00, so the timer's time is set a little smaller. */
+/* Even-width digits keep the countdown from shuffling each second. */
 #screen-clock [data-view="timer"] .font-huge {
-  font-size: 100px;
   font-variant-numeric: tabular-nums;
+}
+/* Usage's level is a word at the big-number size, and the widest ("Severe") runs out of the
+   rail across the edge of the stage, above it, well short of the rings. */
+#screen-clock .left-rail {
+  z-index: 1;
+}
+
+/* ===== Claude usage ===== */
+/* The clock button a third time (ClaudeUsage.vue): two rings across the stage, reaching as far
+   out as the clock's ticks and the timer's dots, the session outside and the week inside. Each
+   ring layers its whole allowance, then the usage, rounded at both ends. The pace (an even share
+   of the time gone) is a black arc on from the usage when it's behind, and when it's ahead, a
+   dot as wide as the ring, black ringed in white in every theme, with the usage past it in the
+   accent. Each ring's initial sits at 12 in a disc of the usage's colour, there even at 0%, in
+   the background's colour. The Claude mark sits in the middle, faint. */
+.u-face {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 480px;
+  height: 480px;
+}
+.u-track,
+.u-behind,
+.u-used,
+.u-over {
+  fill: none;
+  stroke-width: 28;
+}
+.u-track {
+  stroke: var(--usage-track);
+}
+.u-behind {
+  stroke: var(--black);
+}
+.u-used {
+  stroke: var(--hand);
+}
+.u-over {
+  stroke: var(--orange);
+}
+.u-cap.used {
+  fill: var(--hand);
+}
+.u-cap.over {
+  fill: var(--orange);
+}
+.u-cap.behind {
+  fill: var(--black);
+}
+.u-logo {
+  fill: var(--bar-track);
+}
+.u-label-disc {
+  fill: var(--hand);
+}
+.u-label {
+  font-size: 16px;
+  font-weight: 700;
+  fill: var(--panel);
+}
+.u-pace {
+  fill: var(--black);
+  stroke: var(--white);
+  stroke-width: 1;
 }
 
 /* ===== calendar ===== */
@@ -1272,7 +1342,7 @@ h3 {
 }
 .font-huge {
   font-family: Merriweather, Georgia, serif;
-  font-size: 112px;
+  font-size: 104px;
   line-height: 120px;
   font-weight: 600;
   white-space: nowrap;
