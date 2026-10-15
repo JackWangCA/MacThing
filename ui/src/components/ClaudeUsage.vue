@@ -46,7 +46,7 @@ function ring(r, w, length, initial, paceOffset) {
   };
 }
 const rings = computed(() => !ok.value ? [] : [
-  // A 32px offset leaves 10px between the 28px ring and the 16px pace dot.
+  // A 32px offset leaves 13px between the 28px ring and the 10px pace dot.
   ring(166, usage.value.session, SESSION_MS, 'S', 32),
   ring(126, usage.value.week, WEEK_MS, 'W', -32)
 ]);
@@ -71,7 +71,7 @@ const message = computed(() => ({
         <path class="u-logo" transform="translate(212 212) scale(2.3333)" :d="LOGOS[provider]" />
         <g v-for="g in rings" :key="'marks' + g.r">
           <circle v-for="(c, i) in g.caps" :key="i" class="u-cap" :class="c.kind" :cx="c.x" :cy="c.y" r="14" />
-          <circle v-if="g.pace" class="u-pace" :cx="g.pace.x" :cy="g.pace.y" r="8" />
+          <circle v-if="g.pace" class="u-pace" :cx="g.pace.x" :cy="g.pace.y" r="5" />
           <circle class="u-label-disc" cx="240" :cy="240 - g.r" r="14" />
           <text class="u-label" x="240" :y="240 - g.r" dy="5.5" text-anchor="middle">{{ g.initial }}</text>
         </g>
