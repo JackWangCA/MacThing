@@ -34,7 +34,12 @@ watch(providers, list => { if (isUsage(mode.value) && !list.includes(mode.value)
 function usageRail(provider) {
   const u = usageOf(state, provider);
   if (u.status !== 'ok') return { eyebrow: 'Session usage', title: '--', subtitle: '' };
-  return { eyebrow: 'Session usage', title: paceLevel(u.session, SESSION_MS, state.now), subtitle: 'Week usage: ' + paceLevel(u.week, WEEK_MS, state.now) };
+  return {
+    eyebrow: 'Session · ' + Math.round(u.session.percent) + '% used',
+    title: paceLevel(u.session, SESSION_MS, state.now),
+    subtitleLabel: 'Week · ' + Math.round(u.week.percent) + '% used',
+    subtitle: paceLevel(u.week, WEEK_MS, state.now)
+  };
 }
 const railViews = computed(() => {
   const views = { clock: { eyebrow: CT.MONTHS[parts.value.month], title: parts.value.date, subtitle: CT.DAYS[parts.value.day] }, timer: { eyebrow: timerLabel.value, title: timerTitle.value, subtitle: time.value.time } };
