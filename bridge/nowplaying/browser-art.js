@@ -1,5 +1,6 @@
 // From Nihal Shetty's fork, https://github.com/nihalshetty-boop/MacThing (MIT).
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { log } from '../log.js';
 
 /** bundle id → AppleScript application name, for reading the playing tab. */
@@ -16,6 +17,18 @@ const BROWSER_APPS = {
 
 const YT_ID = /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/|music\.youtube\.com\/watch\?(?:.*&)?v=)([\w-]{11})/;
 const warned = new Set();
+
+// Chromium's default MediaRemote artwork, observed on Arc when a video has no thumbnail.
+// This is the same image key normalize() computes; it is an app placeholder, not video art.
+const CHROMIUM_PLACEHOLDER_KEY = '8e5b3282f2d4863b';
+export function isBrowserPlaceholder(bundleId, artworkKey) {
+  return Boolean(BROWSER_APPS[bundleId] && artworkKey === CHROMIUM_PLACEHOLDER_KEY);
+}
+
+/** A shared browser icon must never share upgraded artwork between different videos. */
+export function browserArtKey({ bundleId, title, contentId, artwork }) {
+  return artwork ? createHash('sha1').update(JSON.stringify([bundleId, title, contentId, artwork.key])).digest('hex').slice(0, 16) : null;
+}
 
 const run = (cmd, args, opts) =>
   new Promise((resolve, reject) =>
@@ -83,21 +96,19 @@ return rows as text`;
   }
 }
 
-function matchingUrl(listing, title) {
-  const want = fold(title);
+export function matchingUrl(listing, title) {
+  const videoTitle = text => fold(text).replace(/(?: - youtube(?: music)?| \/ x)$/, '');
+  const want = videoTitle(title);
   if (!want || !listing) return null;
-  let youtube = null;
-  let other = null;
+  const matches = new Set();
   for (const line of listing.split('\n')) {
     const tab = line.indexOf('\t');
     if (tab < 0) continue;
-    const tabTitle = fold(line.slice(0, tab));
+    const tabTitle = videoTitle(line.slice(0, tab));
     const url = line.slice(tab + 1).trim();
-    if (!tabTitle.includes(want)) continue;
-    if (YT_ID.test(url)) youtube = url;
-    else if (!other) other = url;
+    if (tabTitle === want && /^https?:\/\//i.test(url)) matches.add(url);
   }
-  return youtube || other;
+  return matches.size === 1 ? matches.values().next().value : null;
 }
 
 async function fetchBytes(url, accept) {

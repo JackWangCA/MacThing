@@ -4,6 +4,7 @@ import { EventEmitter } from 'node:events';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
 import { log } from '../log.js';
+import { isBrowserPlaceholder } from './browser-art.js';
 
 const SEND_IDS = { play: 0, pause: 1, playpause: 2, stop: 3, next: 4, previous: 5 };
 
@@ -89,11 +90,15 @@ export class MediaRemoteSource extends EventEmitter {
  * @returns {{
  *   active: boolean, playing: boolean, title: string, artist: string, album: string,
  *   duration: number|null, elapsed: number|null, elapsedAt: number, rate: number,
- *   bundleId: string|null, artwork: {key: string, mime: string, base64: string}|null
+ *   bundleId: string|null, contentId: string|null, artwork: {key: string, mime: string, base64: string}|null
  * }} `elapsed` (seconds) was sampled at `elapsedAt` (epoch ms) and advances at `rate`.
  */
 export function normalize(raw) {
   const playing = Boolean(raw.playing);
+  const bundleId = raw.parentApplicationBundleIdentifier || raw.bundleIdentifier || null;
+  const artworkKey = raw.artworkData
+    ? createHash('sha1').update(raw.artworkData).digest('hex').slice(0, 16)
+    : null;
   return {
     active: Boolean(raw.title && raw.bundleIdentifier),
     playing,
@@ -105,10 +110,11 @@ export function normalize(raw) {
     elapsedAt: raw.timestampEpochMicros ? raw.timestampEpochMicros / 1e3 : Date.now(),
     rate: playing ? (raw.playbackRate > 0 ? raw.playbackRate : 1) : 0,
     // Browsers report a helper process; the parent is the app the user recognizes.
-    bundleId: raw.parentApplicationBundleIdentifier || raw.bundleIdentifier || null,
-    artwork: raw.artworkData
+    bundleId,
+    contentId: raw.contentItemIdentifier || raw.uniqueIdentifier || null,
+    artwork: raw.artworkData && !isBrowserPlaceholder(bundleId, artworkKey)
       ? {
-          key: createHash('sha1').update(raw.artworkData).digest('hex').slice(0, 16),
+          key: artworkKey,
           mime: raw.artworkMimeType || 'image/jpeg',
           base64: raw.artworkData,
         }
