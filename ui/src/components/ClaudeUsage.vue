@@ -7,8 +7,8 @@ import { SESSION_MS, WEEK_MS, elapsed, usageOf } from '../usage.js';
 // and the timer, the five-hour session outside and the week inside. Each ring, clockwise from 12:
 // the faint track is the whole allowance and the solid arc (rounded at both ends) is what's been
 // used. The pace — how much of the window's time has gone, where an even pace through it would
-// be — is marked by a black dot just outside the session ring or inside the week ring. Behind
-// it, a black arc carries on from the usage to the pace; usage past it is drawn in the accent.
+// be — is marked by a black dot just outside the session ring or inside the week ring.
+// Usage past it is drawn in the accent.
 // Each ring's initial, S or W, sits at 12 in a disc the colour of the usage,
 // which the usage's rounded start fits under; at 0% the disc is still there to hold it. The
 // numbers come from the Mac (bridge/widgets/usage.js, codex-usage.js), and the provider's mark
@@ -34,16 +34,10 @@ function ring(r, w, length, initial, paceOffset) {
   // are rounded with a disc at each end, in the colour of the arc there, rather than with round
   // line caps, which would overlap where two arcs meet.
   const arc = (from, to) => to > from ? { array: (to - from) * C(r) + ' ' + C(r), offset: -from * C(r) } : null;
-  const behind = w.resetsAt && used < pace;
   const caps = [];
-  if (behind) {
-    if (used === 0) caps.push({ ...point(r, 0), kind: 'behind' });
-    caps.push({ ...point(r, pace), kind: 'behind' });
-  }
   if (used > 0) caps.push({ ...point(r, 0), kind: pace === 0 ? 'over' : 'used' }, { ...point(r, used), kind: used > pace ? 'over' : 'used' });
   return {
     r,
-    behind: behind ? arc(used, pace) : null,
     used: arc(0, Math.min(used, pace)),
     over: arc(pace, used),
     caps,
@@ -52,7 +46,7 @@ function ring(r, w, length, initial, paceOffset) {
   };
 }
 const rings = computed(() => !ok.value ? [] : [
-  // A 32px offset leaves 5px between the 28px ring and the outlined pace dot.
+  // A 32px offset leaves 8px between the 28px ring and the 20px pace dot.
   ring(166, usage.value.session, SESSION_MS, 'S', 32),
   ring(126, usage.value.week, WEEK_MS, 'W', -32)
 ]);
@@ -70,7 +64,6 @@ const message = computed(() => ({
       <svg class="u-face" viewBox="0 0 480 480" :aria-label="provider === 'chatgpt' ? 'ChatGPT usage' : 'Claude usage'">
         <g v-for="g in rings" :key="g.r" transform="rotate(-90 240 240)">
           <circle class="u-track" cx="240" cy="240" :r="g.r" />
-          <circle v-if="g.behind" class="u-behind" cx="240" cy="240" :r="g.r" :stroke-dasharray="g.behind.array" :stroke-dashoffset="g.behind.offset" />
           <circle v-if="g.used" class="u-used" cx="240" cy="240" :r="g.r" :stroke-dasharray="g.used.array" :stroke-dashoffset="g.used.offset" />
           <circle v-if="g.over" class="u-over" cx="240" cy="240" :r="g.r" :stroke-dasharray="g.over.array" :stroke-dashoffset="g.over.offset" />
         </g>
@@ -78,7 +71,7 @@ const message = computed(() => ({
         <path class="u-logo" transform="translate(212 212) scale(2.3333)" :d="LOGOS[provider]" />
         <g v-for="g in rings" :key="'marks' + g.r">
           <circle v-for="(c, i) in g.caps" :key="i" class="u-cap" :class="c.kind" :cx="c.x" :cy="c.y" r="14" />
-          <circle v-if="g.pace" class="u-pace" :cx="g.pace.x" :cy="g.pace.y" r="12.5" />
+          <circle v-if="g.pace" class="u-pace" :cx="g.pace.x" :cy="g.pace.y" r="10" />
           <circle class="u-label-disc" cx="240" :cy="240 - g.r" r="14" />
           <text class="u-label" x="240" :y="240 - g.r" dy="5.5" text-anchor="middle">{{ g.initial }}</text>
         </g>
