@@ -40,7 +40,7 @@ _Weather's Today and This Week views, from the same fixture data (rendered in Ch
 
 **Meeting alerts** (off by default; turn them on in Settings): at a timed event's alert, a card with its title, start and end time and location covers whatever screen is up. A video call is named by its service (Zoom, Google Meet, Microsoft Teams, Webex, FaceTime) rather than shown as a link, including when the link is only in the event's URL or notes. "Event's alert" uses the alert set on the event in Calendar (only alerts within an hour of the start; events without one are skipped); or pick a fixed 1, 5 or 10 minutes before every event. It stays until you press any button or the knob — that press only dismisses it — or until five minutes after the meeting starts (sooner if the meeting ends first). It shows one meeting at a time: when meetings overlap, the card shows the first, and one press dismisses them all. Turning the knob still sets the volume.
 
-**Sleep:** the Car Thing's screen turns off whenever your Mac's display sleeps, when you hold the settings button, and — this part runs on the device itself — about a minute and a half after the Mac stops talking to it at all: shut down, unplugged from the Mac but still powered, or just the bridge stopped. Press any button or turn the knob to wake it; while the Mac is away it stays lit for 20 seconds, and while the Mac is only asleep, for a minute. That first input only wakes it.
+**Sleep:** the Car Thing's screen turns off whenever your Mac's display sleeps (unless the Sleep with Mac setting is off), when you hold the settings button, and — this part runs on the device itself — about a minute and a half after the Mac stops talking to it at all: shut down, unplugged from the Mac but still powered, or just the bridge stopped. Press any button or turn the knob to wake it; while the Mac is away it stays lit for 20 seconds, and while the Mac is only asleep, for a minute. That first input only wakes it.
 
 The backlight is the part that wears out, so "off" means the backlight really is off, not a black page — plus the device idles its CPU and the UI stops redrawing. There's no suspend-to-RAM: the Car Thing's kernel can't resume from one, and USB would drop with it, so an idle backlit-off device drawing very little is as deep as this goes.
 
@@ -127,6 +127,10 @@ npm run setup-device  # only if you set the device up before the sleep watchdog 
 
 **Everyday settings.** Use the device's Settings screen (fifth top button) or http://127.0.0.1:4747 on the Mac. They're saved in `~/Library/Application Support/carthing-now-playing/settings.json`.
 
+A few of them change how the device behaves:
+
+- **Sleep with Mac:** *On* (the default) turns the screen off while the Mac's display sleeps or the Mac is locked; *Off* keeps it on. The device's own sleep when the Mac goes away is separate (`deviceSleepSeconds`).
+
 **Hardware mapping and behavior.** Edit `bridge/config.js`, then `npm run restart`:
 
 - `buttons`: what each button does (`screen:<name>`, `settings`, or a media command)
@@ -134,7 +138,7 @@ npm run setup-device  # only if you set the device up before the sleep watchdog 
 - `buttonClicks`: buttons that count presses the same way — by default the back button, once to favorite and twice to unfavorite
 - `volumeStep`: volume change per knob click
 - `knobDirection`: `1` matches Spotify's own mapping (turning right raises the volume); `-1` flips it
-- `sleepWithMac` and `screenWakeMs`: follow the Mac's display and lock screen, and how long a button or knob wake lasts while the Mac's display is off
+- `sleepWithMac` and `screenWakeMs`: the default for the Sleep with Mac setting, and how long a button or knob wake lasts while the Mac's display is off
 - `buttonHolds` and `holdMs`: what a held button does (`sleep` by default on the settings button) and how long the hold is. A button with a hold acts on release, so one press isn't both things
 - `deviceSleepSeconds`, `deviceWakeSeconds`, `devicePowersave`: the device's own sleep once the Mac goes quiet — how long it waits, how long an input wakes it for, and whether it also idles the CPU. Changes reach the device the next time the bridge connects (`npm run restart`)
 - `macVolumeIndicator`: see below

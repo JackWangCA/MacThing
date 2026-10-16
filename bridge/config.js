@@ -62,7 +62,7 @@ export const config = {
 
   // Turn the Car Thing's screen off whenever the Mac's display sleeps (including when the Mac
   // itself sleeps). A button or knob input wakes it for screenWakeMs.
-  sleepWithMac: true,
+  sleepWithMac: true, // the default for the Sleep with Mac setting (device Settings, Mac page)
   screenWakeMs: 60 * 1000,
 
   // Deep sleep, run by the device itself (device/sleepd.sh, installed by `npm run setup-device`).
