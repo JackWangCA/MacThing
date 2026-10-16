@@ -235,8 +235,8 @@ test('usage messages identify each provider, including loading and throttling', 
 
 test('update age appears only after ten minutes since a successful reading', () => {
   for(const age of [0,1,5,9.99]) assert.equal(usageUpdatedText({status:'ok',updatedAt:NOW-age*60000},NOW),'');
-  assert.equal(usageUpdatedText({status:'ok',updatedAt:NOW-10*60000},NOW),'10m ↻');
-  assert.equal(usageUpdatedText({status:'ok',updatedAt:NOW-20*60000,stale:true},NOW),'20m ↻');
+  assert.equal(usageUpdatedText({status:'ok',updatedAt:NOW-10*60000},NOW),'10m ⟳');
+  assert.equal(usageUpdatedText({status:'ok',updatedAt:NOW-20*60000,stale:true},NOW),'20m ⟳');
   assert.equal(usageUpdatedText({status:'error',updatedAt:NOW-20*60000},NOW),'');
   assert.equal(usageUpdatedText({status:'ok'},NOW),'');
 });
