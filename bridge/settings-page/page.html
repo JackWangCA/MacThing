@@ -16,12 +16,22 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
     font: 15px/1.45 -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
-  main { max-width: 1040px; margin: 0 auto; padding: 48px 20px 64px; }
-  .settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
-  .settings-column { min-width: 0; }
-  @media (max-width: 899px) { .settings-grid { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+  main { max-width: 1040px; margin: 0 auto; padding: 32px 20px 64px; }
+  .settings-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 32px; align-items: start; }
+  .settings-sidebar { position: sticky; top: 32px; }
+  .settings-content { min-width: 0; }
+  .settings-nav { display: grid; gap: 4px; margin-top: 24px; }
+  .settings-nav a { display: block; padding: 10px 12px; border-radius: 8px; color: var(--text); text-decoration: none; }
+  .settings-nav a:hover { background: var(--seg); }
+  .settings-nav a[aria-current="page"] { background: var(--seg); font-weight: 600; box-shadow: inset 3px 0 var(--accent); }
+  .settings-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (max-width: 699px) {
+    .settings-layout { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+    .settings-sidebar { position: static; }
+    .settings-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 16px; }
+  }
   h1 { font-size: 28px; letter-spacing: -0.02em; margin: 0; }
-  .lede { color: var(--muted); margin: 4px 0 28px; }
+  .lede { color: var(--muted); margin: 6px 0 24px; }
   section { background: var(--card); border-radius: 14px; padding: 6px 18px; margin-bottom: 18px; }
   .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; }
   .row + .row { border-top: 1px solid var(--line); }
@@ -34,7 +44,7 @@
     font: inherit; font-size: 14px; color: var(--text); background: var(--seg);
     border: 1px solid var(--line); border-radius: 9px; outline-color: var(--accent); color-scheme: light; }
   @media (prefers-color-scheme: dark) { select[data-key] { color-scheme: dark; } }
-  h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 8px 18px; }
+  h2 { font-size: 24px; font-weight: 600; letter-spacing: -.02em; margin: 0; }
   .choice { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; cursor: pointer; }
   .choice + .choice { border-top: 1px solid var(--line); }
   .choice input { margin-top: 3px; accent-color: var(--accent); }
@@ -58,14 +68,21 @@
 </style>
 </head>
 <body>
-<main>
-  <h1>MacThing</h1>
-  <p class="lede">Changes apply to the device right away.</p>
-
-  <div class="settings-grid">
-  <div class="settings-column">
-  <h2>Display</h2>
-  <section>
+<main class="settings-layout">
+  <aside class="settings-sidebar">
+    <h1>MacThing</h1>
+    <nav class="settings-nav" aria-label="Settings categories">
+      <a href="#display" aria-current="page">Display</a>
+      <a href="#usage">AI Usage</a>
+      <a href="#location">Weather location</a>
+      <a href="#calendar">Calendar</a>
+    </nav>
+  </aside>
+  <div class="settings-content">
+    <h2 id="category-title">Display</h2>
+    <p class="lede">Changes apply to the device right away.</p>
+    <div class="settings-panel" id="display" role="region" aria-labelledby="category-title">
+<section>
     <div class="row"><span class="label">Appearance</span>
       <span class="seg" data-key="theme"><button data-v="dark">Dark</button><button data-v="light">Light</button><button data-v="auto">Match Mac</button></span></div>
     <div class="row"><span class="label">Album art background</span>
@@ -77,19 +94,19 @@
     <div class="row"><span class="label">Clock face</span>
       <span class="seg" data-key="clockFace"><button data-v="analog">Analog</button><button data-v="numbers">Numbers</button><button data-v="digital">Digital</button></span></div>
   </section>
+    </div>
 
-  <h2 id="usage">AI Usage</h2>
-  <section>
+    <div class="settings-panel" id="usage" hidden role="region" aria-labelledby="category-title">
+<section>
     <div class="row"><div><label class="label" for="usageSource">Show usage</label><div class="note">Whose plan the clock's usage view shows (ChatGPT: from Codex on this Mac)</div></div>
       <select id="usageSource" data-key="usageSource"><option value="claude">Claude</option><option value="chatgpt">ChatGPT</option><option value="both">Both</option><option value="none">None</option></select></div>
     <div class="row"><div><div class="label">Usage labels</div><div class="note">Session and weekly pace for Claude and ChatGPT</div></div>
       <span class="seg" data-key="usageLabels"><button data-v="words">Words</button><button data-v="emoji">Emoji</button></span></div>
   </section>
+    </div>
 
-  </div>
-  <div class="settings-column">
-  <h2 id="location">Weather location</h2>
-  <section>
+    <div class="settings-panel" id="location" hidden role="region" aria-labelledby="category-title">
+<section>
     <label class="choice"><input type="radio" name="loc" value="auto">
       <div><div class="label">This Mac's location</div><div class="note" id="autoNote"></div></div></label>
     <label class="choice"><input type="radio" name="loc" value="manual">
@@ -97,9 +114,10 @@
         <input type="search" id="q" placeholder="Search for a city…" autocomplete="off">
         <ul id="results"></ul></div></label>
   </section>
+    </div>
 
-  <h2 id="calendar">Calendar</h2>
-  <section>
+    <div class="settings-panel" id="calendar" hidden role="region" aria-labelledby="category-title">
+<section>
     <div class="row"><label class="label" for="calendarDays">Days of events</label>
       <select id="calendarDays" data-key="calendarDays" data-type="number"><option value="1">Today</option><option value="2">2 days</option><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option></select></div>
     <div class="row"><div><label class="label" for="meetingAlert">Meeting alerts</label><div class="note">Fills the screen before a meeting</div></div>
@@ -108,7 +126,7 @@
       <span class="seg" data-key="meetingTimer"><button data-v="false">Off</button><button data-v="true">Auto-start</button></span></div>
     <div class="row stack"><div class="label">Calendars</div><div class="note" id="calNote"></div><div id="calList"></div></div>
   </section>
-  </div>
+    </div>
   </div>
 </main>
 <div class="saved" id="saved">Saved</div>
@@ -230,6 +248,20 @@
     }, 250);
   });
 
+  // The hash keeps category links from the device, reloads, and browser Back in sync.
+  function showCategory() {
+    const panels = Array.from(document.querySelectorAll('.settings-panel'));
+    const requested = location.hash.slice(1);
+    const category = panels.some((panel) => panel.id === requested) ? requested : 'display';
+    panels.forEach((panel) => { panel.hidden = panel.id !== category; });
+    document.querySelectorAll('.settings-nav a').forEach((link) => {
+      const selected = link.hash === '#' + category;
+      if (selected) { link.setAttribute('aria-current', 'page'); $('#category-title').textContent = link.textContent; }
+      else link.removeAttribute('aria-current');
+    });
+  }
+  showCategory();
+  window.addEventListener('hashchange', showCategory);
   load();
   setInterval(() => { if (document.activeElement !== $('#q')) load(); }, 3000); // reflect changes made on the device
   if (location.hash === '#location') setTimeout(() => $('#q').focus(), 100);
