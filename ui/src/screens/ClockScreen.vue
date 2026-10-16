@@ -6,7 +6,7 @@ import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
 import ClaudeUsage from '../components/ClaudeUsage.vue';
-import { SESSION_MS, WEEK_MS, paceLevel, paceImage, untilText, usageProviders, usageOf } from '../usage.js';
+import { SESSION_MS, WEEK_MS, paceLevel, paceNumber, paceImage, untilText, usageProviders, usageOf } from '../usage.js';
 import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, autoStartMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
@@ -40,9 +40,9 @@ function usageRail(provider) {
     titleImage: paceImage(session, state.settings.usageLabels),
     subtitleImage: paceImage(week, state.settings.usageLabels),
     eyebrow: 'Session · ' + Math.round(u.session.percent) + '% used',
-    title: session,
+    title: state.settings.usageLabels === 'k' ? paceNumber(u.session, SESSION_MS, state.now) : session,
     subtitleLabel: 'Week · ' + Math.round(u.week.percent) + '% used',
-    subtitle: week
+    subtitle: state.settings.usageLabels === 'k' ? paceNumber(u.week, WEEK_MS, state.now) : week
   };
 }
 const railViews = computed(() => {

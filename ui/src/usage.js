@@ -17,14 +17,31 @@ export const elapsed = (resetsAt, length, now) => resetsAt ? clamp(1 - (resetsAt
 //   42/56 → 0.6 Good · 28/22 → 1.4 OK · 25/15 → 1.9 Ahead · 61/41 → 2.3 Ahead · 98/93 → Max
 //   45/15 → 4.6 High · 70/30 → 5.4 High · 95/60 → 12.7 Severe · 90/30 → 21 Severe · 95/15 → 108 Severe
 const FLOOR = 0.1, OK = 1, AHEAD = 1.5, HIGH = 3, SEVERE = 10;
+/** Pace so far divided by the pace affordable for the rest of this window (K).
+ * Keep the same 10%-elapsed floor as the word labels; no started window means no burn. */
+export function paceK(w, length, now) {
+  const used = clamp(w.percent / 100);
+  if (used >= 1) return Infinity;
+  if (!w.resetsAt) return 0;
+  const t = Math.max(FLOOR, elapsed(w.resetsAt, length, now));
+  return (used / (1 - used)) / (t / (1 - t));
+}
+
+/** A glanceable K label: a decimal below 10, whole numbers above it, infinity at the limit. */
+export function paceNumber(w, length, now) {
+  const k = paceK(w, length, now);
+  if (!Number.isFinite(k)) return '∞×';
+  const rounded = Math.round(k * 10) / 10;
+  return (rounded < 10 ? rounded.toFixed(1) : String(Math.round(k))) + '×';
+}
+
 /** 'Good', 'OK', 'Ahead', 'High', 'Severe', 'Max', or 'Over' (the limit's been hit), for a window from the Mac. */
 export function paceLevel(w, length, now) {
   const used = clamp(w.percent / 100);
   if (used >= 1) return 'Over';
   if (used >= 0.97) return 'Max';
   if (!w.resetsAt) return 'Good';
-  const t = Math.max(FLOOR, elapsed(w.resetsAt, length, now));
-  const k = (used / (1 - used)) / (t / (1 - t));
+  const k = paceK(w, length, now);
   return k >= SEVERE ? 'Severe' : k >= HIGH ? 'High' : k >= AHEAD ? 'Ahead' : k >= OK ? 'OK' : 'Good';
 }
 
