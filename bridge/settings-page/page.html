@@ -82,50 +82,50 @@
     <h2 id="category-title">Display</h2>
     <p class="lede">Changes apply to the device right away.</p>
     <div class="settings-panel" id="display" role="region" aria-labelledby="category-title">
-<section>
-    <div class="row"><span class="label">Appearance</span>
-      <span class="seg" data-key="theme"><button data-v="dark">Dark</button><button data-v="light">Light</button><button data-v="auto">Match Mac</button></span></div>
-    <div class="row"><span class="label">Album art background</span>
-      <span class="seg" data-key="artBackground"><button data-v="false">Off</button><button data-v="true">On</button></span></div>
-    <div class="row"><span class="label">Temperature</span>
-      <span class="seg" data-key="units"><button data-v="F">°F</button><button data-v="C">°C</button></span></div>
-    <div class="row"><span class="label">Time format</span>
-      <span class="seg" data-key="clock24h"><button data-v="false">12-hour</button><button data-v="true">24-hour</button></span></div>
-    <div class="row"><span class="label">Clock face</span>
-      <span class="seg" data-key="clockFace"><button data-v="analog">Analog</button><button data-v="numbers">Numbers</button><button data-v="digital">Digital</button></span></div>
-  </section>
+      <section>
+        <div class="row"><span class="label">Appearance</span>
+          <span class="seg" data-key="theme"><button data-v="dark">Dark</button><button data-v="light">Light</button><button data-v="auto">Match Mac</button></span></div>
+        <div class="row"><span class="label">Album art background</span>
+          <span class="seg" data-key="artBackground"><button data-v="false">Off</button><button data-v="true">On</button></span></div>
+        <div class="row"><span class="label">Temperature</span>
+          <span class="seg" data-key="units"><button data-v="F">°F</button><button data-v="C">°C</button></span></div>
+        <div class="row"><span class="label">Time format</span>
+          <span class="seg" data-key="clock24h"><button data-v="false">12-hour</button><button data-v="true">24-hour</button></span></div>
+        <div class="row"><span class="label">Clock face</span>
+          <span class="seg" data-key="clockFace"><button data-v="analog">Analog</button><button data-v="numbers">Numbers</button><button data-v="digital">Digital</button></span></div>
+      </section>
     </div>
 
     <div class="settings-panel" id="usage" hidden role="region" aria-labelledby="category-title">
-<section>
-    <div class="row"><div><label class="label" for="usageSource">Show usage</label><div class="note">Whose plan the clock's usage view shows (ChatGPT: from Codex on this Mac)</div></div>
-      <select id="usageSource" data-key="usageSource"><option value="claude">Claude</option><option value="chatgpt">ChatGPT</option><option value="both">Both</option><option value="none">None</option></select></div>
-    <div class="row"><div><div class="label">Usage labels</div><div class="note">Session and weekly pace for Claude and ChatGPT</div></div>
-      <span class="seg" data-key="usageLabels"><button data-v="words">Words</button><button data-v="emoji">Emoji</button></span></div>
-  </section>
+      <section>
+        <div class="row"><div><label class="label" for="usageSource">Show usage</label><div class="note">Whose plan the clock's usage view shows (ChatGPT: from Codex on this Mac)</div></div>
+          <select id="usageSource" data-key="usageSource"><option value="claude">Claude</option><option value="chatgpt">ChatGPT</option><option value="both">Both</option><option value="none">None</option></select></div>
+        <div class="row"><div><div class="label">Usage labels</div><div class="note">Session and weekly pace for Claude and ChatGPT</div></div>
+          <span class="seg" data-key="usageLabels"><button data-v="words">Words</button><button data-v="emoji">Emoji</button></span></div>
+      </section>
     </div>
 
     <div class="settings-panel" id="location" hidden role="region" aria-labelledby="category-title">
-<section>
-    <label class="choice"><input type="radio" name="loc" value="auto">
-      <div><div class="label">This Mac's location</div><div class="note" id="autoNote"></div></div></label>
-    <label class="choice"><input type="radio" name="loc" value="manual">
-      <div style="flex:1"><div class="label">A specific place</div><div class="note" id="manualNote">Search for a city</div>
-        <input type="search" id="q" placeholder="Search for a city…" autocomplete="off">
-        <ul id="results"></ul></div></label>
-  </section>
+      <section>
+        <label class="choice"><input type="radio" name="loc" value="auto">
+          <div><div class="label">This Mac's location</div><div class="note" id="autoNote"></div></div></label>
+        <label class="choice"><input type="radio" name="loc" value="manual">
+          <div style="flex:1"><div class="label">A specific place</div><div class="note" id="manualNote">Search for a city</div>
+            <input type="search" id="q" placeholder="Search for a city…" autocomplete="off">
+            <ul id="results"></ul></div></label>
+      </section>
     </div>
 
     <div class="settings-panel" id="calendar" hidden role="region" aria-labelledby="category-title">
-<section>
-    <div class="row"><label class="label" for="calendarDays">Days of events</label>
-      <select id="calendarDays" data-key="calendarDays" data-type="number"><option value="1">Today</option><option value="2">2 days</option><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option></select></div>
-    <div class="row"><div><label class="label" for="meetingAlert">Meeting alerts</label><div class="note">Fills the screen before a meeting</div></div>
-      <select id="meetingAlert" data-key="meetingAlert" data-type="number"><option value="0">Off</option><option value="event">Event’s alert</option><option value="1">1 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
-    <div class="row"><div><div class="label">Meeting timer</div><div class="note">Starts the clock's timer as a meeting begins, running to its end</div></div>
-      <span class="seg" data-key="meetingTimer"><button data-v="false">Off</button><button data-v="true">Auto-start</button></span></div>
-    <div class="row stack"><div class="label">Calendars</div><div class="note" id="calNote"></div><div id="calList"></div></div>
-  </section>
+      <section>
+        <div class="row"><label class="label" for="calendarDays">Days of events</label>
+          <select id="calendarDays" data-key="calendarDays" data-type="number"><option value="1">Today</option><option value="2">2 days</option><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option></select></div>
+        <div class="row"><div><label class="label" for="meetingAlert">Meeting alerts</label><div class="note">Fills the screen before a meeting</div></div>
+          <select id="meetingAlert" data-key="meetingAlert" data-type="number"><option value="0">Off</option><option value="event">Event’s alert</option><option value="1">1 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
+        <div class="row"><div><div class="label">Meeting timer</div><div class="note">Starts the clock's timer as a meeting begins, running to its end</div></div>
+          <span class="seg" data-key="meetingTimer"><button data-v="false">Off</button><button data-v="true">Auto-start</button></span></div>
+        <div class="row stack"><div class="label">Calendars</div><div class="note" id="calNote"></div><div id="calList"></div></div>
+      </section>
     </div>
   </div>
 </main>
