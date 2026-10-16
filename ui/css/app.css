@@ -1207,8 +1207,8 @@ h3 {
 .u-updated {
   position: absolute;
   right: 24px;
-  /* Match the first line of the two-line reset footer in the left rail. */
-  bottom: calc(var(--panel-inset-y) + 28px);
+  /* Align with the bottom line of the reset footer in the left rail. */
+  bottom: var(--panel-inset-y);
 }
 .u-status-logo {
   width: 56px;
