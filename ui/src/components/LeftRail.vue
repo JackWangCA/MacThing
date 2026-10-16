@@ -7,7 +7,7 @@ const props = defineProps({
   lowerContent: { type: String, default: '' },
   variant: { type: String, default: 'display' },
   view: { type: String, default: '' }, // a change fades the text out and the new text in
-  // Optional { [view]: { eyebrow, title, titleImage, italicSuffix, subtitleLabel, subtitle, subtitleImage } }: every view's text stays drawn and `view`
+  // Optional { [view]: { eyebrow, title, titleImage, italicSuffix, subtitleLabel, subtitle, subtitleClass, subtitleImage } }: every view's text stays drawn and `view`
   // picks the one showing, so a switch only fades (see .fade-view) instead of building new text.
   views: { type: Object, default: null },
   mutedSubtitle: Boolean
@@ -26,7 +26,7 @@ const subtitleClass = computed(() => [props.variant === 'media' || props.variant
         <p v-if="v.eyebrow" :class="eyebrowClass">{{ v.eyebrow }}</p>
         <h2 :class="titleClass"><img v-if="v.titleImage" class="rail-emoji" :src="v.titleImage" :alt="v.title" /><template v-else>{{ v.italicSuffix ? String(v.title).slice(0, -v.italicSuffix.length) : v.title }}<i v-if="v.italicSuffix">{{ v.italicSuffix }}</i></template></h2>
         <p v-if="v.subtitleLabel" :class="eyebrowClass">{{ v.subtitleLabel }}</p>
-        <div v-if="v.subtitle" :class="subtitleClass"><img v-if="v.subtitleImage" class="rail-emoji" :src="v.subtitleImage" :alt="v.subtitle" /><template v-else>{{ v.subtitle }}</template></div>
+        <div v-if="v.subtitle" :class="[subtitleClass, v.subtitleClass]"><img v-if="v.subtitleImage" class="rail-emoji" :src="v.subtitleImage" :alt="v.subtitle" /><template v-else>{{ v.subtitle }}</template></div>
       </div>
     </div>
     <Transition v-else name="view"><div :key="view" class="left-rail-content flex-col gap-12" :data-view="view">

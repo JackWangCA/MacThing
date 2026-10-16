@@ -448,6 +448,12 @@ h3 {
   padding: var(--panel-inset-y) var(--panel-inset-x);
   background: var(--panel);
 }
+/* Keep the 32px weekly percentage and pace together in the 272px rail. */
+.usage-week {
+  letter-spacing: -0.02em;
+  word-spacing: -4px;
+  white-space: nowrap;
+}
 /* The big label sits close under its eyebrow, with more room below it. */
 .left-rail .left-rail-content > .font-huge {
   margin-top: 8px;
