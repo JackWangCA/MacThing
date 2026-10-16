@@ -37,6 +37,7 @@ function usageRail(provider) {
   const session = paceLevel(u.session, SESSION_MS, state.now);
   const week = paceLevel(u.week, WEEK_MS, state.now);
   return {
+    italicSuffix: state.settings.usageLabels === 'k' ? 'x' : '',
     titleImage: paceImage(session, state.settings.usageLabels),
     subtitleImage: paceImage(week, state.settings.usageLabels),
     eyebrow: 'Session · ' + Math.round(u.session.percent) + '% used',
