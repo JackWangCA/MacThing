@@ -11,6 +11,7 @@ const props = defineProps({
   // Optional { [view]: { eyebrow, title, italicSuffix, subtitle, subtitleClass } }: every view's text stays drawn and `view`
   // picks the one showing, so a switch only fades (see .fade-view) instead of building new text.
   views: { type: Object, default: null },
+  truncateLower: { type: Boolean, default: true },
   mutedSubtitle: Boolean
 });
 const titleElement = ref(null), subtitleElement = ref(null);
@@ -34,6 +35,6 @@ const subtitleClass = computed(() => [props.variant === 'media' || props.variant
       <h2 ref="titleElement" :class="titleClass"><slot name="title">{{ title }}</slot></h2>
       <div v-if="subtitle || $slots.subtitle" ref="subtitleElement" :class="subtitleClass"><slot name="subtitle">{{ subtitle }}</slot></div>
     </div></Transition>
-    <div v-if="lowerContent || $slots.lower" class="flex-none font-small muted" :class="variant === 'instructions' ? 'weight-light' : 'medium truncate'"><slot name="lower">{{ lowerContent }}</slot></div>
+    <div v-if="lowerContent || $slots.lower" class="flex-none font-small muted" :class="[variant === 'instructions' ? 'weight-light' : 'medium', { truncate: variant !== 'instructions' && truncateLower }]"><slot name="lower">{{ lowerContent }}</slot></div>
   </div>
 </template>

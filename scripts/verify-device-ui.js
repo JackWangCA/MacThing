@@ -143,7 +143,7 @@ try {
   // The session (42% used, 56% of its time gone) is under pace; the week (86%, 75%) is twice it.
   assert.match(await rail(), /Session: 42% used\s*0\.6x\s*Week: 86% \[2\.\dx\]/);
   // In place of the next event: the session resets in 2 h 13 min, the week on Thursday at 9.
-  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^resets: Session 2h · Week 2d$/);
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets: Session 2h · Week 2d$/);
   // The session (42% used, 56% of its time gone) is behind its pace; the week (86%, 75%) is ahead of it.
   assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-over").length'), 1, 'Usage past the pace takes the accent');
   assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 2, 'Both usage windows mark their pace with a dot');
@@ -151,7 +151,7 @@ try {
   assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .u-label")).map(l => l.textContent).join()'), 'S,W', 'Each ring is named');
   await capture('usage');
   await message({ type: 'usage', usage: { status: 'ok', session: { percent: 0, resetsAt: null }, week: { percent: 0, resetsAt: null }, updatedAt: now } });
-  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^resets: Session 5h · Week 7d$/);
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets: Session 5h · Week 7d$/);
   assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .u-pace")).every(d => Number(d.getAttribute("cx")) === 240 && Number(d.getAttribute("cy")) < 240)'), true, 'Unstarted windows mark their pace at 12 o’clock');
   assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 2, 'Unstarted windows keep both pace dots');
   await capture('usage-unstarted');
@@ -174,7 +174,7 @@ try {
   assert.equal(await clockView(), 'chatgpt', 'With Both, the clock button goes on to ChatGPT usage');
   assert.equal(await evaluate('document.querySelector("#screen-clock .fade-view.on .u-face").getAttribute("aria-label")'), 'ChatGPT usage');
   assert.match(await rail(), /Session: 82% used\s*1\.1x\s*Week: 10% \[0\.2x\]/);
-  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^resets: Session 1h · Week 5d$/);
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets: Session 1h · Week 5d$/);
   await capture('usage-chatgpt');
   await message({ type: 'chatgptUsage', usage: { status: 'none' } });
   assert.match(await evaluate('document.querySelector("#screen-clock .fade-view.on .stage-message").textContent'), /No ChatGPT usage yet/);
