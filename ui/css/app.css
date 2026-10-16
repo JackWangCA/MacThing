@@ -408,6 +408,13 @@ h3 {
   opacity: 1;
   transition: opacity 0.5s ease-out 0.3s;
 }
+.rail-emoji {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+}
+
 .left-rail-views {
   position: relative;
   flex: 1;

@@ -4,10 +4,12 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { log } from '../log.js';
+import { isRenewed, renewClaudeCredentials } from './claude-auth.js';
 
 const REFRESH_MS = 5 * 60 * 1000;
 // Opening the usage view asks for fresh numbers, but no more often than this.
 const ASK_MIN_MS = 60 * 1000;
+const RENEW_MIN_MS = 5 * 60 * 1000;
 const ENDPOINT = 'https://api.anthropic.com/api/oauth/usage';
 
 /**
@@ -15,7 +17,8 @@ const ENDPOINT = 'https://api.anthropic.com/api/oauth/usage';
  * week, the same numbers Claude Code's /usage shows. It reads Claude Code's own sign-in (the
  * "Claude Code-credentials" Keychain item, or ~/.claude/.credentials.json) and only ever uses
  * the access token, never the refresh token — refreshing would rotate it out from under Claude
- * Code. When the token has expired it says so until Claude Code renews it.
+ * Code. When the access token expires, a quiet SDK initialization asks the installed Claude
+ * Code to renew its own credentials, without a model request or an interactive login.
  *
  * `state` is one of:
  *   { status: 'ok', session: {percent, resetsAt}, week: {percent, resetsAt}, updatedAt }
@@ -27,12 +30,18 @@ const ENDPOINT = 'https://api.anthropic.com/api/oauth/usage';
  */
 export class ClaudeUsage extends EventEmitter {
   /** @param {{enabled?: () => boolean}} [opts] enabled: whether it's wanted now (Settings → Usage); while not, nothing is read */
-  constructor({ enabled = () => true } = {}) {
+  constructor({ enabled = () => true, readCredentials: read = readCredentials,
+    renewCredentials, fetch: request = globalThis.fetch, now = Date.now } = {}) {
     super();
     this.enabled = enabled;
     this.state = { status: 'loading' };
     this.inflight = null;
     this.lastTry = 0;
+    this.lastRenewal = -Infinity;
+    this.readCredentials = read;
+    this.renewCredentials = renewCredentials || (auth => renewClaudeCredentials(read, auth));
+    this.request = request;
+    this.now = now;
   }
 
   start() {
@@ -42,7 +51,7 @@ export class ClaudeUsage extends EventEmitter {
 
   /** The device opened the usage view: fresh numbers, unless they were just fetched. */
   ask() {
-    if (Date.now() - this.lastTry < ASK_MIN_MS) return this.inflight;
+    if (this.now() - this.lastTry < ASK_MIN_MS) return this.inflight;
     return this.refresh();
   }
 
@@ -53,23 +62,47 @@ export class ClaudeUsage extends EventEmitter {
   }
 
   async #refresh() {
-    this.lastTry = Date.now();
-    const auth = await readCredentials();
-    if (!auth) return this.#set({ status: 'signedOut' });
-    if (auth.expiresAt && auth.expiresAt < Date.now()) return this.#set({ status: 'expired' });
+    this.lastTry = this.now();
     try {
-      const res = await fetch(ENDPOINT, {
-        headers: { authorization: `Bearer ${auth.accessToken}`, 'anthropic-beta': 'oauth-2025-04-20' },
-        signal: AbortSignal.timeout(15000),
-      });
+      let auth = await this.readCredentials(), attemptedRenewal = false;
+      if (!auth) return this.#set({ status: 'signedOut' });
+      if (auth.expiresAt && auth.expiresAt <= this.now()) {
+        auth = await this.#renew(auth);
+        attemptedRenewal = true;
+        if (!auth) return this.#set({ status: 'expired' });
+      }
+      let res = await this.#request(auth);
+      if (res.status === 401 && !attemptedRenewal) {
+        auth = await this.#renew(auth);
+        if (auth) res = await this.#request(auth);
+      }
       if (res.status === 401) return this.#set({ status: 'expired' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      this.#set({ status: 'ok', session: windowOf(data.five_hour), week: windowOf(data.seven_day), updatedAt: Date.now() });
+      this.#set({ status: 'ok', session: windowOf(data.five_hour), week: windowOf(data.seven_day), updatedAt: this.now() });
     } catch (err) {
       log.warn('[usage]', err.message);
       if (this.state.status !== 'ok') this.#set({ status: 'error' });
     }
+  }
+
+  #request(auth) {
+    return this.request(ENDPOINT, {
+      headers: { authorization: `Bearer ${auth.accessToken}`, 'anthropic-beta': 'oauth-2025-04-20' },
+      signal: AbortSignal.timeout(15000),
+    });
+  }
+
+  async #renew(previous) {
+    // Claude Code may have renewed the token while our request was in flight.
+    let auth = await this.readCredentials();
+    if (isRenewed(auth, previous, this.now())) return auth;
+    if (this.now() - this.lastRenewal < RENEW_MIN_MS) return null;
+    this.lastRenewal = this.now();
+    try { await this.renewCredentials(previous); }
+    catch { log.warn('[usage]', 'Claude Code could not renew its sign-in'); }
+    auth = await this.readCredentials();
+    return isRenewed(auth, previous, this.now()) ? auth : null;
   }
 
   #set(state) {

@@ -41,7 +41,7 @@ function ring(r, w, length, initial, paceOffset) {
     used: arc(0, Math.min(used, pace)),
     over: arc(pace, used),
     caps,
-    pace: w.resetsAt ? point(r + paceOffset, pace) : null,
+    pace: point(r + paceOffset, pace),
     initial
   };
 }
@@ -53,7 +53,7 @@ const rings = computed(() => !ok.value ? [] : [
 const message = computed(() => ({
   ok: {},
   signedOut: { title: 'Not signed in to Claude', detail: 'Run claude auth login in Terminal on your Mac.' },
-  expired: { title: 'Claude sign-in expired', detail: 'Run claude auth login in Terminal on your Mac.' },
+  expired: { title: 'Claude sign-in expired', detail: 'Open Claude Code on your Mac and sign in if prompted.' },
   none: { title: 'No ChatGPT usage yet', detail: 'Use Codex on this Mac and it’ll show here.' },
   error: { title: 'Usage unavailable', detail: 'It’ll try again in a few minutes.' }
 })[usage.value.status] || { title: 'Getting your usage…' });

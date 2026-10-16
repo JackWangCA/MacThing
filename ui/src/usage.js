@@ -28,13 +28,22 @@ export function paceLevel(w, length, now) {
   return k >= SEVERE ? 'Severe' : k >= HIGH ? 'High' : k >= AHEAD ? 'Ahead' : k >= OK ? 'OK' : 'Good';
 }
 
+// Bundled Twemoji SVGs render offline even when the device has no emoji font.
+const PACE_EMOJI = {
+  Good: '1f44d', OK: '1f44c', Ahead: '1f44e', High: '270b',
+  Severe: '1f525', Max: '1f4a5', Over: '1f6ab'
+};
+/** Optional image for the pace label; missing/older settings keep the words. */
+export const paceImage = (level, style) => style === 'emoji' && PACE_EMOJI[level]
+  ? 'images/emoji/' + PACE_EMOJI[level] + '.svg' : null;
+
 // Under an hour the countdown steps 45, 30, 25, 20, 15, 10, then every minute to 1.
 const MINUTE_STEPS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 45];
 /** How long until a window resets, short: under an hour the next of MINUTE_STEPS up (41 minutes
  *  is 45m, never 0m), past 45 minutes hours and days to the nearest half (1h, 1.5h, 8h, 5d). A
- *  window that hasn't started has no reset yet: '–'. */
-export function untilText(resetsAt, now) {
-  if (!resetsAt) return '–';
+ *  window that hasn't started shows its full length when supplied, otherwise '–'. */
+export function untilText(resetsAt, now, length) {
+  if (!resetsAt) return length ? untilText(now + length, now) : '–';
   const minutes = Math.max(0, (resetsAt - now) / 60000);
   const step = MINUTE_STEPS.find(m => m >= Math.ceil(minutes));
   if (step) return Math.max(1, step) + 'm';

@@ -6,7 +6,7 @@ import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
 import ClaudeUsage from '../components/ClaudeUsage.vue';
-import { SESSION_MS, WEEK_MS, paceLevel, untilText, usageProviders, usageOf } from '../usage.js';
+import { SESSION_MS, WEEK_MS, paceLevel, paceImage, untilText, usageProviders, usageOf } from '../usage.js';
 import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, autoStartMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
@@ -34,11 +34,15 @@ watch(providers, list => { if (isUsage(mode.value) && !list.includes(mode.value)
 function usageRail(provider) {
   const u = usageOf(state, provider);
   if (u.status !== 'ok') return { eyebrow: 'Session usage', title: '--', subtitle: '' };
+  const session = paceLevel(u.session, SESSION_MS, state.now);
+  const week = paceLevel(u.week, WEEK_MS, state.now);
   return {
+    titleImage: paceImage(session, state.settings.usageLabels),
+    subtitleImage: paceImage(week, state.settings.usageLabels),
     eyebrow: 'Session · ' + Math.round(u.session.percent) + '% used',
-    title: paceLevel(u.session, SESSION_MS, state.now),
+    title: session,
     subtitleLabel: 'Week · ' + Math.round(u.week.percent) + '% used',
-    subtitle: paceLevel(u.week, WEEK_MS, state.now)
+    subtitle: week
   };
 }
 const railViews = computed(() => {
@@ -50,7 +54,7 @@ const railViews = computed(() => {
 const resets = computed(() => {
   if (!isUsage(mode.value)) return null;
   const u = usageOf(state, mode.value);
-  return u.status === 'ok' ? { session: untilText(u.session.resetsAt, state.now), week: untilText(u.week.resetsAt, state.now) } : null;
+  return u.status === 'ok' ? { session: untilText(u.session.resetsAt, state.now, SESSION_MS), week: untilText(u.week.resetsAt, state.now, WEEK_MS) } : null;
 });
 // While it's up and not started, a meeting that starts sets it too, as does one that turns up
 // when the calendar first loads (after a reload that reopened the timer). With Settings → Meeting

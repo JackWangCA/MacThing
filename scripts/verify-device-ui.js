@@ -150,6 +150,15 @@ try {
   assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-behind").length'), 0, 'Under-pace usage leaves the track clear');
   assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .u-label")).map(l => l.textContent).join()'), 'S,W', 'Each ring is named');
   await capture('usage');
+  await message({ type: 'usage', usage: { status: 'ok', session: { percent: 0, resetsAt: null }, week: { percent: 0, resetsAt: null }, updatedAt: now } });
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets inSession 5h · Week 7d$/);
+  assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .u-pace")).every(d => Number(d.getAttribute("cx")) === 240 && Number(d.getAttribute("cy")) < 240)'), true, 'Unstarted windows mark their pace at 12 o’clock');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 2, 'Unstarted windows keep both pace dots');
+  await capture('usage-unstarted');
+  await message({ type: 'settings', settings: { ...settings, usageLabels: 'emoji' } });
+  assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .left-rail-view.on .rail-emoji")).filter(img => img.complete && img.naturalWidth > 0 && img.alt === "Good").length'), 2, 'Session and week use the bundled emoji');
+  await capture('usage-emoji');
+  await message({ type: 'settings', settings });
   await message({ type: 'usage', usage: { status: 'expired' } });
   assert.match(await evaluate('document.querySelector("#screen-clock .stage-message").textContent'), /Claude sign-in expired/);
   await capture('usage-expired');
