@@ -1,6 +1,6 @@
-# 0.3.0 release artwork
+# 1.0.0 release artwork
 
-[Open the 0.3.0 Figma page](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=327-1567).
+[Open the 1.0.0 Figma page](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=327-1567).
 
 These assets show the release after PRs [#37](https://github.com/srcurran/MacThing/pull/37),
 [#40](https://github.com/srcurran/MacThing/pull/40), [#41](https://github.com/srcurran/MacThing/pull/41),
@@ -10,7 +10,7 @@ are merged. The release PR must follow those changes.
 The screens were rendered from a combined preview build at **800×480**, using the bundled UI
 fonts and fixture data. The exact PR commits, compiled UI hash, and image checksums are in
 [assets.json](assets.json). Physical-device captures and the device test are deferred at the
-user's request; the current Car Thing build was left unchanged. These images are release
+user's request; generating these previews did not change the Car Thing build. These images are release
 previews, not verified device captures.
 
 ## Figma video setup

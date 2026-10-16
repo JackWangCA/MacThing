@@ -7,17 +7,17 @@ No reflashing: this runs on the community firmware you already have, replaces th
 device shows, and can be undone with one command. Nothing is installed on the device that a
 `npm run restore-device` doesn't put back.
 
-[Version 0.3.0](https://github.com/srcurran/MacThing/releases) · [Figma artwork and video source](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=327-1567)
+[Version 1.0.0](https://github.com/srcurran/MacThing/releases) · [Figma artwork and video source](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=327-1567)
 
-![Now Playing on the Car Thing](docs/0.3.0/device-nowplaying.png)
+![Now Playing on the Car Thing](docs/1.0.0/device-nowplaying.png)
 
-![Calendar, Weather, Clock, timer, Claude usage and ChatGPT usage on the Car Thing](docs/0.3.0/device-overview.png)
+![Calendar, Weather, Clock, timer, Claude usage and ChatGPT usage on the Car Thing](docs/1.0.0/device-overview.png)
 
 _Release artwork uses the current UI at 800×480 with fixture data, rendered locally in Chromium
-and mounted in the Figma device mockups. The 0.3.0 Figma page also contains the video cuts and
+and mounted in the Figma device mockups. The 1.0.0 Figma page also contains the video cuts and
 individual screen assets._
 
-## New in 0.3.0
+## New in 1.0.0
 
 Seven updates since 0.2:
 
@@ -48,7 +48,7 @@ The four screens:
   - **Claude usage.** The clock button's third press shows how much of your Claude plan you've used — the same numbers as Claude Code's `/usage` — as two rings the size of the clock: the current five-hour session outside and the week inside. Each ring's faint track is the whole allowance and the white arc is what you've used. The pace — how much of that window's time has gone, where you'd be using it evenly — is marked by a white dot outside the session ring and inside the weekly ring. The dots are solid white with no border; usage past the dot is orange. Each ring is marked with its initial, S or W, in a white circle at 12 o'clock, and the bottom line says how long until each resets (Session 1.5h · Week 5d) in place of the next event. The left side says how worried to be about each: **Good**, **OK**, **Ahead**, **High**, **Severe**, **Max** or **Over**, big for the session and smaller for the week. It compares how fast you've been using the window with how fast you can still afford to — (used ÷ time gone) ÷ (what's left ÷ time left). Early in a window that's mostly your burn rate, so being a little ahead is fine (28% used 22% of the way in is OK) but burning hot isn't (45% at 15% is High). Late in a window there's little left either way, so even a small lead means slowing down (96% at 93% is High). Under 1× is Good (you'd finish the window under its limit even at this rate), 1–1.5× OK, 1.5–3× Ahead, 3–10× High, 10× or more Severe. At 97% used or more it always says Max regardless of pace; at 100% it says Over. It uses the Claude Code command line's sign-in on your Mac (the "Claude Code-credentials" Keychain item; the first time, macOS asks whether `security` may read it, so choose Always Allow), and only ever reads the access token, so it never signs Claude Code out. Signing in to the Claude desktop app doesn't count: if it says "Not signed in to Claude", run `claude auth login` in Terminal. The numbers refresh every five minutes, and when you open the view (at most once a minute). If the sign-in has expired, the screen says so until Claude Code renews it, or run `claude auth login` again.
   - **ChatGPT, both or neither.** **Usage** in Settings (or on the Mac settings page) picks Claude (the default), ChatGPT, Both (a Claude view and then a ChatGPT one, each a press of the clock button) or None (no usage view, and nothing read on the Mac). The ChatGPT view shows your ChatGPT plan's limits: the five-hour and weekly limits Codex runs under, with the OpenAI mark in the middle. They come from the session logs Codex writes on your Mac (`~/.codex/sessions`) — no sign-in, nothing sent anywhere — so they're as of the last time you used Codex (the app or the command line). A window whose reset has passed since then shows as fresh. With no Codex use in the last month, it says "No ChatGPT usage yet".
 
-<img src="docs/0.3.0/weather-today.png" width="49%" alt="Weather's Today view: the next six hours"> <img src="docs/0.3.0/weather-week.png" width="49%" alt="Weather's This Week view: the next six days">
+<img src="docs/1.0.0/weather-today.png" width="49%" alt="Weather's Today view: the next six hours"> <img src="docs/1.0.0/weather-week.png" width="49%" alt="Weather's This Week view: the next six days">
 
 _Weather's Today and This Week views, from the same fixture data (rendered in Chromium rather than captured on the device)._
 
@@ -363,7 +363,7 @@ that lays them side by side.
 
 Outside pull requests are labelled **needs-triage** for maintainer review. Open a focused PR with a description of the change and how you checked it. Device UI changes should include screenshots and note whether they were tested on a Car Thing.
 
-Release artwork and video assets for 0.3.0 are documented in [docs/0.3.0](docs/0.3.0/README.md).
+Release artwork and video assets for 1.0.0 are documented in [docs/1.0.0](docs/1.0.0/README.md).
 
 ## Credits
 
