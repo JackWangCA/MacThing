@@ -448,11 +448,24 @@ h3 {
   padding: var(--panel-inset-y) var(--panel-inset-x);
   background: var(--panel);
 }
+/* Three fires fit the large pace label and the compact weekly line. */
+.rail-fires {
+  display: inline-flex;
+  font-size: 0.75em;
+  line-height: 1;
+  vertical-align: -0.08em;
+  letter-spacing: 0;
+  word-spacing: 0;
+}
 /* Keep the 32px weekly percentage and pace together in the 272px rail. */
 .usage-week {
   letter-spacing: -0.02em;
   word-spacing: -4px;
   white-space: nowrap;
+}
+/* Leave room for the weekly percentage and brackets beside three flames. */
+.usage-week .rail-fires {
+  font-size: 0.625em;
 }
 /* The big label sits close under its eyebrow, with more room below it. */
 .left-rail .left-rail-content > .font-huge {

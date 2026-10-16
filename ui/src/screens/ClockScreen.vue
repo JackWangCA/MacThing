@@ -6,7 +6,7 @@ import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
 import ClaudeUsage from '../components/ClaudeUsage.vue';
-import { SESSION_MS, WEEK_MS, paceLevel, paceNumber, paceImage, untilText, usageProviders, usageOf } from '../usage.js';
+import { SESSION_MS, WEEK_MS, paceNumber, untilText, usageProviders, usageOf } from '../usage.js';
 import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, autoStartMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
@@ -34,17 +34,12 @@ watch(providers, list => { if (isUsage(mode.value) && !list.includes(mode.value)
 function usageRail(provider) {
   const u = usageOf(state, provider);
   if (u.status !== 'ok') return { eyebrow: 'Session usage', title: '--', subtitle: '' };
-  const session = paceLevel(u.session, SESSION_MS, state.now);
-  const week = paceLevel(u.week, WEEK_MS, state.now);
   return {
-    italicSuffix: state.settings.usageLabels === 'k' ? 'x' : '',
-    subtitleClass: state.settings.usageLabels === 'k' ? 'usage-week' : '',
-    titleImage: paceImage(session, state.settings.usageLabels),
-    subtitleImage: paceImage(week, state.settings.usageLabels),
-    eyebrow: 'Session · ' + Math.round(u.session.percent) + '% used',
-    title: state.settings.usageLabels === 'k' ? paceNumber(u.session, SESSION_MS, state.now) : session,
-    subtitleLabel: state.settings.usageLabels === 'k' ? '' : 'Week · ' + Math.round(u.week.percent) + '% used',
-    subtitle: state.settings.usageLabels === 'k' ? 'Week: ' + Math.round(u.week.percent) + '% · ' + paceNumber(u.week, WEEK_MS, state.now) : week
+    italicSuffix: 'x',
+    subtitleClass: 'usage-week',
+    eyebrow: 'Session: ' + Math.round(u.session.percent) + '% used',
+    title: paceNumber(u.session, SESSION_MS, state.now),
+    subtitle: 'Week: ' + Math.round(u.week.percent) + '% [' + paceNumber(u.week, WEEK_MS, state.now) + ']'
   };
 }
 const railViews = computed(() => {

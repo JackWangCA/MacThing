@@ -141,7 +141,7 @@ try {
   assert.equal(await clockView(), 'claude', 'The clock button goes on to Claude usage');
   assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "refreshUsage")'), true, 'Opening usage asks the Mac for fresh numbers');
   // The session (42% used, 56% of its time gone) is under pace; the week (86%, 75%) is twice it.
-  assert.match(await rail(), /Session · 42% used\s*Good\s*Week · 86% used\s*Ahead/);
+  assert.match(await rail(), /Session: 42% used\s*0\.6x\s*Week: 86% \[2\.\dx\]/);
   // In place of the next event: the session resets in 2 h 13 min, the week on Thursday at 9.
   assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets inSession 2h · Week 2d$/);
   // The session (42% used, 56% of its time gone) is behind its pace; the week (86%, 75%) is ahead of it.
@@ -155,10 +155,9 @@ try {
   assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .u-pace")).every(d => Number(d.getAttribute("cx")) === 240 && Number(d.getAttribute("cy")) < 240)'), true, 'Unstarted windows mark their pace at 12 o’clock');
   assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 2, 'Unstarted windows keep both pace dots');
   await capture('usage-unstarted');
-  await message({ type: 'settings', settings: { ...settings, usageLabels: 'emoji' } });
-  assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .left-rail-view.on .rail-emoji")).filter(img => img.complete && img.naturalWidth > 0 && img.alt === "Good").length'), 2, 'Session and week use the bundled emoji');
-  await capture('usage-emoji');
-  await message({ type: 'settings', settings });
+  await message({ type: 'usage', usage: { status: 'ok', session: { percent: 100, resetsAt: now + 3600000 }, week: { percent: 100, resetsAt: now + 86400000 }, updatedAt: now } });
+  assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .left-rail-view.on .rail-fires img")).filter(img => img.complete && img.naturalWidth > 0).length'), 6, 'Session and week each show three bundled fires at the limit');
+  await capture('usage-limit');
   await message({ type: 'usage', usage: { status: 'expired' } });
   assert.match(await evaluate('document.querySelector("#screen-clock .stage-message").textContent'), /Claude sign-in expired/);
   await capture('usage-expired');
@@ -170,7 +169,7 @@ try {
   await pause(400);
   assert.equal(await clockView(), 'chatgpt', 'With Both, the clock button goes on to ChatGPT usage');
   assert.equal(await evaluate('document.querySelector("#screen-clock .fade-view.on .u-face").getAttribute("aria-label")'), 'ChatGPT usage');
-  assert.match(await rail(), /Session · 82% used\s*OK\s*Week · 10% used\s*Good/);
+  assert.match(await rail(), /Session: 82% used\s*1\.1x\s*Week: 10% \[0\.2x\]/);
   assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets inSession 1h · Week 5d$/);
   await capture('usage-chatgpt');
   await message({ type: 'chatgptUsage', usage: { status: 'none' } });
