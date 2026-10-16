@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { state } from '../state.js';
 import StageMessage from './StageMessage.vue';
-import { SESSION_MS, WEEK_MS, elapsed, usageOf, usageMessage, usageName, usageUpdatedText } from '../usage.js';
+import { SESSION_MS, WEEK_MS, elapsed, usageOf, usageMessage, usageName, usageUpdatedText, usageAge } from '../usage.js';
 // Claude or ChatGPT usage (the clock button after the timer; Settings → Usage picks which): two rings across the stage, the size of the clock
 // and the timer, the five-hour session outside and the week inside. Each ring, clockwise from 12:
 // the faint track is the whole allowance and the solid arc (rounded at both ends) is what's been
@@ -71,7 +71,7 @@ const message = computed(() => usageMessage(usage.value, props.provider, state.n
         </g>
       </svg>
     </template>
-    <div v-if="usageUpdatedText(usage, state.now)" class="u-updated font-small weight-light muted" :aria-label="'Usage data ' + usageUpdatedText(usage, state.now)">{{ usageUpdatedText(usage, state.now) }}</div>
+    <div v-if="usageUpdatedText(usage, state.now)" class="u-updated font-small weight-light muted" :aria-label="'Usage updated ' + usageAge(usage.updatedAt, state.now)">{{ usageUpdatedText(usage, state.now) }}</div>
     <StageMessage :title="message.title" :detail="message.detail">
       <template #icon><svg class="u-logo u-status-logo" viewBox="0 0 24 24" role="img" :aria-label="usageName(provider) + ' logo'"><path :d="LOGOS[provider]" /></svg></template>
     </StageMessage>

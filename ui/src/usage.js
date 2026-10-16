@@ -65,11 +65,11 @@ export function usageMessage(usage, provider, now) {
 }
 export function usageAge(updatedAt, now) {
   const minutes = Math.max(0, Math.floor((now - updatedAt) / 60000));
-  return minutes < 1 ? 'just now' : minutes < 60 ? minutes + 'm old' : Math.floor(minutes / 60) + 'h old';
+  return minutes < 1 ? 'just now' : minutes < 60 ? minutes + 'm ago' : Math.floor(minutes / 60) + 'h ago';
 }
 
 /** Hide freshness text during normal five-minute polling; show after a missed refresh. */
 export function usageUpdatedText(usage, now) {
   return usage.status === 'ok' && Number.isFinite(usage.updatedAt) && now - usage.updatedAt >= 10 * 60000
-    ? usageAge(usage.updatedAt, now) : '';
+    ? '↻ ' + usageAge(usage.updatedAt, now) : '';
 }
