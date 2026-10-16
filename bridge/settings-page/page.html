@@ -27,6 +27,10 @@
   .seg button { border: 0; background: none; color: var(--text); font: inherit; font-size: 14px;
     padding: 5px 12px; border-radius: 7px; cursor: pointer; }
   .seg button[aria-pressed="true"] { background: var(--seg-on); box-shadow: 0 1px 3px rgba(0,0,0,.15); font-weight: 600; }
+  select[data-key] { flex-shrink: 0; max-width: 100%; min-height: 34px; padding: 6px 10px;
+    font: inherit; font-size: 14px; color: var(--text); background: var(--seg);
+    border: 1px solid var(--line); border-radius: 9px; outline-color: var(--accent); color-scheme: light; }
+  @media (prefers-color-scheme: dark) { select[data-key] { color-scheme: dark; } }
   h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 8px 18px; }
   .choice { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; cursor: pointer; }
   .choice + .choice { border-top: 1px solid var(--line); }
@@ -67,8 +71,8 @@
       <span class="seg" data-key="clock24h"><button data-v="false">12-hour</button><button data-v="true">24-hour</button></span></div>
     <div class="row"><span class="label">Clock face</span>
       <span class="seg" data-key="clockFace"><button data-v="analog">Analog</button><button data-v="numbers">Numbers</button><button data-v="digital">Digital</button></span></div>
-    <div class="row"><div><div class="label">Usage</div><div class="note">Whose plan the clock's usage view shows (ChatGPT: from Codex on this Mac)</div></div>
-      <span class="seg" data-key="usageSource"><button data-v="claude">Claude</button><button data-v="chatgpt">ChatGPT</button><button data-v="both">Both</button><button data-v="none">None</button></span></div>
+    <div class="row"><div><label class="label" for="usageSource">Usage</label><div class="note">Whose plan the clock's usage view shows (ChatGPT: from Codex on this Mac)</div></div>
+      <select id="usageSource" data-key="usageSource"><option value="claude">Claude</option><option value="chatgpt">ChatGPT</option><option value="both">Both</option><option value="none">None</option></select></div>
     <div class="row"><div><div class="label">Usage labels</div><div class="note">Session and weekly pace for Claude and ChatGPT</div></div>
       <span class="seg" data-key="usageLabels"><button data-v="words">Words</button><button data-v="emoji">Emoji</button></span></div>
   </section>
@@ -85,10 +89,10 @@
 
   <h2 id="calendar">Calendar</h2>
   <section>
-    <div class="row"><span class="label">Days of events</span>
-      <span class="seg" data-key="calendarDays" data-type="number"><button data-v="1">Today</button><button data-v="2">2 days</button><button data-v="3">3 days</button><button data-v="5">5 days</button><button data-v="7">7 days</button></span></div>
-    <div class="row"><div><div class="label">Meeting alerts</div><div class="note">Fills the screen before a meeting</div></div>
-      <span class="seg" data-key="meetingAlert" data-type="number"><button data-v="0">Off</button><button data-v="event">Event’s alert</button><button data-v="1">1 min</button><button data-v="5">5 min</button><button data-v="10">10 min</button></span></div>
+    <div class="row"><label class="label" for="calendarDays">Days of events</label>
+      <select id="calendarDays" data-key="calendarDays" data-type="number"><option value="1">Today</option><option value="2">2 days</option><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option></select></div>
+    <div class="row"><div><label class="label" for="meetingAlert">Meeting alerts</label><div class="note">Fills the screen before a meeting</div></div>
+      <select id="meetingAlert" data-key="meetingAlert" data-type="number"><option value="0">Off</option><option value="event">Event’s alert</option><option value="1">1 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
     <div class="row"><div><div class="label">Meeting timer</div><div class="note">Starts the clock's timer as a meeting begins, running to its end</div></div>
       <span class="seg" data-key="meetingTimer"><button data-v="false">Off</button><button data-v="true">Auto-start</button></span></div>
     <div class="row stack"><div class="label">Calendars</div><div class="note" id="calNote"></div><div id="calList"></div></div>
@@ -120,6 +124,7 @@
     document.querySelectorAll('.seg').forEach((seg) => {
       seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(s[seg.dataset.key]))));
     });
+    document.querySelectorAll('select[data-key]').forEach((select) => { select.value = String(s[select.dataset.key]); });
     const manual = s.location.mode === 'manual';
     document.querySelector(`input[name=loc][value=${manual ? 'manual' : 'auto'}]`).checked = true;
     $('#manualNote').textContent = manual ? `Using ${s.location.name}` : 'Search for a city';
@@ -178,10 +183,14 @@
     }));
   }
 
+  function saveChoice(control, value) {
+    save({ [control.dataset.key]: value === 'true' ? true : value === 'false' ? false : control.dataset.type === 'number' && value !== '' && !isNaN(value) ? Number(value) : value });
+  }
+  document.querySelectorAll('select[data-key]').forEach((select) => select.addEventListener('change', () => saveChoice(select, select.value)));
   document.querySelectorAll('.seg').forEach((seg) => seg.addEventListener('click', (e) => {
     const v = e.target.dataset?.v;
     if (v === undefined) return;
-    save({ [seg.dataset.key]: v === 'true' ? true : v === 'false' ? false : seg.dataset.type === 'number' && v !== '' && !isNaN(v) ? Number(v) : v });
+    saveChoice(seg, v);
   }));
 
   document.querySelector('input[name=loc][value=auto]').addEventListener('change', () => save({ location: { mode: 'auto' } }));
