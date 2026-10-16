@@ -6,7 +6,7 @@ import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
 import ClaudeUsage from '../components/ClaudeUsage.vue';
-import { SESSION_MS, WEEK_MS, paceNumber, untilText, usageProviders, usageOf } from '../usage.js';
+import { SESSION_MS, WEEK_MS, paceNumber, untilText, usageProviders, usageOf, usageName } from '../usage.js';
 import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, autoStartMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
@@ -33,7 +33,7 @@ watch(providers, list => { if (isUsage(mode.value) && !list.includes(mode.value)
 // Each usage's rail says how worried to be about the session, and the week under it (see usage.js).
 function usageRail(provider) {
   const u = usageOf(state, provider);
-  if (u.status !== 'ok') return { eyebrow: 'Session usage', title: '--', subtitle: '' };
+  if (u.status !== 'ok') return { eyebrow: usageName(provider) + ' usage', title: '--', subtitle: '' };
   return {
     italicSuffix: 'x',
     subtitleClass: 'usage-week',

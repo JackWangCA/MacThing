@@ -161,6 +161,10 @@ try {
   await message({ type: 'usage', usage: { status: 'expired' } });
   assert.match(await evaluate('document.querySelector("#screen-clock .stage-message").textContent'), /Claude sign-in expired/);
   await capture('usage-expired');
+  await message({ type: 'usage', usage: { status: 'rateLimited', retryAt: now + 754000 + 5 * 60000 } });
+  assert.match(await evaluate('document.querySelector("#screen-clock .fade-view.on .stage-message").textContent'), /Claude usage delayed.*Retrying in 5m/);
+  assert.equal(await evaluate('document.querySelector("#screen-clock .fade-view.on .u-status-logo").getAttribute("aria-label")'), 'Claude logo');
+  await capture('usage-rate-limited');
   // Settings → Usage → Both adds ChatGPT's view after Claude's: Codex's limits the same way, the
   // session (82%, 80% of it gone) just over pace, the week (10%, 32% gone) under it.
   await message({ type: 'settings', settings: { ...settings, usageSource: 'both' } });

@@ -48,3 +48,28 @@ const PROVIDERS = { claude: ['claude'], chatgpt: ['chatgpt'], both: ['claude', '
 export const usageProviders = state => PROVIDERS[state.settings.usageSource] || PROVIDERS.claude;
 /** A provider's usage, as the Mac sent it ({status, session, week, …}). */
 export const usageOf = (state, provider) => provider === 'chatgpt' ? state.chatgptUsage : state.usage;
+
+/** Provider names stay visible even while no usage numbers are available. */
+export const usageName = provider => provider === 'chatgpt' ? 'ChatGPT' : 'Claude';
+export function usageMessage(usage, provider, now) {
+  const name = usageName(provider);
+  const retry = usage.retryAt > now ? 'Retrying in ' + untilText(usage.retryAt, now) + '.' : 'Retrying shortly.';
+  return ({
+    ok: {},
+    signedOut: { title: 'Not signed in to Claude', detail: 'Run claude auth login in Terminal on your Mac.' },
+    expired: { title: 'Claude sign-in expired', detail: 'Open Claude Code on your Mac and sign in if prompted.' },
+    none: { title: 'No ChatGPT usage yet', detail: 'Use Codex on this Mac and it’ll show here.' },
+    rateLimited: { title: name + ' usage delayed', detail: name + ' is limiting usage checks. ' + retry },
+    error: { title: name + ' usage unavailable', detail: retry }
+  })[usage.status] || { title: 'Getting ' + name + ' usage…' };
+}
+export function usageAge(updatedAt, now) {
+  const minutes = Math.max(0, Math.floor((now - updatedAt) / 60000));
+  return minutes < 1 ? 'just now' : minutes < 60 ? minutes + 'm ago' : Math.floor(minutes / 60) + 'h ago';
+}
+
+/** Hide freshness text during normal five-minute polling; show after a missed refresh. */
+export function usageUpdatedText(usage, now) {
+  return usage.status === 'ok' && Number.isFinite(usage.updatedAt) && now - usage.updatedAt >= 10 * 60000
+    ? 'Updated ' + usageAge(usage.updatedAt, now) : '';
+}

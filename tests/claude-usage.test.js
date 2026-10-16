@@ -3,9 +3,11 @@ import { test } from 'node:test';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { ClaudeUsage } from '../bridge/widgets/usage.js';
 import { AUTH_ARGS, renewClaudeCredentials } from '../bridge/widgets/claude-auth.js';
-import { SESSION_MS, WEEK_MS, untilText } from '../ui/src/usage.js';
+import { SESSION_MS, WEEK_MS, untilText, usageMessage, usageAge, usageUpdatedText } from '../ui/src/usage.js';
 
 const NOW = 1800000000000;
 const old = { accessToken: 'expired-test-token', expiresAt: 1 };
@@ -17,7 +19,7 @@ const response = (status = 200) => ({ status, ok: status === 200, json: async ()
 function fixture({ auth = fresh, status = () => 200, renew = true } = {}) {
   let now = NOW, reads = 0, renewals = 0;
   const sent = [];
-  const usage = new ClaudeUsage({ now: () => now, readCredentials: async () => { reads++; return auth; },
+  const usage = new ClaudeUsage({ cacheFile: null, now: () => now, readCredentials: async () => { reads++; return auth; },
     renewCredentials: async () => { renewals++; if (renew) auth = fresh; },
     fetch: async (_, opts) => { sent.push(opts.headers.authorization); return response(status(sent.length)); },
   });
@@ -45,7 +47,7 @@ test('a 401 retries once with a renewed token', async () => {
 
 test('a concurrent CLI renewal is reused without starting another renewal', async () => {
   let reads = 0, requests = 0;
-  const usage = new ClaudeUsage({ now: () => NOW,
+  const usage = new ClaudeUsage({ cacheFile: null, now: () => NOW,
     readCredentials: async () => ++reads === 1 ? { ...old, expiresAt: NOW + 1000 } : fresh,
     renewCredentials: async () => assert.fail('Already renewed'),
     fetch: async () => response(++requests === 1 ? 401 : 200) });
@@ -73,7 +75,7 @@ test('parallel refreshes share one renewal and one request', async () => {
 });
 
 test('disabled usage and missing credentials never start renewal', async () => {
-  await new ClaudeUsage({ enabled: () => false, readCredentials: async () => assert.fail('Disabled') }).refresh();
+  await new ClaudeUsage({ cacheFile: null, enabled: () => false, readCredentials: async () => assert.fail('Disabled') }).refresh();
   const f = fixture({ auth: null }); await f.usage.refresh();
   assert.equal(f.usage.state.status, 'signedOut'); assert.equal(f.renewals, 0); assert.equal(f.sent.length, 0);
 });
@@ -139,4 +141,102 @@ test('stalled initialization times out and closes cleanly', async () => {
   const { child } = fakeCLI();
   assert.equal(await renewClaudeCredentials(async () => old, old, { ...helperOptions(child), timeoutMs: 10 }), false);
   assert.equal(child.stdin.writableEnded, true);
+});
+
+test('429 waits at least five minutes and reopening does not bypass the cooldown', async () => {
+  const f = fixture({ status: n => n === 1 ? 429 : 200 });
+  await f.usage.refresh();
+  assert.deepEqual(f.usage.state, {status:'rateLimited',retryAt:NOW+5*60000});
+  f.advance(60000); await f.usage.ask(); await f.usage.refresh();
+  assert.equal(f.sent.length,1); assert.equal(f.renewals,0);
+  f.advance(4*60000); await f.usage.refresh();
+  assert.equal(f.sent.length,2); assert.equal(f.usage.state.status,'ok');
+});
+
+test('Retry-After seconds and dates are respected, including zero and invalid hints', async () => {
+  for (const [hint,delay] of [['900',15*60000],[new Date(NOW+20*60000).toUTCString(),20*60000],['0',5*60000],['bad',5*60000]]) {
+    let calls=0;
+    const usage=new ClaudeUsage({cacheFile:null,now:()=>NOW,readCredentials:async()=>fresh,
+      renewCredentials:async()=>assert.fail('Throttling must not renew the login'),
+      fetch:async()=>{calls++;return {...response(429),headers:new Headers({'retry-after':hint})}}});
+    await usage.refresh();await usage.refresh();
+    assert.equal(usage.state.retryAt,NOW+delay);assert.equal(calls,1);
+  }
+});
+
+test('repeated throttling backs off, retains marked readings, and resets after recovery', async () => {
+  const f=fixture({status:n=>[1,4].includes(n)?200:429});
+  await f.usage.refresh();const original=f.usage.state;
+  f.advance(5*60000);await f.usage.refresh();
+  assert.equal(f.usage.state.stale,true);assert.equal(f.usage.state.updatedAt,original.updatedAt);
+  assert.equal(f.usage.state.retryAt,NOW+10*60000);
+  f.advance(5*60000);await f.usage.refresh();assert.equal(f.usage.state.retryAt,NOW+20*60000);
+  f.advance(10*60000);await f.usage.refresh();assert.equal(f.usage.state.stale,undefined);
+  f.advance(5*60000);await f.usage.refresh();assert.equal(f.usage.state.retryAt,NOW+30*60000);
+});
+
+test('cached readings and retry cooldown survive restart without storing credentials', async () => {
+  const folder=await fs.mkdtemp(path.join(os.tmpdir(),'macthing-usage-cache-'));
+  const file=path.join(folder,'cache.json');let now=NOW,calls=0;
+  const options={cacheFile:file,now:()=>now,readCredentials:async()=>fresh,
+    fetch:async()=>response(++calls===1?200:429)};
+  try {
+    const first=new ClaudeUsage(options);await first.refresh();
+    const justRestarted=new ClaudeUsage(options);await justRestarted.refresh();assert.equal(calls,1,'Restart reuses a just-fetched reading');
+    const unreadable=new ClaudeUsage({...options,readCredentials:async()=>{throw new Error('Test Keychain unavailable')}});
+    await unreadable.refresh();assert.equal(unreadable.state.status,'error');assert.equal(unreadable.state.session,undefined);
+    now+=5*60000;await first.refresh();
+    const raw=await fs.readFile(file,'utf8');
+    assert(!raw.includes(fresh.accessToken));assert(!raw.includes('refreshToken'));
+    const restarted=new ClaudeUsage(options);await restarted.refresh();
+    assert.equal(calls,2);assert.equal(restarted.state.status,'ok');assert.equal(restarted.state.stale,true);
+    assert.equal(restarted.state.retryAt,NOW+10*60000);assert.equal(restarted.state.session.percent,28);
+    const other=new ClaudeUsage({...options,readCredentials:async()=>({...fresh,accessToken:'different-account-token'})});
+    await other.refresh();assert.equal(other.state.status,'rateLimited');assert.equal(other.state.session,undefined);
+  } finally {await fs.rm(folder,{recursive:true,force:true})}
+});
+
+test('a cached window past its reset is not displayed as current usage', async () => {
+  const folder=await fs.mkdtemp(path.join(os.tmpdir(),'macthing-usage-cache-'));
+  const file=path.join(folder,'cache.json');let now=NOW,calls=0;
+  const options={cacheFile:file,now:()=>now,readCredentials:async()=>fresh,fetch:async()=>{
+    if(++calls>1)return response(429);
+    return {...response(),json:async()=>({five_hour:{utilization:30,resets_at:new Date(NOW+60000).toISOString()},seven_day:{utilization:40,resets_at:null}})};
+  }};
+  try{
+    await new ClaudeUsage(options).refresh();now+=2*60000;
+    const restarted=new ClaudeUsage(options);await restarted.refresh();
+    assert.equal(restarted.state.status,'rateLimited');assert.equal(restarted.state.session,undefined);
+  }finally{await fs.rm(folder,{recursive:true,force:true})}
+});
+
+test('transient request failure preserves marked last-known usage and clears after recovery', async () => {
+  let now=NOW,calls=0;
+  const usage=new ClaudeUsage({cacheFile:null,now:()=>now,readCredentials:async()=>fresh,fetch:async()=>{
+    if(++calls===2)throw new Error('Test network failure');return response();
+  }});
+  await usage.refresh();now+=5*60000;await usage.refresh();
+  assert.equal(usage.state.stale,true);assert.equal(usage.state.updatedAt,NOW);
+  now+=5*60000;await usage.refresh();assert.equal(usage.state.stale,undefined);
+});
+
+test('usage messages identify each provider, including loading and throttling', () => {
+  for(const provider of ['claude','chatgpt']){
+    const name=provider==='claude'?'Claude':'ChatGPT';
+    for(const status of ['loading','error','rateLimited']){
+      const m=usageMessage({status,retryAt:NOW+5*60000},provider,NOW);
+      assert(m.title.includes(name));
+      if(status==='rateLimited')assert.match(m.detail,/Retrying in 5m/);
+    }
+  }
+  assert.equal(usageAge(NOW-4*60000,NOW),'4m ago');
+});
+
+
+test('update age appears only after ten minutes since a successful reading', () => {
+  for(const age of [0,1,5,9.99]) assert.equal(usageUpdatedText({status:'ok',updatedAt:NOW-age*60000},NOW),'');
+  assert.equal(usageUpdatedText({status:'ok',updatedAt:NOW-10*60000},NOW),'Updated 10m ago');
+  assert.equal(usageUpdatedText({status:'ok',updatedAt:NOW-20*60000,stale:true},NOW),'Updated 20m ago');
+  assert.equal(usageUpdatedText({status:'error',updatedAt:NOW-20*60000},NOW),'');
+  assert.equal(usageUpdatedText({status:'ok'},NOW),'');
 });

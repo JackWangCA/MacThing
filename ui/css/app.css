@@ -1204,6 +1204,17 @@ h3 {
 .u-logo {
   fill: var(--bar-track);
 }
+.u-updated {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+}
+.u-status-logo {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  margin-bottom: 24px;
+}
 .u-label-disc {
   fill: var(--hand);
 }
