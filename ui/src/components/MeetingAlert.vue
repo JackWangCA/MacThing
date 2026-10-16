@@ -40,6 +40,7 @@ const due = computed(() => {
 // One meeting at a time: the card shows the first, and a press dismisses all of them, so
 // overlapping meetings don't bring up another card straight after.
 const event = computed(() => due.value[0] || null);
+CT.modalOpen = () => !!event.value;
 CT.dismissModal = () => {
   if (!event.value) return false;
   due.value.forEach(e => { dismissed[keyOf(e)] = e.start + AFTER_START_MS; });

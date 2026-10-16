@@ -175,16 +175,19 @@ export function initializeRuntime(state) {
   CT.closeSettings = function () { CT.show(beforeSettings); };
 
   // Whenever the Mac connects (the page loading, or the bridge coming back), an empty Now Playing
-  // gives way to the Clock. From there, or from the page's first screen, it moves to Now Playing
+  // gives way to the Idle screen (unless When idle is Never). From there, or from the page's first screen, it moves to Now Playing
   // when something starts — until a screen is picked on the device (or restored in dev). It
   // doesn't leave Now Playing while connected: a player can drop out between tracks.
   var autoScreen = true, opening = true; // opening: no Now Playing message yet since connecting
   CT.on('nowPlaying', function (msg) {
     var first = opening;
     opening = false;
-    if (first && !msg.np.active && CT.current === 'nowplaying') {
+    // Settings → When idle governs this: Never keeps the (placeholder) Now Playing up; otherwise
+    // the page opens on the Idle screen (the Clock by default). Settings arrive before Now Playing.
+    var idleTarget = CT.settings.idleScreen || 'clock';
+    if (first && !msg.np.active && CT.current === 'nowplaying' && CT.settings.idleMinutes && CT.screens[idleTarget]) {
       autoScreen = true;
-      return CT.show('clock', true); // under "Waiting for your Mac" as it fades
+      return CT.show(idleTarget, true); // under "Waiting for your Mac" as it fades
     }
     if (autoScreen && msg.np.active) {
       autoScreen = false;
@@ -361,6 +364,7 @@ export function initializeRuntime(state) {
     debugInput('keydown key=' + e.key + ' code=' + e.code + ' → ' + key + (e.repeat ? ' (repeat)' : ''));
     if (!key) return;
     e.preventDefault();
+    if (!e.repeat) emit('input', key); // e.g. the When idle countdown starts over
 
     var press = holds[key];
     if (e.repeat) {
@@ -405,6 +409,7 @@ export function initializeRuntime(state) {
     e.preventDefault();
     var d = e.deltaX || e.deltaY;
     debugInput('wheel dx=' + e.deltaX + ' dy=' + e.deltaY);
+    if (d) emit('input', 'wheel');
     if (!d || wakeInstead()) return;
     var steps = (d > 0 ? 1 : -1) * (CT.config.knobDirection || 1);
     var screen = CT.screens[CT.current];

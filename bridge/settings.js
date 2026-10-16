@@ -19,6 +19,8 @@ export const DEFAULTS = {
   calendarDays: 2, // days of events on the Calendar screen: today plus the next (n − 1)
   meetingAlert: 0, // when a timed event's alert covers the screen: 0 = off, 'event' = at the event's own alert, else minutes before
   meetingTimer: false, // start the clock's timer, set to the meeting's end, as each timed event starts
+  idleMinutes: 0, // once nothing has played this long on Now Playing, show idleScreen (0 = never)
+  idleScreen: 'clock', // 'clock' | 'calendar' | 'weather'
 };
 
 const VALID = {
@@ -34,6 +36,8 @@ const VALID = {
   calendarDays: (v) => Number.isInteger(v) && v >= 1 && v <= 7,
   meetingAlert: (v) => [0, 'event', 1, 5, 10].includes(v),
   meetingTimer: (v) => typeof v === 'boolean',
+  idleMinutes: (v) => [0, 1, 2, 5, 10].includes(v),
+  idleScreen: (v) => ['clock', 'calendar', 'weather'].includes(v),
 };
 
 class Settings extends EventEmitter {

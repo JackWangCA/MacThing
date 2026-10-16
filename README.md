@@ -127,6 +127,10 @@ npm run setup-device  # only if you set the device up before the sleep watchdog 
 
 **Everyday settings.** Use the device's Settings screen (fifth top button) or http://127.0.0.1:4747 on the Mac. They're saved in `~/Library/Application Support/carthing-now-playing/settings.json`.
 
+A few of them change how the device behaves:
+
+- **When idle** and **Idle screen:** once nothing has played for 1–10 minutes while Now Playing is up, the device switches to the Clock (or Calendar, or Weather). When music starts again it goes back to Now Playing, unless you've moved off that screen yourself. It never leaves another screen you picked, Settings, a meeting alert or a running timer. *Never* (the default) turns it off.
+
 **Hardware mapping and behavior.** Edit `bridge/config.js`, then `npm run restart`:
 
 - `buttons`: what each button does (`screen:<name>`, `settings`, or a media command)
