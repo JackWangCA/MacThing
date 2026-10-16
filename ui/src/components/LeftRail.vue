@@ -26,7 +26,7 @@ const subtitleClass = computed(() => [props.variant === 'media' || props.variant
         <p v-if="v.eyebrow" :class="eyebrowClass">{{ v.eyebrow }}</p>
         <h2 :class="titleClass"><img v-if="v.titleImage" class="rail-emoji" :src="v.titleImage" :alt="v.title" /><template v-else>{{ v.italicSuffix ? String(v.title).slice(0, -v.italicSuffix.length) : v.title }}<i v-if="v.italicSuffix">{{ v.italicSuffix }}</i></template></h2>
         <p v-if="v.subtitleLabel" :class="eyebrowClass">{{ v.subtitleLabel }}</p>
-        <div v-if="v.subtitle" :class="subtitleClass"><img v-if="v.subtitleImage" class="rail-emoji" :src="v.subtitleImage" :alt="v.subtitle" /><template v-else>{{ v.italicSuffix ? String(v.subtitle).slice(0, -v.italicSuffix.length) : v.subtitle }}<i v-if="v.italicSuffix">{{ v.italicSuffix }}</i></template></div>
+        <div v-if="v.subtitle" :class="subtitleClass"><img v-if="v.subtitleImage" class="rail-emoji" :src="v.subtitleImage" :alt="v.subtitle" /><template v-else>{{ v.subtitle }}</template></div>
       </div>
     </div>
     <Transition v-else name="view"><div :key="view" class="left-rail-content flex-col gap-12" :data-view="view">
