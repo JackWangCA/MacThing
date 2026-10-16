@@ -56,9 +56,12 @@
   .choice input { margin-top: 3px; accent-color: var(--accent); }
   .note { color: var(--muted); font-size: 13px; margin-top: 2px; }
   .row.stack { display: block; }
-  .cal { padding: 8px 0; align-items: center; }
+  #calList { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); column-gap: 24px; margin-top: 12px; }
+  .cal { display: grid; grid-template-columns: 16px 10px minmax(0, 1fr); gap: 10px; align-items: start; min-width: 0; padding: 10px 0; }
+  .cal > div { min-width: 0; overflow-wrap: anywhere; }
+  .cal .dot { margin: 6px 0 0; }
   .cal + .cal { border-top: 0; }
-  .cal input { margin: 0; }
+  .cal input { margin: 4px 0 0; }
   .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; margin-left: -4px; }
   .note.warn { color: var(--warn); }
   input[type=search] { width: 100%; margin-top: 10px; padding: 9px 12px; font: inherit; color: var(--text);
