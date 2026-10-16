@@ -71,5 +71,5 @@ export function usageAge(updatedAt, now) {
 /** Hide freshness text during normal five-minute polling; show after a missed refresh. */
 export function usageUpdatedText(usage, now) {
   return usage.status === 'ok' && Number.isFinite(usage.updatedAt) && now - usage.updatedAt >= 10 * 60000
-    ? 'Updated ' + usageAge(usage.updatedAt, now) : '';
+    ? usageAge(usage.updatedAt, now) : '';
 }
