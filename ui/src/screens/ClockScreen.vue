@@ -42,8 +42,8 @@ function usageRail(provider) {
     subtitleImage: paceImage(week, state.settings.usageLabels),
     eyebrow: 'Session · ' + Math.round(u.session.percent) + '% used',
     title: state.settings.usageLabels === 'k' ? paceNumber(u.session, SESSION_MS, state.now) : session,
-    subtitleLabel: 'Week · ' + Math.round(u.week.percent) + '% used',
-    subtitle: state.settings.usageLabels === 'k' ? paceNumber(u.week, WEEK_MS, state.now) : week
+    subtitleLabel: 'Week • ' + Math.round(u.week.percent) + '% used' + (state.settings.usageLabels === 'k' ? ' • ' + paceNumber(u.week, WEEK_MS, state.now) : ''),
+    subtitle: state.settings.usageLabels === 'k' ? '' : week
   };
 }
 const railViews = computed(() => {
