@@ -30,9 +30,9 @@ export function paceK(w, length, now) {
 /** A glanceable K label: a decimal below 10, whole numbers above it, infinity at the limit. */
 export function paceNumber(w, length, now) {
   const k = paceK(w, length, now);
-  if (!Number.isFinite(k)) return '∞×';
+  if (!Number.isFinite(k)) return '∞x';
   const rounded = Math.round(k * 10) / 10;
-  return (rounded < 10 ? rounded.toFixed(1) : String(Math.round(k))) + '×';
+  return (rounded < 10 ? rounded.toFixed(1) : String(Math.round(k))) + 'x';
 }
 
 /** 'Good', 'OK', 'Ahead', 'High', 'Severe', 'Max', or 'Over' (the limit's been hit), for a window from the Mac. */
