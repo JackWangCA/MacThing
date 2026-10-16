@@ -1204,6 +1204,10 @@ h3 {
 .u-logo {
   fill: var(--bar-track);
 }
+.usage-resets {
+  font-size: 18px;
+  white-space: nowrap;
+}
 .u-updated {
   position: absolute;
   right: 24px;

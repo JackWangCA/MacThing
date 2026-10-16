@@ -71,7 +71,7 @@ const message = computed(() => usageMessage(usage.value, props.provider, state.n
         </g>
       </svg>
     </template>
-    <div v-if="usageUpdatedText(usage, state.now)" class="u-updated font-small weight-light muted" :aria-label="'Usage updated ' + usageUpdatedText(usage, state.now)">{{ usageUpdatedText(usage, state.now) }}</div>
+    <div v-if="usageUpdatedText(usage, state.now)" class="u-updated font-small weight-light muted" :aria-label="'Usage data ' + usageUpdatedText(usage, state.now)">{{ usageUpdatedText(usage, state.now) }}</div>
     <StageMessage :title="message.title" :detail="message.detail">
       <template #icon><svg class="u-logo u-status-logo" viewBox="0 0 24 24" role="img" :aria-label="usageName(provider) + ' logo'"><path :d="LOGOS[provider]" /></svg></template>
     </StageMessage>

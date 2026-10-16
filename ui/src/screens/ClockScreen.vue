@@ -88,7 +88,7 @@ screen.press = () => {
   <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer' }">
     <LeftRail :view="mode" :views="railViews">
       <template #lower>
-        <template v-if="resets"><div>Resets in</div><div>Session <b class="primary medium">{{ resets.session }}</b> · Week <b class="primary medium">{{ resets.week }}</b></div></template>
+        <template v-if="resets"><div class="usage-resets">resets: Session <b class="primary medium">{{ resets.session }}</b> · Week <b class="primary medium">{{ resets.week }}</b></div></template>
         <template v-else-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template>
       </template>
     </LeftRail>

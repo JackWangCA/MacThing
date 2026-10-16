@@ -65,7 +65,7 @@ export function usageMessage(usage, provider, now) {
 }
 export function usageAge(updatedAt, now) {
   const minutes = Math.max(0, Math.floor((now - updatedAt) / 60000));
-  return minutes < 1 ? 'just now' : minutes < 60 ? minutes + 'm ago' : Math.floor(minutes / 60) + 'h ago';
+  return minutes < 1 ? 'just now' : minutes < 60 ? minutes + 'm old' : Math.floor(minutes / 60) + 'h old';
 }
 
 /** Hide freshness text during normal five-minute polling; show after a missed refresh. */
