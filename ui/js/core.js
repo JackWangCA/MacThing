@@ -16,7 +16,7 @@ export function initializeRuntime(state) {
   // Replaced by the bridge's config/settings on connect; these just let the page render before that.
   CT.config = {
     buttons: { 1: 'screen:nowplaying', 2: 'screen:calendar', 3: 'screen:weather', 4: 'screen:clock', m: 'settings', Escape: 'favorite' },
-    buttonClicks: { Escape: { 1: 'favorite', 2: 'unfavorite' } },
+    buttonClicks: {},
     knobClicks: { 1: 'playpause', 2: 'next', 3: 'previous' },
     buttonHolds: { m: 'sleep' }, holdMs: 1200, offlineSleepMs: 90000,
     multiClickMs: 350, volumeStep: 1 / 16, knobDirection: 1, debug: false
@@ -315,8 +315,7 @@ export function initializeRuntime(state) {
     }, CT.config.multiClickMs || 350);
   }
 
-  // Buttons in config.buttonClicks count quick presses the way the knob does (by default the
-  // back button: one press favorites the song, two unfavorite it).
+  // Buttons in config.buttonClicks count quick presses the way the knob does (none by default).
   var presses = {}; // key → {count, timer}
   function buttonPress(key, actions) {
     var state = presses[key] || (presses[key] = { count: 0, timer: null });
@@ -333,6 +332,9 @@ export function initializeRuntime(state) {
   function runKey(key) {
     if (key === 'Enter') return knobPress();
     if (key === 'Escape' && CT.current === 'settings') return CT.closeSettings();
+    // A screen can take the back button for itself (the clock's stale usage refreshes on it).
+    var screen = CT.screens[CT.current];
+    if (key === 'Escape' && screen && screen.back && screen.back() !== false) return;
     var actions = (CT.config.buttonClicks || {})[key];
     if (actions) return buttonPress(key, actions);
     runButton(CT.config.buttons[key]);

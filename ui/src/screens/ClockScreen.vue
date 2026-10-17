@@ -6,7 +6,7 @@ import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
 import ClaudeUsage from '../components/ClaudeUsage.vue';
-import { SESSION_MS, WEEK_MS, paceNumber, untilText, usageProviders, usageOf, usageName } from '../usage.js';
+import { SESSION_MS, WEEK_MS, paceNumber, untilText, usageProviders, usageOf, usageName, usageUpdatedText } from '../usage.js';
 import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, autoStartMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
@@ -28,6 +28,12 @@ screen.reselect = () => {
   if (isUsage(mode.value)) CT.send({ type: 'refreshUsage' });
 };
 screen.show = () => { if (isUsage(mode.value)) CT.send({ type: 'refreshUsage' }); };
+// Once a usage's "10m ⟳" is up, the back button asks the Mac to try again instead of favoriting.
+screen.back = () => {
+  if (!isUsage(mode.value) || !usageUpdatedText(usageOf(state, mode.value), state.now)) return false;
+  CT.send({ type: 'refreshUsage' });
+  CT.toast('Refreshing ' + usageName(mode.value) + ' usage');
+};
 // A usage that's been taken out of Settings → Usage while it's up gives way to the clock.
 watch(providers, list => { if (isUsage(mode.value) && !list.includes(mode.value)) mode.value = 'clock'; });
 // Each usage's rail says how worried to be about the session, and the week under it (see usage.js).
