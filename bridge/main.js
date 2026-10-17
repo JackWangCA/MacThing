@@ -300,7 +300,7 @@ function onDeviceMessage(msg) {
     case 'retryWeather':
       return retryWeather(msg.quiet);
     case 'refreshUsage':
-      chatgptUsage.refresh();
+      chatgptUsage.ask();
       return usage.ask();
     case 'log':
       return log.info('[device]', msg.message);

@@ -52,9 +52,11 @@ const rings = computed(() => !ok.value ? [] : [
 ]);
 const message = computed(() => ({
   ok: {},
-  signedOut: { title: 'Not signed in to Claude', detail: 'Run claude auth login in Terminal on your Mac.' },
+  signedOut: props.provider === 'chatgpt'
+    ? { title: 'Not signed in to ChatGPT', detail: 'Open Codex on your Mac and sign in.' }
+    : { title: 'Not signed in to Claude', detail: 'Run claude auth login in Terminal on your Mac.' },
   expired: { title: 'Claude sign-in expired', detail: 'Run claude auth login in Terminal on your Mac.' },
-  none: { title: 'No ChatGPT usage yet', detail: 'Use Codex on this Mac and it’ll show here.' },
+  none: { title: 'Codex isn’t on this Mac', detail: 'Install the ChatGPT app or the Codex CLI and it’ll show here.' },
   error: { title: 'Usage unavailable', detail: 'It’ll try again in a few minutes.' }
 })[usage.value.status] || { title: 'Getting your usage…' });
 </script>
