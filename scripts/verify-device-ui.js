@@ -177,7 +177,9 @@ try {
   assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets: Session 1h · Week 5d$/);
   await capture('usage-chatgpt');
   await message({ type: 'chatgptUsage', usage: { status: 'none' } });
-  assert.match(await evaluate('document.querySelector("#screen-clock .fade-view.on .stage-message").textContent'), /No ChatGPT usage yet/);
+  assert.match(await evaluate('document.querySelector("#screen-clock .fade-view.on .stage-message").textContent'), /Codex isn’t on this Mac/);
+  await message({ type: 'chatgptUsage', usage: { status: 'signedOut' } });
+  assert.match(await evaluate('document.querySelector("#screen-clock .fade-view.on .stage-message").textContent'), /Not signed in to ChatGPT/);
   await press('4');
   await pause(400);
   assert.equal(await clockView(), 'clock', 'and then back to the clock');
