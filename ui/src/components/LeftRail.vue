@@ -10,7 +10,7 @@ const props = defineProps({
   view: { type: String, default: '' }, // a change fades the text out and the new text in
   // Optional { [view]: { eyebrow, title, italicSuffix, unit, subtitle, subtitleNote, subtitleClass } }: every view's text stays drawn and `view`
   // picks the one showing, so a switch only fades (see .fade-view) instead of building new text.
-  // unit, if any, follows the title in small type (24 min); subtitleNote follows the subtitle, muted (Week: 0.3x 30%).
+  // unit, if any, follows the title in small type (24 min); subtitleNote follows the subtitle, muted (Week: 0.3x · 30%).
   views: { type: Object, default: null },
   truncateLower: { type: Boolean, default: true },
   mutedSubtitle: Boolean
