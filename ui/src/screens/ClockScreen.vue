@@ -67,12 +67,12 @@ screen.back = () => {
   setTimeout(() => { if (refreshDone) settleRefresh(); else state.usageRefresh = 'pending'; }, REFRESH_SPIN_MS);
   giveUpTimer = setTimeout(finishRefresh, REFRESH_GIVE_UP_MS);
 };
-// On the timer, the back button starts it, pauses it while it runs, and resets it once it's
-// paused or done; the corner says which.
-const TIMER_BACK = { set: ['start', 'play'], running: ['pause', 'pause'], paused: ['reset', 'refresh'], done: ['reset', 'refresh'] };
-const timerBack = computed(() => TIMER_BACK[timer.status]);
+// On the timer, the knob starts and pauses it; once it's paused or done the back button resets
+// it, and the corner says so. Otherwise the back button favorites as usual.
+const timerResets = computed(() => timer.status === 'paused' || timer.status === 'done');
 function timerBackPress() {
-  if (timer.status === 'paused' || timer.status === 'done') clearTimer(); else toggleTimer();
+  if (!timerResets.value) return false;
+  clearTimer();
 }
 // A usage that's been taken out of Settings → Usage while it's up gives way to the clock.
 watch(providers, list => { if (isUsage(mode.value) && !list.includes(mode.value)) mode.value = 'clock'; });
@@ -141,7 +141,7 @@ screen.press = () => {
     <ScreenStage class="bg-panel">
       <!-- Every view stays drawn and only fades (see .fade-view), so a press doesn't have to build and
            paint the incoming one while the other is fading out. -->
-      <div class="fade-view c-view-timer fill" :class="{ on: mode === 'timer' }"><TimeTimer :remaining="remaining" :total="total" :idle="timer.status === 'set' && !timer.meeting" /><div class="back-action font-small medium primary">{{ timerBack[0] }} <BackActionIcon :name="timerBack[1]" /></div></div>
+      <div class="fade-view c-view-timer fill" :class="{ on: mode === 'timer' }"><TimeTimer :remaining="remaining" :total="total" :idle="timer.status === 'set' && !timer.meeting" /><div v-if="timerResets" class="back-action font-small medium primary">reset <BackActionIcon name="refresh" /></div></div>
       <div v-for="p in providers" :key="p" class="fade-view fill" :class="{ on: mode === p }"><ClaudeUsage :provider="p" /></div>
       <div class="fade-view fill" :class="{ on: mode === 'clock' }">
         <AnalogClock v-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />
