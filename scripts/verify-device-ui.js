@@ -143,7 +143,7 @@ try {
   // The session (42% used, 56% of its time gone) is under pace; the week (86%, 75%) is twice it.
   assert.match(await rail(), /Session · 42% used\s*Good\s*Week · 86% used\s*Ahead/);
   // In place of the next event: the session resets in 2 h 13 min, the week on Thursday at 9.
-  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets inSession 2h · Week 2d$/);
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Reset: Session 2h · Week 2d$/);
   // The session (42% used, 56% of its time gone) is behind its pace; the week (86%, 75%) is ahead of it.
   assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-over").length'), 1, 'Usage past the pace takes the accent');
   assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 2, 'Both usage windows mark their pace with a dot');
@@ -162,7 +162,7 @@ try {
   assert.equal(await clockView(), 'chatgpt', 'With Both, the clock button goes on to ChatGPT usage');
   assert.equal(await evaluate('document.querySelector("#screen-clock .fade-view.on .u-face").getAttribute("aria-label")'), 'ChatGPT usage');
   assert.match(await rail(), /Session · 82% used\s*OK\s*Week · 10% used\s*Good/);
-  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets inSession 1h · Week 5d$/);
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Reset: Session 1h · Week 5d$/);
   await capture('usage-chatgpt');
   await message({ type: 'chatgptUsage', usage: { status: 'none' } });
   assert.match(await evaluate('document.querySelector("#screen-clock .fade-view.on .stage-message").textContent'), /Codex isn’t on this Mac/);
