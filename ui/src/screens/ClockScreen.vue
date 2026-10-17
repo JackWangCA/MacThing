@@ -29,7 +29,7 @@ screen.reselect = () => {
   if (isUsage(mode.value)) CT.send({ type: 'refreshUsage' });
 };
 screen.show = () => { if (isUsage(mode.value)) CT.send({ type: 'refreshUsage' }); };
-// Once a usage's "10m ⟳" is up, the back button asks the Mac to try again instead of favoriting:
+// Once a usage's "10m ⟳" is up, the back button asks the Mac to try again:
 // the ⟳ turns once, then ••• until the Mac says it's done. Still stale after that, it shows ✕
 // until another try is allowed. One try at a time, a minute apart at least (Claude's own ask
 // limit), so pressing it again and again doesn't reach the service; a press too soon says how long.
@@ -68,7 +68,7 @@ screen.back = () => {
   giveUpTimer = setTimeout(finishRefresh, REFRESH_GIVE_UP_MS);
 };
 // On the timer, the knob starts and pauses it; once it's paused or done the back button resets
-// it, and the corner says so. Otherwise the back button favorites as usual.
+// it, and the corner says so. Otherwise the back button does nothing here.
 const timerResets = computed(() => timer.status === 'paused' || timer.status === 'done');
 function timerBackPress() {
   if (!timerResets.value) return false;
