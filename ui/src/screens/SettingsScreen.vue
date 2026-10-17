@@ -21,9 +21,15 @@ const value = row => row.value ? row.value(state.settings) : row.options[index(r
 const screen = CT.screen('settings');
 screen.show = () => { selected.value = 0; };
 screen.turn = steps => { selected.value = Math.max(0, Math.min(rows.length - 1, selected.value + steps)); };
+function openOnMac(section) {
+  CT.send({ type: 'openSettingsPage', section });
+  CT.toast('Opened on your Mac');
+}
+// The back button opens the settings page on the Mac, at the selected row's section if it has one.
+screen.back = () => openOnMac(rows[selected.value].page || '');
 screen.press = () => {
   const row = rows[selected.value];
-  if (row.page != null) { CT.send({ type: 'openSettingsPage', section: row.page }); CT.toast('Opened on your Mac'); return; }
+  if (row.page != null) return openOnMac(row.page);
   const next = row.options[(index(row) + 1) % row.options.length][0];
   state.settings[row.key] = next;
   CT.send({ type: 'setting', key: row.key, value: next });

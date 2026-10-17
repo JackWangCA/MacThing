@@ -1207,11 +1207,30 @@ h3 {
 .usage-resets {
   white-space: nowrap;
 }
-.u-updated {
+.back-action {
   position: absolute;
   right: 24px;
   /* Align with the bottom line of the reset footer in the left rail. */
   bottom: var(--panel-inset-y);
+}
+.back-action-icon {
+  width: 0.727em;
+  height: 0.727em;
+  vertical-align: baseline;
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.back-action-icon.is-spinning {
+  transform-origin: 50% 50%;
+  animation: back-action-spin 600ms ease-in-out;
+}
+@keyframes back-action-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .back-action-icon.is-spinning { animation: none; }
 }
 .u-status-logo {
   width: 56px;
