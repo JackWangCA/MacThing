@@ -1,5 +1,5 @@
 <script setup>
-// The Phosphor glyph after a back-action label (refresh, x, play or pause), sized and set on the
+// The Phosphor glyph after a back-action label (refresh or x), sized and set on the
 // line to sit with the text beside it.
 defineProps({ name: String, spinning: Boolean });
 </script>

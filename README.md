@@ -130,7 +130,7 @@ npm run setup-device  # only if you set the device up before the sleep watchdog 
 
 ## Customizing
 
-**Everyday settings.** Use the device's Settings screen (fifth top button) or http://127.0.0.1:4747 on the Mac. The Mac page has a category sidebar for Display, AI Usage, Weather location and Calendar; selecting a category opens its settings panel. They're saved in `~/Library/Application Support/carthing-now-playing/settings.json`.
+**Everyday settings.** Use the device's Settings screen (fifth top button) or http://127.0.0.1:4747 on the Mac. The Mac page has a category sidebar for Display, AI Usage, Weather and Calendar; selecting a category opens its settings panel. They're saved in `~/Library/Application Support/carthing-now-playing/settings.json`.
 
 **Hardware mapping and behavior.** Edit `bridge/config.js`, then `npm run restart`:
 
