@@ -331,10 +331,11 @@ export function initializeRuntime(state) {
 
   function runKey(key) {
     if (key === 'Enter') return knobPress();
-    if (key === 'Escape' && CT.current === 'settings') return CT.closeSettings();
-    // A screen can take the back button for itself (the clock's stale usage refreshes on it).
+    // A screen can take the back button for itself (Settings opens the Mac's settings page on it,
+    // the clock's stale usage refreshes on it).
     var screen = CT.screens[CT.current];
     if (key === 'Escape' && screen && screen.back && screen.back() !== false) return;
+    if (key === 'Escape' && CT.current === 'settings') return CT.closeSettings();
     var actions = (CT.config.buttonClicks || {})[key];
     if (actions) return buttonPress(key, actions);
     runButton(CT.config.buttons[key]);

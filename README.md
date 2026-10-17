@@ -22,9 +22,9 @@ background turned on, the second doesn't._
 | Top buttons 1 · 2 · 3 · 4             | Now Playing · Calendar · Weather · Clock                                                                                     |
 | Turn knob                             | Mac output volume (in Settings: move the selection)                                                                          |
 | Press knob once / twice / three times | Play-pause / next track / previous track; starts Apple Music if nothing is playing (in Settings: change the selected option) |
-| Fifth top button (settings)           | Settings (press it again, or the back button, to close)                                                                      |
+| Fifth top button (settings)           | Settings (press it again to close)                                                                                           |
 | Hold the fifth top button             | Sleep now — screen off until the next button or knob input                                                                   |
-| Back button (under the knob)          | Favorite the playing Apple Music song (does nothing while it's paused). On a paused or finished timer, reset it; on a usage view showing “10m ⟳”, check usage again. The screen's lower-right corner says which |
+| Back button (under the knob)          | Favorite the playing Apple Music song (does nothing while it's paused). In Settings, open the settings page on your Mac. On a paused or finished timer, reset it; on a usage view showing “10m ⟳”, check usage again. The screen's lower-right corner says which |
 
 The four screens:
 
