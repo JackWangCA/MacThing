@@ -91,6 +91,15 @@
     U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
     U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
+/* Real italic x for pace labels: Chromium 69 does not slant the variable normal face.
+   Google Fonts Merriweather v33, weight 600, text=x subset; license: fonts/OFL-Merriweather.txt. */
+@font-face {
+  font-family: Merriweather;
+  font-style: italic;
+  font-weight: 600;
+  src: url(../fonts/merriweather-latin-600-italic-x.ttf) format("truetype");
+  unicode-range: U+0078;
+}
 /* Merriweather (variable weight) — the song title and the big numbers (Figma 8:46, Widgets). */
 @font-face {
   font-family: Merriweather;
@@ -408,6 +417,13 @@ h3 {
   opacity: 1;
   transition: opacity 0.5s ease-out 0.3s;
 }
+.rail-emoji {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+}
+
 .left-rail-views {
   position: relative;
   flex: 1;
@@ -431,6 +447,25 @@ h3 {
   width: 320px;
   padding: var(--panel-inset-y) var(--panel-inset-x);
   background: var(--panel);
+}
+/* Three fires fit the large pace label and the compact weekly line. */
+.rail-fires {
+  display: inline-flex;
+  font-size: 0.75em;
+  line-height: 1;
+  vertical-align: -0.08em;
+  letter-spacing: 0;
+  word-spacing: 0;
+}
+/* Keep the 32px weekly percentage and pace together in the 272px rail. */
+.usage-week {
+  letter-spacing: -0.02em;
+  word-spacing: -4px;
+  white-space: nowrap;
+}
+/* Leave room for the weekly percentage and brackets beside three flames. */
+.usage-week .rail-fires {
+  font-size: 0.625em;
 }
 /* The big label sits close under its eyebrow, with more room below it. */
 .left-rail .left-rail-content > .font-huge {
@@ -1155,6 +1190,40 @@ h3 {
 }
 .u-logo {
   fill: var(--bar-track);
+}
+.usage-resets {
+  white-space: nowrap;
+}
+.back-action {
+  position: absolute;
+  right: 24px;
+  /* Align with the bottom line of the reset footer in the left rail. */
+  bottom: var(--panel-inset-y);
+}
+.back-action-icon {
+  width: 0.727em;
+  height: 0.727em;
+  vertical-align: baseline;
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.back-action-icon.is-spinning {
+  transform-origin: 50% 50%;
+  animation: back-action-spin 600ms ease-in-out;
+}
+@keyframes back-action-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .back-action-icon.is-spinning { animation: none; }
+}
+.u-status-logo {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  margin-bottom: 24px;
 }
 .u-label-disc {
   fill: var(--hand);
