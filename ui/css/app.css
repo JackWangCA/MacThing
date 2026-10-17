@@ -1213,27 +1213,24 @@ h3 {
   /* Align with the bottom line of the reset footer in the left rail. */
   bottom: var(--panel-inset-y);
 }
-/* Inter has no ✕, so it's drawn: cap height, standing on the baseline like the letters beside it. */
-.back-action-x {
+.back-action-icon {
   width: 0.727em;
   height: 0.727em;
   vertical-align: baseline;
-  fill: none;
+  fill: currentColor;
   stroke: currentColor;
   stroke-width: 1.6;
   stroke-linecap: round;
 }
-.u-refresh {
-  display: inline-block;
+.back-action-icon.is-spinning {
+  transform-origin: 50% 50%;
+  animation: back-action-spin 600ms ease-in-out;
 }
-.u-refresh.is-spinning {
-  animation: u-refresh-spin 600ms ease-in-out;
-}
-@keyframes u-refresh-spin {
+@keyframes back-action-spin {
   to { transform: rotate(360deg); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .u-refresh.is-spinning { animation: none; }
+  .back-action-icon.is-spinning { animation: none; }
 }
 .u-status-logo {
   width: 56px;

@@ -6,6 +6,7 @@ import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
 import ClaudeUsage from '../components/ClaudeUsage.vue';
+import BackActionIcon from '../components/BackActionIcon.vue';
 import { SESSION_MS, WEEK_MS, paceNumber, untilText, usageProviders, usageOf, usageName, usageUpdatedText } from '../usage.js';
 import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, autoStartMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
@@ -66,13 +67,12 @@ screen.back = () => {
   setTimeout(() => { if (refreshDone) settleRefresh(); else state.usageRefresh = 'pending'; }, REFRESH_SPIN_MS);
   giveUpTimer = setTimeout(finishRefresh, REFRESH_GIVE_UP_MS);
 };
-// On the timer, the back button pauses it while it runs and resets it once it's paused or done;
-// the corner says which. Not started, the back button favorites as usual.
-const TIMER_BACK = { running: 'pause ||', paused: 'reset ⟳', done: 'reset ⟳' };
-const timerBack = computed(() => TIMER_BACK[timer.status] || '');
+// On the timer, the back button starts it, pauses it while it runs, and resets it once it's
+// paused or done; the corner says which.
+const TIMER_BACK = { set: ['start', 'play'], running: ['pause', 'pause'], paused: ['reset', 'refresh'], done: ['reset', 'refresh'] };
+const timerBack = computed(() => TIMER_BACK[timer.status]);
 function timerBackPress() {
-  if (!timerBack.value) return false;
-  if (timer.status === 'running') toggleTimer(); else clearTimer();
+  if (timer.status === 'paused' || timer.status === 'done') clearTimer(); else toggleTimer();
 }
 // A usage that's been taken out of Settings → Usage while it's up gives way to the clock.
 watch(providers, list => { if (isUsage(mode.value) && !list.includes(mode.value)) mode.value = 'clock'; });
@@ -141,7 +141,7 @@ screen.press = () => {
     <ScreenStage class="bg-panel">
       <!-- Every view stays drawn and only fades (see .fade-view), so a press doesn't have to build and
            paint the incoming one while the other is fading out. -->
-      <div class="fade-view c-view-timer fill" :class="{ on: mode === 'timer' }"><TimeTimer :remaining="remaining" :total="total" :idle="timer.status === 'set' && !timer.meeting" /><div v-if="timerBack" class="back-action font-small medium primary">{{ timerBack }}</div></div>
+      <div class="fade-view c-view-timer fill" :class="{ on: mode === 'timer' }"><TimeTimer :remaining="remaining" :total="total" :idle="timer.status === 'set' && !timer.meeting" /><div class="back-action font-small medium primary">{{ timerBack[0] }} <BackActionIcon :name="timerBack[1]" /></div></div>
       <div v-for="p in providers" :key="p" class="fade-view fill" :class="{ on: mode === p }"><ClaudeUsage :provider="p" /></div>
       <div class="fade-view fill" :class="{ on: mode === 'clock' }">
         <AnalogClock v-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />

@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { state } from '../state.js';
 import StageMessage from './StageMessage.vue';
+import BackActionIcon from './BackActionIcon.vue';
 import { SESSION_MS, WEEK_MS, elapsed, usageOf, usageMessage, usageName, usageStaleAge, usageAge } from '../usage.js';
 // Claude or ChatGPT usage (the clock button after the timer; Settings → Usage picks which): two rings across the stage, the size of the clock
 // and the timer, the five-hour session outside and the week inside. Each ring, clockwise from 12:
@@ -71,7 +72,7 @@ const message = computed(() => usageMessage(usage.value, props.provider, state.n
         </g>
       </svg>
     </template>
-    <div v-if="usageStaleAge(usage, state.now)" class="back-action font-small medium primary" :aria-label="'Usage updated ' + usageAge(usage.updatedAt, state.now)"><template v-if="state.usageRefreshWait">{{ state.usageRefreshWait }}</template><template v-else>{{ usageStaleAge(usage, state.now) }} <svg v-if="state.usageRefresh === 'failed'" class="back-action-x" viewBox="0 0 10 10" aria-label="failed"><path d="M1 1 9 9M9 1 1 9" /></svg><span v-else class="u-refresh" :class="{ 'is-spinning': state.usageRefresh === 'spin' }">{{ state.usageRefresh === 'pending' ? '•••' : '⟳' }}</span></template></div>
+    <div v-if="usageStaleAge(usage, state.now)" class="back-action font-small medium primary" :aria-label="'Usage updated ' + usageAge(usage.updatedAt, state.now)"><template v-if="state.usageRefreshWait">{{ state.usageRefreshWait }}</template><template v-else>{{ usageStaleAge(usage, state.now) }} <template v-if="state.usageRefresh === 'pending'">•••</template><BackActionIcon v-else :name="state.usageRefresh === 'failed' ? 'x' : 'refresh'" :spinning="state.usageRefresh === 'spin'" /></template></div>
     <StageMessage :title="message.title" :detail="message.detail">
       <template #icon><svg class="u-logo u-status-logo" viewBox="0 0 24 24" role="img" :aria-label="usageName(provider) + ' logo'"><path :d="LOGOS[provider]" /></svg></template>
     </StageMessage>
