@@ -356,6 +356,7 @@ that lays them side by side.
   possible, and for working out ADB access on the device in the first place.
 - [ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) (BSD-3-Clause), cloned and built by `npm run build`.
 - [Nihal Shetty](https://github.com/nihalshetty-boop), whose [fork](https://github.com/nihalshetty-boop/MacThing) came up with loading larger browser video artwork from the playing tab (`bridge/nowplaying/browser-art.js`).
+- Icons from [Phosphor](https://phosphoricons.com) by Helena Zhang and Tobias Fried (MIT), bundled into the UI at build time from `@phosphor-icons/core`.
 - [Inter](https://rsms.me/inter/) by Rasmus Andersson and [Merriweather](https://github.com/EbenSorkin/Merriweather4) by Eben Sorkin (both SIL Open Font License), bundled in `ui/fonts`.
 
 ---

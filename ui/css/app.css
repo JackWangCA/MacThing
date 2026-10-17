@@ -1214,13 +1214,10 @@ h3 {
   bottom: var(--panel-inset-y);
 }
 .back-action-icon {
-  width: 0.727em;
-  height: 0.727em;
-  vertical-align: baseline;
-  fill: currentColor;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linecap: round;
+  /* Phosphor draws inside 12.5% padding, so this box puts the glyph at cap height, centred on it. */
+  width: 0.95em;
+  height: 0.95em;
+  vertical-align: -0.11em;
 }
 .back-action-icon.is-spinning {
   transform-origin: 50% 50%;
