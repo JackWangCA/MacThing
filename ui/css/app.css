@@ -458,13 +458,13 @@ h3 {
   letter-spacing: 0;
   word-spacing: 0;
 }
-/* Keep the 32px weekly percentage and pace together in the 272px rail. */
+/* Keep the 32px weekly pace and percentage together in the 272px rail. */
 .usage-week {
   letter-spacing: -0.02em;
   word-spacing: -4px;
   white-space: nowrap;
 }
-/* Leave room for the weekly percentage and brackets beside three flames. */
+/* Leave room for the weekly percentage beside three flames. */
 .usage-week .rail-fires {
   font-size: 0.625em;
 }
