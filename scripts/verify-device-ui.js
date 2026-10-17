@@ -196,47 +196,106 @@ try {
   assert.match(await rail(), /30 minute timer30:00/, 'Double press resets');
   await toClock();
   await tick(now);
+  // Past 60 minutes, the knob's meeting stop counts to the next meeting's start, in minutes
+  // (rounded up) until it's started: 9:49 to go reads 10 min.
+  await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 589000, end: now + 2389000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
+  await press('4');
+  await pause(400);
+  for (let i = 0; i < 7; i++) await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
+  await pause(100);
+  assert.match(await rail(), /Next meeting in10\s*min/, 'Past 60 minutes: the next meeting\'s start');
+  await press('Enter'); await press('Enter');
+  await press('4');
+  await pause(400);
   // During a meeting the timer opens set to its end, and runs to it.
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now - 600000, end: now + 1200000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await press('4');
   await pause(400);
-  assert.match(await rail(), /Until Standup ends(20:00|19:5\d)/, 'The timer opens on the meeting\'s end');
-  await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
-  await pause(100);
-  assert.match(await rail(), /5 minute timer5:00/, 'Turning right goes on to the presets');
+  assert.match(await rail(), /Standup20\s*min/, 'The timer opens on the meeting\'s end');
   await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:-53, cancelable:true}))");
+  await pause(100);
+  assert.match(await rail(), /1 hour timer60:00/, 'Turning left goes back to the presets');
+  await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
   await pause(100);
   await press('Enter');
   await tick(now + 600000);
   await pause(1100);
-  assert.match(await rail(), /Until Standup ends9:5\d/, 'The meeting timer counts down to its end');
+  assert.match(await rail(), /Standup9:5\d/, 'The meeting timer counts down to its end');
   await press('Enter'); await press('Enter');
   await toClock();
   await tick(now);
-  // Settings → Meeting timer starts it on its own, without leaving the screen you're on.
+  // With "Event's alert", a meeting with no alert of its own gets the card as it starts, and
+  // nothing but its Start timer brings the timer up.
   await evaluate("CT.show('weather')");
-  await message({ type: 'settings', settings: { ...settings, meetingTimer: true } });
+  await message({ type: 'settings', settings: { ...settings, meetingAlert: 'event' } });
   await tick(now + 5000);
   await pause(1100);
-  assert.equal(await evaluate('CT.current'), 'weather', 'Auto-start stays on the screen you were on');
-  assert.match(await rail(), /Until Standup ends19:5\d/, 'Meeting timer auto-starts');
+  assert.equal(await evaluate('!!document.querySelector(".meeting-alert.on .m-start")'), true, 'An event without its own alert gets the card');
+  assert.equal(await evaluate('CT.current'), 'weather', 'and the timer doesn\'t come up by itself');
+  await press('1');
   await message({ type: 'settings', settings });
   await evaluate("CT.show('clock')");
-  await press('Enter'); await press('Enter');
-  await toClock();
   await tick(now);
-  // Meeting alerts: a card over the screen before a meeting; any press only dismisses it.
+  // Meeting alerts: a sheet over the screen from before a meeting to its end; any press only
+  // dismisses it.
   await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
   await message({ type: 'settings', settings: { ...settings, meetingAlert: 5 } });
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Example meeting', location: 'Room 4\n1 Example St', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await capture('meeting-alert');
   assert.match(await evaluate('document.querySelector(".m-card").textContent'), /^\s*Example meeting.*2:38 – 3:08 PM.*Room 4.*In 3 min\s*$/, 'Meeting alert shows the meeting');
+  await tick(now + 180000 + 22 * 60000);
+  await pause(400);
+  assert.match(await evaluate('document.querySelector(".m-card").textContent'), /22 min ago/, 'The alert stays up through the meeting');
+  await tick(now);
   await press('1');
   await pause(400);
   assert.equal(await evaluate('document.querySelector(".meeting-alert").classList.contains("on")'), false, 'A button dismisses the alert');
   assert.equal(await evaluate('CT.current'), 'clock', 'without also acting');
+  await tick(now + 181000);
+  await pause(400);
+  assert.equal(await evaluate('document.querySelector(".meeting-alert").classList.contains("on")'), true, 'Dismissed early, it comes back as the meeting starts');
+  await press('1');
+  await tick(now);
+  // Once the meeting has started, the back button starts its timer and brings it up.
+  await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
+  await evaluate("CT.show('weather')");
+  await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
+  await pause(400);
+  assert.equal(await evaluate('document.querySelector(".m-start").textContent'), 'Queue 30 min timer', 'Before the meeting starts, it offers to queue the timer');
+  await tick(now + 181000);
+  await pause(400);
+  assert.equal(await evaluate('document.querySelector(".m-start").textContent'), 'Start 30 min timer', 'and to start it once it has');
+  await evaluate('window.fixtureSent = []');
+  await press('Escape');
+  await pause(400);
+  assert.equal(await evaluate('document.querySelector(".meeting-alert").classList.contains("on")'), false, 'The back button dismisses the alert');
+  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "command")'), false, 'without favoriting the song');
+  await pause(700);
+  assert.equal(await evaluate('CT.current'), 'clock', 'and brings the meeting\'s timer up');
+  assert.match(await rail(), /Standup29:5\d/, 'and is running');
+  await press('Enter'); await press('Enter');
+  await press('4');
+  await pause(400);
+  await tick(now);
+  // Queued before it starts, the timer starts with the meeting, and the card doesn't come back.
+  await evaluate("CT.show('weather')");
+  await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Review', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
+  await pause(400);
+  await press('Escape');
+  await pause(400);
+  assert.equal(await evaluate('document.querySelector(".meeting-alert.on .m-start").textContent'), 'Cancel timer', 'The back button queues it, and the card stays');
+  await press('1');
+  await tick(now + 181000);
+  await pause(1100);
+  assert.equal(await evaluate('CT.current'), 'clock', 'A queued timer comes up as the meeting starts');
+  assert.match(await rail(), /Review29:5\d/, 'running');
+  assert.equal(await evaluate('document.querySelector(".meeting-alert").classList.contains("on")'), false, 'in place of the card');
+  await press('Enter'); await press('Enter');
+  await press('4');
+  await pause(400);
+  await tick(now);
   await message({ type: 'settings', settings });
-  await evaluate("CT.show('settings'); CT.screens.settings.turn(3); CT.screens.settings.press()");
+  await evaluate("CT.show('settings'); CT.screens.settings.turn(2); CT.screens.settings.press()");
   await pause(100);
   assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "usageSource" && m.value === "chatgpt")'), true, 'Settings → Usage steps Claude to ChatGPT');
   await capture('settings');

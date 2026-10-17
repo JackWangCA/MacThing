@@ -127,10 +127,8 @@
       <section>
         <div class="row"><label class="label" for="calendarDays">Days of events</label>
           <select id="calendarDays" data-key="calendarDays" data-type="number"><option value="1">Today</option><option value="2">2 days</option><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option></select></div>
-        <div class="row"><div><label class="label" for="meetingAlert">Meeting alerts</label><div class="note">Fills the screen before a meeting</div></div>
+        <div class="row"><div><label class="label" for="meetingAlert">Meeting alerts</label><div class="note">A card before each meeting, with a timer to its end once it starts</div></div>
           <select id="meetingAlert" data-key="meetingAlert" data-type="number"><option value="0">Off</option><option value="event">Event’s alert</option><option value="1">1 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
-        <div class="row"><div><div class="label">Meeting timer</div><div class="note">Starts the clock's timer as a meeting begins, running to its end</div></div>
-          <span class="seg" data-key="meetingTimer"><button data-v="false">Off</button><button data-v="true">Auto-start</button></span></div>
         <div class="row stack"><div class="label">Calendars</div><div class="note" id="calNote"></div><div id="calList"></div></div>
       </section>
     </div>
