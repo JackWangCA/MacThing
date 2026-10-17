@@ -87,7 +87,7 @@ function usageRail(provider) {
     eyebrow: 'Session: ' + Math.round(u.session.percent) + '% used',
     title: paceNumber(u.session, SESSION_MS, state.now),
     subtitle: 'Week: ' + paceNumber(u.week, WEEK_MS, state.now),
-    subtitleNote: Math.round(u.week.percent) + '%'
+    subtitleNote: '· ' + Math.round(u.week.percent) + '%'
   };
 }
 const railViews = computed(() => {

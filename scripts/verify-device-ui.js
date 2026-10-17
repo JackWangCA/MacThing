@@ -141,7 +141,7 @@ try {
   assert.equal(await clockView(), 'claude', 'The clock button goes on to Claude usage');
   assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "refreshUsage")'), true, 'Opening usage asks the Mac for fresh numbers');
   // The session (42% used, 56% of its time gone) is under pace; the week (86%, 75%) is twice it.
-  assert.match(await rail(), /Session: 42% used\s*0\.6x\s*Week: 2\.\dx 86%/);
+  assert.match(await rail(), /Session: 42% used\s*0\.6x\s*Week: 2\.\dx · 86%/);
   // In place of the next event: the session resets in 2 h 13 min, the week on Thursday at 9.
   assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets: Session 2h · Week 2d$/);
   // The session (42% used, 56% of its time gone) is behind its pace; the week (86%, 75%) is ahead of it.
@@ -173,7 +173,7 @@ try {
   await pause(400);
   assert.equal(await clockView(), 'chatgpt', 'With Both, the clock button goes on to ChatGPT usage');
   assert.equal(await evaluate('document.querySelector("#screen-clock .fade-view.on .u-face").getAttribute("aria-label")'), 'ChatGPT usage');
-  assert.match(await rail(), /Session: 82% used\s*1\.1x\s*Week: 0\.2x 10%/);
+  assert.match(await rail(), /Session: 82% used\s*1\.1x\s*Week: 0\.2x · 10%/);
   assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets: Session 1h · Week 5d$/);
   await capture('usage-chatgpt');
   await message({ type: 'chatgptUsage', usage: { status: 'none' } });
