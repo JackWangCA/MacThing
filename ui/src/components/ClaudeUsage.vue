@@ -4,7 +4,6 @@ import { state } from '../state.js';
 import StageMessage from './StageMessage.vue';
 import BackActionIcon from './BackActionIcon.vue';
 import { SESSION_MS, WEEK_MS, elapsed, usageOf, usageMessage, usageName, usageStaleAge, usageAge } from '../usage.js';
-import { DIAL, dialPoint as point } from '../dial.js';
 // Claude or ChatGPT usage (the clock button after the timer; Settings → Usage picks which): two rings across the stage, the size of the clock
 // and the timer, the five-hour session outside and the week inside. Each ring, clockwise from 12:
 // the faint track is the whole allowance and the solid arc (rounded at both ends) is what's been
@@ -25,7 +24,12 @@ const LOGOS = {
 const ok = computed(() => usage.value.status === 'ok');
 const clamp = n => Math.max(0, Math.min(1, n));
 const C = r => 2 * Math.PI * r;
-function ring(r, w, length, initial, paceRadius) {
+// A point on a ring, a fraction of the way round clockwise from 12.
+function point(r, turns) {
+  const angle = turns * 2 * Math.PI;
+  return { x: 240 + r * Math.sin(angle), y: 240 - r * Math.cos(angle) };
+}
+function ring(r, w, length, initial, paceOffset) {
   const used = clamp(w.percent / 100), pace = elapsed(w.resetsAt, length, state.now);
   // Each arc as a dash on a circle that starts at 12 (the circle is turned back a quarter). Arcs
   // are rounded with a disc at each end, in the colour of the arc there, rather than with round
@@ -38,13 +42,14 @@ function ring(r, w, length, initial, paceRadius) {
     used: arc(0, Math.min(used, pace)),
     over: arc(pace, used),
     caps,
-    pace: point(paceRadius, pace),
+    pace: point(r + paceOffset, pace),
     initial
   };
 }
 const rings = computed(() => !ok.value ? [] : [
-  ring(DIAL.primaryRadius - DIAL.trackWidth / 2, usage.value.session, SESSION_MS, 'S', DIAL.marksRadius),
-  ring(DIAL.innerRadius - DIAL.trackWidth / 2, usage.value.week, WEEK_MS, 'W', DIAL.innerRadius - DIAL.trackWidth - DIAL.dotRadius - DIAL.innerPaceGap)
+  // A 32px offset leaves 13px between the 28px ring and the 10px pace dot.
+  ring(166, usage.value.session, SESSION_MS, 'S', 32),
+  ring(126, usage.value.week, WEEK_MS, 'W', -32)
 ]);
 const message = computed(() => usageMessage(usage.value, props.provider, state.now));
 </script>
@@ -52,7 +57,7 @@ const message = computed(() => usageMessage(usage.value, props.provider, state.n
   <div class="fill">
     <template v-if="ok">
       <svg class="u-face" viewBox="0 0 480 480" :aria-label="provider === 'chatgpt' ? 'ChatGPT usage' : 'Claude usage'">
-        <g v-for="g in rings" :key="g.r" transform="rotate(-90 240 240)" :stroke-width="DIAL.trackWidth">
+        <g v-for="g in rings" :key="g.r" transform="rotate(-90 240 240)">
           <circle class="u-track" cx="240" cy="240" :r="g.r" />
           <circle v-if="g.used" class="u-used" cx="240" cy="240" :r="g.r" :stroke-dasharray="g.used.array" :stroke-dashoffset="g.used.offset" />
           <circle v-if="g.over" class="u-over" cx="240" cy="240" :r="g.r" :stroke-dasharray="g.over.array" :stroke-dashoffset="g.over.offset" />
@@ -60,9 +65,9 @@ const message = computed(() => usageMessage(usage.value, props.provider, state.n
         <!-- The provider's mark, 56px across in the middle of the rings. -->
         <path class="u-logo" transform="translate(212 212) scale(2.3333)" :d="LOGOS[provider]" />
         <g v-for="g in rings" :key="'marks' + g.r">
-          <circle v-for="(c, i) in g.caps" :key="i" class="u-cap" :class="c.kind" :cx="c.x" :cy="c.y" :r="DIAL.trackWidth / 2" />
-          <circle v-if="g.pace" class="u-pace" :cx="g.pace.x" :cy="g.pace.y" :r="DIAL.dotRadius" />
-          <circle class="u-label-disc" cx="240" :cy="240 - g.r" :r="DIAL.trackWidth / 2" />
+          <circle v-for="(c, i) in g.caps" :key="i" class="u-cap" :class="c.kind" :cx="c.x" :cy="c.y" r="14" />
+          <circle v-if="g.pace" class="u-pace" :cx="g.pace.x" :cy="g.pace.y" r="5" />
+          <circle class="u-label-disc" cx="240" :cy="240 - g.r" r="14" />
           <text class="u-label" x="240" :y="240 - g.r" dy="5.5" text-anchor="middle">{{ g.initial }}</text>
         </g>
       </svg>
