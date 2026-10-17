@@ -6,7 +6,7 @@ import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
 import ClaudeUsage from '../components/ClaudeUsage.vue';
-import { SESSION_MS, WEEK_MS, paceLevel, untilText, usageProviders, usageOf } from '../usage.js';
+import { SESSION_MS, WEEK_MS, paceNumber, untilText, usageProviders, usageOf, usageName } from '../usage.js';
 import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, autoStartMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
@@ -33,12 +33,13 @@ watch(providers, list => { if (isUsage(mode.value) && !list.includes(mode.value)
 // Each usage's rail says how worried to be about the session, and the week under it (see usage.js).
 function usageRail(provider) {
   const u = usageOf(state, provider);
-  if (u.status !== 'ok') return { eyebrow: 'Session usage', title: '--', subtitle: '' };
+  if (u.status !== 'ok') return { eyebrow: usageName(provider) + ' usage', title: '--', subtitle: '' };
   return {
-    eyebrow: 'Session · ' + Math.round(u.session.percent) + '% used',
-    title: paceLevel(u.session, SESSION_MS, state.now),
-    subtitleLabel: 'Week · ' + Math.round(u.week.percent) + '% used',
-    subtitle: paceLevel(u.week, WEEK_MS, state.now)
+    italicSuffix: 'x',
+    subtitleClass: 'usage-week',
+    eyebrow: 'Session: ' + Math.round(u.session.percent) + '% used',
+    title: paceNumber(u.session, SESSION_MS, state.now),
+    subtitle: 'Week: ' + Math.round(u.week.percent) + '% [' + paceNumber(u.week, WEEK_MS, state.now) + ']'
   };
 }
 const railViews = computed(() => {
@@ -50,7 +51,7 @@ const railViews = computed(() => {
 const resets = computed(() => {
   if (!isUsage(mode.value)) return null;
   const u = usageOf(state, mode.value);
-  return u.status === 'ok' ? { session: untilText(u.session.resetsAt, state.now), week: untilText(u.week.resetsAt, state.now) } : null;
+  return u.status === 'ok' ? { session: untilText(u.session.resetsAt, state.now, SESSION_MS), week: untilText(u.week.resetsAt, state.now, WEEK_MS) } : null;
 });
 // While it's up and not started, a meeting that starts sets it too, as does one that turns up
 // when the calendar first loads (after a reload that reopened the timer). With Settings → Meeting
@@ -85,9 +86,9 @@ screen.press = () => {
 </script>
 <template>
   <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer' }">
-    <LeftRail :view="mode" :views="railViews">
+    <LeftRail :view="mode" :views="railViews" :truncate-lower="!resets">
       <template #lower>
-        <template v-if="resets"><div>Reset: Session <b class="primary medium">{{ resets.session }}</b> · Week <b class="primary medium">{{ resets.week }}</b></div></template>
+        <template v-if="resets"><div class="usage-resets">Resets: Session <b class="primary medium">{{ resets.session }}</b> · Week <b class="primary medium">{{ resets.week }}</b></div></template>
         <template v-else-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template>
       </template>
     </LeftRail>

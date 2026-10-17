@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { state } from '../state.js';
 import StageMessage from './StageMessage.vue';
-import { SESSION_MS, WEEK_MS, elapsed, usageOf } from '../usage.js';
+import { SESSION_MS, WEEK_MS, elapsed, usageOf, usageMessage, usageName, usageUpdatedText, usageAge } from '../usage.js';
 // Claude or ChatGPT usage (the clock button after the timer; Settings → Usage picks which): two rings across the stage, the size of the clock
 // and the timer, the five-hour session outside and the week inside. Each ring, clockwise from 12:
 // the faint track is the whole allowance and the solid arc (rounded at both ends) is what's been
@@ -41,7 +41,7 @@ function ring(r, w, length, initial, paceOffset) {
     used: arc(0, Math.min(used, pace)),
     over: arc(pace, used),
     caps,
-    pace: w.resetsAt ? point(r + paceOffset, pace) : null,
+    pace: point(r + paceOffset, pace),
     initial
   };
 }
@@ -50,13 +50,7 @@ const rings = computed(() => !ok.value ? [] : [
   ring(166, usage.value.session, SESSION_MS, 'S', 32),
   ring(126, usage.value.week, WEEK_MS, 'W', -32)
 ]);
-const message = computed(() => ({
-  ok: {},
-  signedOut: { title: 'Not signed in to Claude', detail: 'Run claude auth login in Terminal on your Mac.' },
-  expired: { title: 'Claude sign-in expired', detail: 'Run claude auth login in Terminal on your Mac.' },
-  none: { title: 'No ChatGPT usage yet', detail: 'Use Codex on this Mac and it’ll show here.' },
-  error: { title: 'Usage unavailable', detail: 'It’ll try again in a few minutes.' }
-})[usage.value.status] || { title: 'Getting your usage…' });
+const message = computed(() => usageMessage(usage.value, props.provider, state.now));
 </script>
 <template>
   <div class="fill">
@@ -77,6 +71,9 @@ const message = computed(() => ({
         </g>
       </svg>
     </template>
-    <StageMessage :title="message.title" :detail="message.detail" />
+    <div v-if="usageUpdatedText(usage, state.now)" class="u-updated font-small medium primary" :aria-label="'Usage updated ' + usageAge(usage.updatedAt, state.now)">{{ usageUpdatedText(usage, state.now) }}</div>
+    <StageMessage :title="message.title" :detail="message.detail">
+      <template #icon><svg class="u-logo u-status-logo" viewBox="0 0 24 24" role="img" :aria-label="usageName(provider) + ' logo'"><path :d="LOGOS[provider]" /></svg></template>
+    </StageMessage>
   </div>
 </template>
