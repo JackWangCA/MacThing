@@ -1,13 +1,13 @@
 <script setup>
 import { computed } from 'vue';
 import { CT } from '../state.js';
-import { DIAL, dialPoint } from '../dial.js';
 const props = defineProps({ now: Number, numbers: Boolean });
-const markerRadius = (DIAL.primaryRadius + DIAL.innerRadius) / 2;
-const ticks = Array.from({ length: 60 }, (_, i) => ({ a: dialPoint(DIAL.marksRadius - DIAL.dotRadius, i / 60), b: dialPoint(DIAL.marksRadius + DIAL.dotRadius, i / 60) }));
-const numerals = Array.from({ length: 12 }, (_, i) => ({ n: i + 1, ...dialPoint(markerRadius, (i + 1) / 12) }));
-// Preserve the original hand vectors and pivot, fitting the minute hand to the primary radius.
-const handTransform = `translate(${DIAL.center} ${DIAL.center}) scale(${DIAL.primaryRadius / (200 - 18.37)}) translate(-200 -200)`;
+function point(r, turns) {
+  const angle = turns * 2 * Math.PI;
+  return { x: 200 + r * Math.sin(angle), y: 200 - r * Math.cos(angle) };
+}
+const ticks = Array.from({ length: 60 }, (_, i) => ({ a: point(176, i / 60), b: point(186, i / 60) }));
+const numerals = Array.from({ length: 12 }, (_, i) => ({ n: i + 1, ...point(144, (i + 1) / 12) }));
 // Screens pass now = 0 while they're not on screen, so the clock stops redrawing. It holds its
 // last time instead of drawing 0, so the hands stay put while the screen fades out.
 // The hands as drawn in Figma: an outline around a filled strip, a pin above and a tail below.
@@ -44,20 +44,20 @@ const angles = computed(() => {
 });
 </script>
 <template>
-  <svg class="c-face" viewBox="0 0 480 480" aria-label="Analog clock">
+  <svg class="c-face" viewBox="0 0 400 400" aria-label="Analog clock">
     <g><line v-for="(tick, i) in ticks" :key="i" :x1="tick.a.x" :y1="tick.a.y" :x2="tick.b.x" :y2="tick.b.y" class="c-tick" :class="{ hour: i % 5 === 0 }" /></g>
     <g v-if="!numbers">
-      <g v-for="i in 12" :key="i" :transform="'rotate(' + (i - 1) * 30 + ' 240 240)'">
-        <polygon v-if="i === 1" class="c-mark" :points="`${DIAL.center - 15.67},${DIAL.center - DIAL.primaryRadius} ${DIAL.center + 15.67},${DIAL.center - DIAL.primaryRadius} ${DIAL.center},${DIAL.center - DIAL.innerRadius}`" />
-        <rect v-else-if="(i - 1) % 3 === 0" class="c-mark" :x="DIAL.center - 7.085" :y="DIAL.center - DIAL.primaryRadius" width="14.17" :height="DIAL.primaryRadius - DIAL.innerRadius" rx="1" />
-        <circle v-else class="c-mark" :cx="DIAL.center" :cy="DIAL.center - markerRadius" r="10.25" />
+      <g v-for="i in 12" :key="i" :transform="'rotate(' + (i - 1) * 30 + ' 200 200)'">
+        <polygon v-if="i === 1" class="c-mark" points="184.33,43.5 215.67,43.5 200,81.08" />
+        <rect v-else-if="(i - 1) % 3 === 0" class="c-mark" x="192.92" y="44.5" width="14.17" height="37.67" rx="1" />
+        <circle v-else class="c-mark" cx="200" cy="55" r="10.25" />
       </g>
     </g>
     <g v-else class="c-numerals"><text v-for="n in numerals" :key="n.n" :x="n.x" :y="n.y + 11" text-anchor="middle">{{ n.n }}</text></g>
     <!-- The Figma vectors, each box keeping its built-in pivot alignment. A blurred copy sits behind
          each hand so it stands clear of the markers and the album art. -->
     <filter id="c-hand-blur" x="-100%" y="-20%" width="300%" height="140%"><feGaussianBlur stdDeviation="3" /></filter>
-    <g :transform="handTransform"><g v-for="hand in hands" :key="hand.name" :transform="'rotate(' + angles[hand.name] + ' 200 200)'">
+    <g v-for="hand in hands" :key="hand.name" :transform="'rotate(' + angles[hand.name] + ' 200 200)'">
       <g filter="url(#c-hand-blur)">
         <svg class="c-hand-shadow" v-bind="hand.box" preserveAspectRatio="none" overflow="visible">
           <rect v-bind="hand.inner" /><path v-for="(d, i) in hand.paths" :key="i" :d="d" fill-rule="evenodd" />
@@ -66,6 +66,6 @@ const angles = computed(() => {
       <svg class="c-hand" v-bind="hand.box" preserveAspectRatio="none" overflow="visible">
         <rect v-bind="hand.inner" /><path v-for="(d, i) in hand.paths" :key="i" :d="d" fill-rule="evenodd" />
       </svg>
-    </g></g>
+    </g>
   </svg>
 </template>

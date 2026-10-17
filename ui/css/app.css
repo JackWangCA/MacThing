@@ -1072,15 +1072,13 @@ h3 {
 /* ===== clock ===== */
 /* Clock. The face (analog, numbers or digital) is a setting; ClockScreen.vue picks the markup. */
 
-.c-face,
-.t-face,
-.u-face {
+.c-face {
   position: absolute;
-  left: 0;
-  top: 0;
-  width: 480px;
-  height: 480px;
-}
+  left: 48px;
+  top: 48px;
+  width: 384px;
+  height: 384px;
+} /* 48px inset in the square */
 /* A faint minute track with the hour ticks picked out, and solid markers. */
 .c-tick {
   stroke: var(--hand);
@@ -1130,6 +1128,13 @@ h3 {
 /* The clock button on the clock swaps in a timer (Figma 154:4300). TimeTimer.vue draws its dial
    across the whole stage: the time left in white, the minutes gone dimmed, a hand on the edge. */
 
+.t-face {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 480px;
+  height: 480px;
+}
 .t-minute {
   fill: var(--timer-used);
 }
@@ -1168,10 +1173,18 @@ h3 {
    in white without a border. Usage past the pace takes the accent. Each ring's initial sits at
    12 in a disc of the usage's colour, there even at 0%, in the background's colour. The Claude
    mark sits in the middle, faint. */
+.u-face {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 480px;
+  height: 480px;
+}
 .u-track,
 .u-used,
 .u-over {
   fill: none;
+  stroke-width: 28;
 }
 .u-track {
   stroke: var(--usage-track);
