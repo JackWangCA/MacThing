@@ -7,19 +7,36 @@
 <style>
   :root {
     --bg: #f5f5f7; --card: #fff; --text: #1d1d1f; --muted: #6e6e73; --line: #e5e5ea;
+    --select-arrow: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20d%3D%22m3%204.5%203%203%203-3%22%20fill%3D%22none%22%20stroke%3D%22%236e6e73%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
     --seg: #e9e9ee; --seg-on: #fff; --accent: #2f7fb8; --warn: #b25000;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #111; --card: #1c1c1e; --text: #f5f5f7; --muted: #98989d; --line: #2c2c2e;
+      --select-arrow: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20d%3D%22m3%204.5%203%203%203-3%22%20fill%3D%22none%22%20stroke%3D%22%2398989d%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
       --seg: #2c2c2e; --seg-on: #48484a; --accent: #5aa9dc; --warn: #ffa94d; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
     font: 15px/1.45 -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
-  main { max-width: 560px; margin: 0 auto; padding: 48px 20px 64px; }
-  h1 { font-size: 28px; letter-spacing: -0.02em; margin: 0; }
-  .lede { color: var(--muted); margin: 4px 0 28px; }
-  section { background: var(--card); border-radius: 14px; padding: 6px 18px; margin-bottom: 18px; }
+  main { min-height: 100vh; }
+  .settings-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); align-items: stretch; }
+  .settings-sidebar { position: sticky; top: 0; height: 100vh; padding: 32px 24px; border-right: 1px solid var(--line); }
+  .settings-content { min-width: 0; padding: 32px 40px 64px; background: var(--card); }
+  .settings-content > * { max-width: 840px; }
+  .settings-nav { display: grid; gap: 4px; margin-top: 24px; }
+  .settings-nav a { display: block; padding: 10px 0; color: var(--muted); text-decoration: none; }
+  .settings-nav a:hover { color: var(--text); }
+  .settings-nav a[aria-current="page"] { color: var(--text); font-weight: 600; }
+  .settings-nav a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (max-width: 699px) {
+    .settings-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
+    .settings-sidebar { position: static; height: auto; padding: 24px 20px; border-right: 0; border-bottom: 1px solid var(--line); }
+    .settings-content { padding: 24px 20px 48px; }
+    .settings-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 16px; }
+  }
+  h1 { font-size: 24px; letter-spacing: -0.02em; margin: 0; }
+  .lede { color: var(--muted); font-size: 13px; margin: 6px 0 24px; }
+  section { padding: 0; margin: 0; }
   .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; }
   .row + .row { border-top: 1px solid var(--line); }
   .label { font-weight: 500; }
@@ -27,15 +44,24 @@
   .seg button { border: 0; background: none; color: var(--text); font: inherit; font-size: 14px;
     padding: 5px 12px; border-radius: 7px; cursor: pointer; }
   .seg button[aria-pressed="true"] { background: var(--seg-on); box-shadow: 0 1px 3px rgba(0,0,0,.15); font-weight: 600; }
-  h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 8px 18px; }
+  select[data-key] { flex-shrink: 0; max-width: 100%; min-height: 34px; padding: 6px 34px 6px 12px;
+    font: inherit; font-size: 14px; color: var(--text); background: var(--seg);
+    border: 1px solid var(--line); border-radius: 9px; outline-color: var(--accent); color-scheme: light;
+    appearance: none; -webkit-appearance: none; background-image: var(--select-arrow);
+    background-repeat: no-repeat; background-position: right 12px center; background-size: 12px 12px; }
+  @media (prefers-color-scheme: dark) { select[data-key] { color-scheme: dark; } }
+  h2 { font-size: 24px; font-weight: 600; letter-spacing: -.02em; margin: 0; }
   .choice { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; cursor: pointer; }
   .choice + .choice { border-top: 1px solid var(--line); }
   .choice input { margin-top: 3px; accent-color: var(--accent); }
   .note { color: var(--muted); font-size: 13px; margin-top: 2px; }
   .row.stack { display: block; }
-  .cal { padding: 8px 0; align-items: center; }
+  #calList { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); column-gap: 24px; margin-top: 12px; }
+  .cal { display: grid; grid-template-columns: 16px 10px minmax(0, 1fr); gap: 10px; align-items: start; min-width: 0; padding: 10px 0; }
+  .cal > div { min-width: 0; overflow-wrap: anywhere; }
+  .cal .dot { margin: 6px 0 0; }
   .cal + .cal { border-top: 0; }
-  .cal input { margin: 0; }
+  .cal input { margin: 4px 0 0; }
   .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; margin-left: -4px; }
   .note.warn { color: var(--warn); }
   input[type=search] { width: 100%; margin-top: 10px; padding: 9px 12px; font: inherit; color: var(--text);
@@ -51,44 +77,62 @@
 </style>
 </head>
 <body>
-<main>
-  <h1>MacThing</h1>
-  <p class="lede">Changes apply to the device right away.</p>
+<main class="settings-layout">
+  <aside class="settings-sidebar">
+    <h1>MacThing</h1>
+    <nav class="settings-nav" aria-label="Settings categories">
+      <a href="#display" aria-current="page">Display</a>
+      <a href="#usage">AI Usage</a>
+      <a href="#location">Weather</a>
+      <a href="#calendar">Calendar</a>
+    </nav>
+  </aside>
+  <div class="settings-content">
+    <h2 id="category-title">Display</h2>
+    <p class="lede">Changes apply to the device right away.</p>
+    <div class="settings-panel" id="display" role="region" aria-labelledby="category-title">
+      <section>
+        <div class="row"><span class="label">Appearance</span>
+          <span class="seg" data-key="theme"><button data-v="dark">Dark</button><button data-v="light">Light</button><button data-v="auto">Match Mac</button></span></div>
+        <div class="row"><span class="label">Album art background</span>
+          <span class="seg" data-key="artBackground"><button data-v="false">Off</button><button data-v="true">On</button></span></div>
+        <div class="row"><span class="label">Temperature</span>
+          <span class="seg" data-key="units"><button data-v="F">°F</button><button data-v="C">°C</button></span></div>
+        <div class="row"><span class="label">Time format</span>
+          <span class="seg" data-key="clock24h"><button data-v="false">12-hour</button><button data-v="true">24-hour</button></span></div>
+        <div class="row"><span class="label">Clock face</span>
+          <span class="seg" data-key="clockFace"><button data-v="analog">Analog</button><button data-v="numbers">Numbers</button><button data-v="digital">Digital</button></span></div>
+      </section>
+    </div>
 
-  <h2>Display</h2>
-  <section>
-    <div class="row"><span class="label">Appearance</span>
-      <span class="seg" data-key="theme"><button data-v="dark">Dark</button><button data-v="light">Light</button><button data-v="auto">Match Mac</button></span></div>
-    <div class="row"><span class="label">Album art background</span>
-      <span class="seg" data-key="artBackground"><button data-v="false">Off</button><button data-v="true">On</button></span></div>
-    <div class="row"><span class="label">Temperature</span>
-      <span class="seg" data-key="units"><button data-v="F">°F</button><button data-v="C">°C</button></span></div>
-    <div class="row"><span class="label">Time format</span>
-      <span class="seg" data-key="clock24h"><button data-v="false">12-hour</button><button data-v="true">24-hour</button></span></div>
-    <div class="row"><span class="label">Clock face</span>
-      <span class="seg" data-key="clockFace"><button data-v="analog">Analog</button><button data-v="numbers">Numbers</button><button data-v="digital">Digital</button></span></div>
-  </section>
+    <div class="settings-panel" id="usage" hidden role="region" aria-labelledby="category-title">
+      <section>
+        <div class="row"><div><label class="label" for="usageSource">Show usage</label><div class="note">Whose plan the clock's usage view shows (ChatGPT: asks Codex on this Mac)</div></div>
+          <select id="usageSource" data-key="usageSource"><option value="claude">Claude</option><option value="chatgpt">ChatGPT</option><option value="both">Both</option><option value="none">None</option></select></div>
+      </section>
+    </div>
 
-  <h2 id="location">Weather location</h2>
-  <section>
-    <label class="choice"><input type="radio" name="loc" value="auto">
-      <div><div class="label">This Mac's location</div><div class="note" id="autoNote"></div></div></label>
-    <label class="choice"><input type="radio" name="loc" value="manual">
-      <div style="flex:1"><div class="label">A specific place</div><div class="note" id="manualNote">Search for a city</div>
-        <input type="search" id="q" placeholder="Search for a city…" autocomplete="off">
-        <ul id="results"></ul></div></label>
-  </section>
+    <div class="settings-panel" id="location" hidden role="region" aria-labelledby="category-title">
+      <section>
+        <label class="choice"><input type="radio" name="loc" value="auto">
+          <div><div class="label">This Mac's location</div><div class="note" id="autoNote"></div></div></label>
+        <label class="choice"><input type="radio" name="loc" value="manual">
+          <div style="flex:1"><div class="label">A specific place</div><div class="note" id="manualNote">Search for a city</div>
+            <input type="search" id="q" placeholder="Search for a city…" autocomplete="off">
+            <ul id="results"></ul></div></label>
+      </section>
+    </div>
 
-  <h2 id="calendar">Calendar</h2>
-  <section>
-    <div class="row"><span class="label">Days of events</span>
-      <span class="seg" data-key="calendarDays" data-type="number"><button data-v="1">Today</button><button data-v="2">2 days</button><button data-v="3">3 days</button><button data-v="5">5 days</button><button data-v="7">7 days</button></span></div>
-    <div class="row"><div><div class="label">Meeting alerts</div><div class="note">Fills the screen before a meeting</div></div>
-      <span class="seg" data-key="meetingAlert" data-type="number"><button data-v="0">Off</button><button data-v="event">Event’s alert</button><button data-v="1">1 min</button><button data-v="5">5 min</button><button data-v="10">10 min</button></span></div>
-    <div class="row"><div><div class="label">Meeting timer</div><div class="note">Starts the clock's timer as a meeting begins, running to its end</div></div>
-      <span class="seg" data-key="meetingTimer"><button data-v="false">Off</button><button data-v="true">Auto-start</button></span></div>
-    <div class="row stack"><div class="label">Calendars</div><div class="note" id="calNote"></div><div id="calList"></div></div>
-  </section>
+    <div class="settings-panel" id="calendar" hidden role="region" aria-labelledby="category-title">
+      <section>
+        <div class="row"><label class="label" for="calendarDays">Days of events</label>
+          <select id="calendarDays" data-key="calendarDays" data-type="number"><option value="1">Today</option><option value="2">2 days</option><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option></select></div>
+        <div class="row"><div><label class="label" for="meetingAlert">Meeting alerts</label><div class="note">A card before each meeting, with a timer to its end once it starts</div></div>
+          <select id="meetingAlert" data-key="meetingAlert" data-type="number"><option value="0">Off</option><option value="event">Event’s alert</option><option value="1">1 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
+        <div class="row stack"><div class="label">Calendars</div><div class="note" id="calNote"></div><div id="calList"></div></div>
+      </section>
+    </div>
+  </div>
 </main>
 <div class="saved" id="saved">Saved</div>
 
@@ -116,6 +160,7 @@
     document.querySelectorAll('.seg').forEach((seg) => {
       seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(s[seg.dataset.key]))));
     });
+    document.querySelectorAll('select[data-key]').forEach((select) => { select.value = String(s[select.dataset.key]); });
     const manual = s.location.mode === 'manual';
     document.querySelector(`input[name=loc][value=${manual ? 'manual' : 'auto'}]`).checked = true;
     $('#manualNote').textContent = manual ? `Using ${s.location.name}` : 'Search for a city';
@@ -174,10 +219,14 @@
     }));
   }
 
+  function saveChoice(control, value) {
+    save({ [control.dataset.key]: value === 'true' ? true : value === 'false' ? false : control.dataset.type === 'number' && value !== '' && !isNaN(value) ? Number(value) : value });
+  }
+  document.querySelectorAll('select[data-key]').forEach((select) => select.addEventListener('change', () => saveChoice(select, select.value)));
   document.querySelectorAll('.seg').forEach((seg) => seg.addEventListener('click', (e) => {
     const v = e.target.dataset?.v;
     if (v === undefined) return;
-    save({ [seg.dataset.key]: v === 'true' ? true : v === 'false' ? false : seg.dataset.type === 'number' && v !== '' && !isNaN(v) ? Number(v) : v });
+    saveChoice(seg, v);
   }));
 
   document.querySelector('input[name=loc][value=auto]').addEventListener('change', () => save({ location: { mode: 'auto' } }));
@@ -204,6 +253,20 @@
     }, 250);
   });
 
+  // The hash keeps category links from the device, reloads, and browser Back in sync.
+  function showCategory() {
+    const panels = Array.from(document.querySelectorAll('.settings-panel'));
+    const requested = location.hash.slice(1);
+    const category = panels.some((panel) => panel.id === requested) ? requested : 'display';
+    panels.forEach((panel) => { panel.hidden = panel.id !== category; });
+    document.querySelectorAll('.settings-nav a').forEach((link) => {
+      const selected = link.hash === '#' + category;
+      if (selected) { link.setAttribute('aria-current', 'page'); $('#category-title').textContent = link.textContent; }
+      else link.removeAttribute('aria-current');
+    });
+  }
+  showCategory();
+  window.addEventListener('hashchange', showCategory);
   load();
   setInterval(() => { if (document.activeElement !== $('#q')) load(); }, 3000); // reflect changes made on the device
   if (location.hash === '#location') setTimeout(() => $('#q').focus(), 100);

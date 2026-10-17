@@ -4,11 +4,14 @@ import { initializeRuntime } from '../js/core.js';
 export const state = reactive({
   // screenSwitch: how the current screen is coming in ('fade', 'next', 'previous'), until it has (core.js).
   current: 'nowplaying', leaving: '', screenSwitch: 'fade', offline: true, asleep: false, light: false,
-  settings: { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', meetingAlert: 0, meetingTimer: false, location: { mode: 'auto' } },
+  settings: { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', meetingAlert: 0, usageSource: 'claude', location: { mode: 'auto' } },
   now: Date.now(), np: { active: false }, npAt: 0, artwork: null,
-  weather: { status: 'loading' }, calendar: { status: 'loading' },
+  weather: { status: 'loading' }, calendar: { status: 'loading' }, usage: { status: 'loading' }, chatgptUsage: { status: 'loading' },
   volume: 0, volumeUnsupported: false, volumeNote: '', showVolume: false,
-  flash: { icon: 'play', color: '', key: 0 }, flashing: false, toast: ''
+  flash: { icon: 'play', color: '', key: 0 }, flashing: false, toast: '',
+  // The back button's usage refresh: '' idle, 'spin' (the ⟳ turns once), 'pending' (••• until the
+  // Mac answers), 'failed' (✕ until another try is allowed). usageRefreshWait: 'wait 45s', briefly.
+  usageRefresh: '', usageRefreshWait: ''
 });
 export const CT = initializeRuntime(state);
 // The art on screen only changes once its replacement is decoded, and a track that arrives
@@ -70,6 +73,8 @@ CT.on('nowPlaying', msg => { state.np = msg.np; state.npAt = performance.now(); 
 CT.on('artwork', msg => { state.artwork = msg; });
 CT.on('weather', msg => { state.weather = msg.weather; });
 CT.on('calendar', msg => { state.calendar = msg.calendar; });
+CT.on('usage', msg => { state.usage = msg.usage; });
+CT.on('chatgptUsage', msg => { state.chatgptUsage = msg.usage; });
 
 export function elapsed() {
   const np = state.np;

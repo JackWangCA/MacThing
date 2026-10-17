@@ -68,7 +68,7 @@ function fitClock() {
   const clock = rail.value && rail.value.titleElement;
   if (!clock) return;
   clock.style.fontSize = "";
-  for (let size = 112; clock.scrollWidth > clock.clientWidth && size > 72; ) {
+  for (let size = 104; clock.scrollWidth > clock.clientWidth && size > 72; ) {
     size -= 8;
     clock.style.fontSize = size + "px";
   }

@@ -297,6 +297,8 @@ export function initializeRuntime(state) {
       return CT.show(name);
     }
     if (action === 'settings') return CT.current === 'settings' ? CT.closeSettings() : CT.show('settings');
+    // Favoriting is for the song on screen, so only Now Playing does it.
+    if ((action === 'favorite' || action === 'unfavorite') && CT.current !== 'nowplaying') return;
     CT.command(action);
   }
 
@@ -332,6 +334,10 @@ export function initializeRuntime(state) {
 
   function runKey(key) {
     if (key === 'Enter') return knobPress();
+    // A screen can take the back button for itself (Settings opens the Mac's settings page on it,
+    // the clock's stale usage refreshes on it).
+    var screen = CT.screens[CT.current];
+    if (key === 'Escape' && screen && screen.back && screen.back() !== false) return;
     if (key === 'Escape' && CT.current === 'settings') return CT.closeSettings();
     var actions = (CT.config.buttonClicks || {})[key];
     if (actions) return buttonPress(key, actions);
@@ -377,8 +383,9 @@ export function initializeRuntime(state) {
       holds[key] = { start: performance.now(), done: true }; // the wake was the whole press
       return;
     }
-    // An alert over the screen (the meeting alert) takes the whole press to dismiss it.
-    if (CT.dismissModal && CT.dismissModal()) {
+    // An alert over the screen (the meeting alert) takes the whole press to dismiss it (the back
+    // button can do one thing more there: start the meeting's timer).
+    if (CT.dismissModal && CT.dismissModal(key)) {
       holds[key] = { start: performance.now(), done: true };
       return;
     }
