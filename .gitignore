@@ -8,3 +8,5 @@ vendor/
 .DS_Store
 .claude/
 .idea/
+
+.visual-qa/

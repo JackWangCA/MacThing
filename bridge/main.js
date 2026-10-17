@@ -14,7 +14,7 @@ import { DeviceLink } from './device/link.js';
 import { log } from './log.js';
 import { AppInfo, kindOf } from './nowplaying/apps.js';
 import { ArtworkCache } from './nowplaying/artwork.js';
-import { largerBrowserArt } from './nowplaying/browser-art.js';
+import { browserArtKey, largerBrowserArt } from './nowplaying/browser-art.js';
 import { MediaRemoteSource } from './nowplaying/mediaremote.js';
 import { MacAppearance } from './mac/appearance.js';
 import { MacHelper } from './mac/helper.js';
@@ -50,7 +50,7 @@ let connecting = false;
 let current = { np: source.snapshot, art: null, app: null };
 let resolveSeq = 0;
 let lastLogged = '';
-const largerArt = new Map(); // MediaRemote artwork key -> art from the playing tab (null: none found)
+const largerArt = new Map(); // source + video + artwork identity -> upgraded art (null: none found)
 
 async function onNowPlaying(snapshot) {
   const seq = ++resolveSeq;
@@ -59,7 +59,7 @@ async function onNowPlaying(snapshot) {
     snapshot.bundleId ? apps.get(snapshot.bundleId) : null,
   ]);
   if (seq !== resolveSeq) return; // superseded by a newer update
-  const key = snapshot.artwork?.key;
+  const key = browserArtKey(snapshot);
   current = { np: snapshot, art: (key && largerArt.get(key)) || art, app };
 
   const summary = snapshot.active
@@ -80,7 +80,7 @@ async function onNowPlaying(snapshot) {
   if (Math.min(hi.width, hi.height) < 360) return;
   largerArt.set(key, hi);
   log.info(`[artwork] ${hi.width}×${hi.height} from the playing tab`);
-  if (current.np.artwork?.key !== key) return; // moved on to another cover meanwhile
+  if (browserArtKey(current.np) !== key) return; // moved on to another video meanwhile
   current = { ...current, art: hi };
   if (link) pushNowPlaying(link);
 }
@@ -300,8 +300,9 @@ function onDeviceMessage(msg) {
     case 'retryWeather':
       return retryWeather(msg.quiet);
     case 'refreshUsage':
-      chatgptUsage.ask();
-      return usage.ask();
+      return Promise.allSettled([chatgptUsage.ask(), usage.ask()]).then(() => {
+        if (msg.ack) link?.send({ type: 'usageRefreshed' });
+      });
     case 'log':
       return log.info('[device]', msg.message);
   }
