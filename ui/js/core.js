@@ -148,8 +148,33 @@ export function initializeRuntime(state) {
     if (e.animationName === 'fade-in' && e.target.classList.contains('screen') && e.target.classList.contains('active')) {
       state.leaving = '';
       state.screenSwitch = '';
+      thaw();
     }
   });
+
+  // A switch before the last one has finished: the screen still coming in loses its fade-in as
+  // it starts to leave, so it would jump to full strength and then fade out — a ghost of it
+  // flashing up. Instead its content leaves from how far it had faded in (its panels go to full
+  // strength, covering the screen before it, which goes). Undone once it's no longer leaving.
+  var frozenScreen = null, frozenParts = [];
+  function freeze(name) {
+    var el = document.getElementById('screen-' + name);
+    if (!el) return;
+    var style = getComputedStyle(el), shown = parseFloat(style.opacity);
+    if (shown >= 1 && style.transform === 'none') return;
+    frozenScreen = el;
+    if (style.transform !== 'none') el.style.transform = style.transform; // where its slide had got to
+    frozenParts = Array.prototype.slice.call(el.querySelectorAll('.left-rail > *, .screen-stage > *'));
+    for (var i = 0; i < frozenParts.length; i++) {
+      frozenParts[i].style.opacity = String(parseFloat(getComputedStyle(frozenParts[i]).opacity) * shown);
+    }
+  }
+  function thaw() {
+    if (frozenScreen) frozenScreen.style.transform = '';
+    for (var i = 0; i < frozenParts.length; i++) frozenParts[i].style.opacity = '';
+    frozenScreen = null;
+    frozenParts = [];
+  }
 
   // The pages in the order their top buttons run, left to right. Moving between them wipes the
   // new one in from that side; Settings, which has no top button, fades.
@@ -163,6 +188,8 @@ export function initializeRuntime(state) {
       var prev = CT.screens[CT.current];
       if (name === 'settings') beforeSettings = CT.current;
       if (prev.hide) prev.hide();
+      thaw();
+      if (state.leaving) freeze(CT.current);
       var from = PAGES.indexOf(CT.current), to = PAGES.indexOf(name);
       state.screenSwitch = fade || from < 0 || to < 0 ? 'fade' : to > from ? 'next' : 'previous';
       state.leaving = CT.current;
