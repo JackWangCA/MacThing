@@ -68,6 +68,13 @@ const weather = {
   daily: [day(0, 63, 55, 56, 77), day(1, 3, 0, 56, 77), day(2, 63, 55, 44, 63), day(3, 3, 0, 44, 77), day(4, 2, 10, 50, 72), day(5, 61, 40, 52, 68)],
 };
 
+// Claude usage: a session a little under half used, resetting at 3:30; the week resets Monday.
+const usage = {
+  status: 'ok', updatedAt: now,
+  session: { percent: 38, resetsAt: at(0, 15.5) },
+  week: { percent: 64, resetsAt: at(3, 9) },
+};
+
 const [device] = await listCarThings();
 if (!device) {
   console.error('No Car Thing found over adb');
@@ -106,6 +113,7 @@ const shots = [
   // The knob sets the timer (a click is five minutes), a press starts it; 12 minutes then pass.
   { name: 'clock-timer', screen: 'clock', reselect: 1, before: () => evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))") },
   { name: 'clock-timer-running', screen: 'clock', before: async () => { await press('Enter'); await pause(500); await tick(now + 12 * 60000); } },
+  { name: 'clock-usage', screen: 'clock', reselect: 1 },
   { name: 'settings' },
   // A meeting alert: the card over whatever is on screen a few minutes before a meeting (a 2 PM
   // one, so the clock is set back to 1:57 for this shot).
@@ -154,6 +162,7 @@ try {
   await tick();
   await send({ type: 'calendar', calendar });
   await send({ type: 'weather', weather });
+  await send({ type: 'usage', usage });
 
   const artwork = await fs.readFile(path.join(here, '..', 'docs', preset.art));
   await send({ type: 'nowPlaying', np: { active: true, kind: 'music', ...preset.np, rate: 1, playing: true, artworkKey: 'mock' } });
