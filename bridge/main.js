@@ -188,8 +188,12 @@ async function applyScreen() {
 
 // The Mac says "still here" every few seconds. When it stops — the Mac was shut down, or the
 // cable now only carries power — the device puts itself to sleep. See device/sleepd.sh.
+//
+// Only once a state has been applied to this link: the first beat after a reconnect is what the
+// watchdog hands the screen back with, so it must say what we just set, not what the last link had.
 function heartbeat() {
-  link?.heartbeat(screenOn !== false).catch((err) => log.debug('[heartbeat]', err.message));
+  if (screenOn === null) return;
+  link?.heartbeat(screenOn).catch((err) => log.debug('[heartbeat]', err.message));
 }
 
 async function macStatus() {
@@ -355,6 +359,7 @@ async function connect(serial) {
   const l = new DeviceLink(serial);
   l.on('ready', () => pushAll(l));
   l.on('message', onDeviceMessage);
+  screenOn = null; // whatever it was belonged to the last link
   l.on('close', () => {
     if (link !== l) return;
     link = null;
