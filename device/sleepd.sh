@@ -13,7 +13,7 @@
 
 set -u
 
-CONF=/var/lib/carthing/sleep.conf
+CONF=${SLEEPD_CONF:-/var/lib/carthing/sleep.conf} # overridable for tests/sleepd.test.js
 BL=/sys/class/aml_bl/power  # echo 0|1; the standard backlight/aml-bl/bl_power does nothing here
 GOV=/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
 MARK=/tmp/carthing-input
@@ -202,6 +202,7 @@ next_heal=$HEAL # value of idle at which to try again
 good=0          # heartbeats in a row, to tell a real link from one that dies again
 usb_prev=$(usb_state) # last USB state seen, to notice the host coming back
 cooldown=0      # seconds to wait before another state-triggered attempt
+handed=""       # state we handed the screen over in, until the next heartbeat confirms it
 
 while :; do
   hb=""
@@ -213,6 +214,13 @@ while :; do
     # A link that lasted about a minute is a real one: earn back the short retry gap.
     if [ "$good" -ge 6 ]; then step=$HEAL; next_heal=$HEAL; fi
     case "$hb" in *" off") want=off ;; *) want=on ;; esac
+    # The beat we handed over on may have been written before the bridge set the screen — then
+    # it went dark behind the bridge's back and the bridge, believing it lit, never fixed it.
+    # Settle it on the one after: by then the bridge's own setScreen and heartbeat have landed.
+    if [ "$mode" = host ] && [ -n "$handed" ]; then
+      [ "$want" != "$handed" ] && backlight "$want"
+      handed=""
+    fi
   else
     idle=$((idle + POLL))
     [ "$idle" -ge "$HEAL_PRESS" ] && good=0
@@ -226,6 +234,7 @@ while :; do
       mode=host
       governor restore
       backlight "$want"  # the Mac is back: hand the screen over in the state it wants
+      handed=$want
     fi
   else
     case "$mode" in
