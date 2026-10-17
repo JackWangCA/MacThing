@@ -39,9 +39,10 @@ export const config = {
   },
   // Knob press, by number of quick presses. A single press waits multiClickMs to see if more follow.
   knobClicks: { 1: 'playpause', 2: 'next', 3: 'previous' },
-  // Buttons that count presses the same way, e.g. { Escape: { 1: 'favorite', 2: 'unfavorite' } }.
-  // A key listed here ignores its `buttons` entry. The back button only favorites, on any press.
-  buttonClicks: {},
+  // Buttons that count presses the same way. On Now Playing the back button favorites the playing
+  // song on one press and unfavorites it on two, so neither is a toggle you have to guess the state
+  // of. A key listed here ignores its `buttons` entry.
+  buttonClicks: { Escape: { 1: 'favorite', 2: 'unfavorite' } },
   multiClickMs: 350,
 
   // Hold a button for holdMs to get a second action out of it; the short press then happens on

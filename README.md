@@ -24,7 +24,7 @@ background turned on, the second doesn't._
 | Press knob once / twice / three times | Play-pause / next track / previous track; starts Apple Music if nothing is playing (in Settings: change the selected option) |
 | Fifth top button (settings)           | Settings (press it again to close)                                                                                           |
 | Hold the fifth top button             | Sleep now — screen off until the next button or knob input                                                                   |
-| Back button (under the knob)          | On Now Playing, favorite the playing Apple Music song (does nothing while it's paused). In Settings, open the settings page on your Mac. On a paused or finished timer, reset it; on a usage view showing “10m ⟳”, check usage again. The screen's lower-right corner says which |
+| Back button (under the knob)          | On Now Playing, press once to favorite the playing Apple Music song, twice to unfavorite it (does nothing while it's paused). In Settings, open the settings page on your Mac. On a paused or finished timer, reset it; on a usage view showing “10m ⟳”, check usage again. The screen's lower-right corner says which |
 
 The four screens:
 
@@ -136,7 +136,7 @@ npm run setup-device  # only if you set the device up before the sleep watchdog 
 
 - `buttons`: what each button does (`screen:<name>`, `settings`, or a media command)
 - `knobClicks` and `multiClickMs`: the single, double and triple press actions, and how long a single press waits for more
-- `buttonClicks`: buttons that count presses the same way, e.g. `{ Escape: { 1: 'favorite', 2: 'unfavorite' } }` — none by default, so the back button only favorites
+- `buttonClicks`: buttons that count presses the same way — by default the back button, once to favorite and twice to unfavorite
 - `volumeStep`: volume change per knob click
 - `knobDirection`: `1` matches Spotify's own mapping (turning right raises the volume); `-1` flips it
 - `sleepWithMac` and `screenWakeMs`: follow the Mac's display and lock screen, and how long a button or knob wake lasts while the Mac's display is off
