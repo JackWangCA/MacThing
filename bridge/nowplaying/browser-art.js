@@ -25,9 +25,13 @@ export function isBrowserPlaceholder(bundleId, artworkKey) {
   return Boolean(BROWSER_APPS[bundleId] && artworkKey === CHROMIUM_PLACEHOLDER_KEY);
 }
 
-/** A shared browser icon must never share upgraded artwork between different videos. */
-export function browserArtKey({ bundleId, title, contentId, artwork }) {
-  return artwork ? createHash('sha1').update(JSON.stringify([bundleId, title, contentId, artwork.key])).digest('hex').slice(0, 16) : null;
+/**
+ * A shared browser icon must never share upgraded artwork between different videos, so the key
+ * is the app, the title and the artwork. Not the content id: Arc hands out a new one on every
+ * seek, which would fetch the thumbnail again each time you skip.
+ */
+export function browserArtKey({ bundleId, title, artwork }) {
+  return artwork ? createHash('sha1').update(JSON.stringify([bundleId, title, artwork.key])).digest('hex').slice(0, 16) : null;
 }
 
 const run = (cmd, args, opts) =>
