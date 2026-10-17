@@ -6,7 +6,9 @@ import { normalize } from '../bridge/nowplaying/mediaremote.js';
 test('videos sharing artwork do not share upgraded thumbnails', () => {
   const first = { bundleId: 'company.thebrowser.Browser', title: 'First video', contentId: 'first', artwork: { key: 'shared-image' } };
   assert.notEqual(browserArtKey(first), browserArtKey({ ...first, title: 'Second video', contentId: 'second' }));
-  assert.notEqual(browserArtKey(first), browserArtKey({ ...first, contentId: 'another-video-with-the-same-title' }));
+  assert.notEqual(browserArtKey(first), browserArtKey({ ...first, bundleId: 'com.google.Chrome' }));
+  // Arc gives the same video a new content id on every seek; that mustn't refetch its thumbnail.
+  assert.equal(browserArtKey(first), browserArtKey({ ...first, contentId: '1894DD9D-E73A-4098-8C3F-BE68D424DA48' }));
   assert.equal(browserArtKey(first), browserArtKey({ ...first, elapsed: 42, playing: false }));
   assert.equal(browserArtKey({ ...first, artwork: null }), null);
 });
