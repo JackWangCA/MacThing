@@ -1207,11 +1207,21 @@ h3 {
 .usage-resets {
   white-space: nowrap;
 }
-.u-updated {
+.back-action {
   position: absolute;
   right: 24px;
   /* Align with the bottom line of the reset footer in the left rail. */
   bottom: var(--panel-inset-y);
+}
+/* Inter has no ✕, so it's drawn: cap height, standing on the baseline like the letters beside it. */
+.back-action-x {
+  width: 0.727em;
+  height: 0.727em;
+  vertical-align: baseline;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
 }
 .u-refresh {
   display: inline-block;
