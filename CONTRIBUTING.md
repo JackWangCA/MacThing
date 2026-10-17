@@ -25,7 +25,7 @@ You don't need to open an issue before a pull request. If you're unsure whether 
 
 ## Screenshots, please
 
-Screenshots are the most useful thing you can add. For anything that changes what's on the screen, include a **before** and an **after**. You can drag or paste images straight into the PR description on GitHub.
+Screenshots are the most useful thing you can add. For anything that changes what's on the screen, include a screenshot of the result. You can drag or paste images straight into the PR description on GitHub.
 
 ### From the Car Thing
 
@@ -35,11 +35,10 @@ With the bridge running (`npm run dev` or the LaunchAgent) and the Car Thing con
 2. Save what it's showing:
 
    ```bash
-   npm run screenshot after.png
+   npm run screenshot screen.png
    ```
 
    This saves the 800×480 screen exactly as the device draws it, and works alongside the running bridge.
-3. For the **before**, switch to `main`, let `npm run dev` redeploy (or run `npm run restart`), and run `npm run screenshot before.png` on the same screen.
 
 For a change that's about motion (an animation, a transition, something that happens when you press a button), a short video is better than a screenshot. A phone video of the Car Thing is fine.
 

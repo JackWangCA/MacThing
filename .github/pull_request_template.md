@@ -10,12 +10,8 @@
 
 ## Screenshots
 
-<!-- Before and after for anything on screen: `npm run screenshot before.png` / `after.png`.
+<!-- For anything on screen, a screenshot of the result: `npm run screenshot screen.png` on the Car Thing.
      Drag or paste the images here. A short video for animations. -->
-
-| Before | After |
-| --- | --- |
-|  |  |
 
 ## How I checked it
 
