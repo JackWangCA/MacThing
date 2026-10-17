@@ -300,8 +300,9 @@ function onDeviceMessage(msg) {
     case 'retryWeather':
       return retryWeather(msg.quiet);
     case 'refreshUsage':
-      chatgptUsage.refresh();
-      return usage.ask();
+      return Promise.allSettled([chatgptUsage.refresh(), usage.ask()]).then(() => {
+        if (msg.ack) link?.send({ type: 'usageRefreshed' });
+      });
     case 'log':
       return log.info('[device]', msg.message);
   }

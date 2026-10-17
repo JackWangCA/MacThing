@@ -1213,6 +1213,18 @@ h3 {
   /* Align with the bottom line of the reset footer in the left rail. */
   bottom: var(--panel-inset-y);
 }
+.u-refresh {
+  display: inline-block;
+}
+.u-refresh.is-spinning {
+  animation: u-refresh-spin 600ms ease-in-out;
+}
+@keyframes u-refresh-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .u-refresh.is-spinning { animation: none; }
+}
 .u-status-logo {
   width: 56px;
   height: 56px;

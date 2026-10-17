@@ -28,11 +28,29 @@ screen.reselect = () => {
   if (isUsage(mode.value)) CT.send({ type: 'refreshUsage' });
 };
 screen.show = () => { if (isUsage(mode.value)) CT.send({ type: 'refreshUsage' }); };
-// Once a usage's "10m ⟳" is up, the back button asks the Mac to try again instead of favoriting.
+// Once a usage's "10m ⟳" is up, the back button asks the Mac to try again instead of favoriting:
+// the ⟳ turns once, then ••• until the Mac says it's done. One try at a time, a minute apart at
+// least (Claude's own ask limit), so pressing it again and again doesn't reach the service.
+const REFRESH_SPIN_MS = 600, REFRESH_COOLDOWN_MS = 60000, REFRESH_GIVE_UP_MS = 30000;
+let refreshAt = -Infinity, refreshDone = true, spinTimer = null, giveUpTimer = null;
+function finishRefresh() {
+  refreshDone = true;
+  clearTimeout(giveUpTimer);
+  if (state.usageRefresh === 'pending') state.usageRefresh = '';
+}
+CT.on('usageRefreshed', finishRefresh);
 screen.back = () => {
   if (!isUsage(mode.value) || !usageUpdatedText(usageOf(state, mode.value), state.now)) return false;
-  CT.send({ type: 'refreshUsage' });
-  CT.toast('Refreshing ' + usageName(mode.value) + ' usage');
+  if (state.usageRefresh) return;
+  const wait = refreshAt + REFRESH_COOLDOWN_MS - performance.now();
+  if (wait > 0) return CT.toast('Try again in ' + Math.ceil(wait / 1000) + 's');
+  refreshAt = performance.now();
+  refreshDone = false;
+  state.usageRefresh = 'spin';
+  CT.send({ type: 'refreshUsage', ack: true });
+  clearTimeout(spinTimer);
+  spinTimer = setTimeout(() => { state.usageRefresh = refreshDone ? '' : 'pending'; }, REFRESH_SPIN_MS);
+  giveUpTimer = setTimeout(finishRefresh, REFRESH_GIVE_UP_MS);
 };
 // A usage that's been taken out of Settings → Usage while it's up gives way to the clock.
 watch(providers, list => { if (isUsage(mode.value) && !list.includes(mode.value)) mode.value = 'clock'; });

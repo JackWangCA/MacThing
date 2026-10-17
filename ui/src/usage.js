@@ -68,8 +68,12 @@ export function usageAge(updatedAt, now) {
   return minutes < 1 ? 'just now' : minutes < 60 ? minutes + 'm ago' : Math.floor(minutes / 60) + 'h ago';
 }
 
-/** Hide freshness text during normal five-minute polling; show after a missed refresh. */
-export function usageUpdatedText(usage, now) {
+/** How old the numbers are ('12m'), once a refresh has been missed; '' during normal five-minute polling. */
+export function usageStaleAge(usage, now) {
   return usage.status === 'ok' && Number.isFinite(usage.updatedAt) && now - usage.updatedAt >= 10 * 60000
-    ? usageAge(usage.updatedAt, now).replace(/ ago$/, '') + ' ⟳' : '';
+    ? usageAge(usage.updatedAt, now).replace(/ ago$/, '') : '';
+}
+export function usageUpdatedText(usage, now) {
+  const age = usageStaleAge(usage, now);
+  return age ? age + ' ⟳' : '';
 }
