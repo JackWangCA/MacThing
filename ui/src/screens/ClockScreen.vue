@@ -29,27 +29,40 @@ screen.reselect = () => {
 };
 screen.show = () => { if (isUsage(mode.value)) CT.send({ type: 'refreshUsage' }); };
 // Once a usage's "10m ⟳" is up, the back button asks the Mac to try again instead of favoriting:
-// the ⟳ turns once, then ••• until the Mac says it's done. One try at a time, a minute apart at
-// least (Claude's own ask limit), so pressing it again and again doesn't reach the service.
-const REFRESH_SPIN_MS = 600, REFRESH_COOLDOWN_MS = 60000, REFRESH_GIVE_UP_MS = 30000;
-let refreshAt = -Infinity, refreshDone = true, spinTimer = null, giveUpTimer = null;
+// the ⟳ turns once, then ••• until the Mac says it's done. Still stale after that, it shows ✕
+// until another try is allowed. One try at a time, a minute apart at least (Claude's own ask
+// limit), so pressing it again and again doesn't reach the service; a press too soon says how long.
+const REFRESH_SPIN_MS = 600, REFRESH_COOLDOWN_MS = 60000, REFRESH_GIVE_UP_MS = 30000, WAIT_SHOWN_MS = 2000;
+let refreshAt = -Infinity, refreshDone = true, refreshProvider = '', giveUpTimer = null, waitTimer = null;
+const isStale = provider => !!usageUpdatedText(usageOf(state, provider), state.now);
+function settleRefresh() {
+  state.usageRefresh = isStale(refreshProvider) ? 'failed' : '';
+  const left = refreshAt + REFRESH_COOLDOWN_MS - performance.now();
+  if (state.usageRefresh) setTimeout(() => { if (state.usageRefresh === 'failed') state.usageRefresh = ''; }, left);
+}
 function finishRefresh() {
+  if (refreshDone) return;
   refreshDone = true;
   clearTimeout(giveUpTimer);
-  if (state.usageRefresh === 'pending') state.usageRefresh = '';
+  if (state.usageRefresh === 'pending') settleRefresh();
 }
 CT.on('usageRefreshed', finishRefresh);
 screen.back = () => {
-  if (!isUsage(mode.value) || !usageUpdatedText(usageOf(state, mode.value), state.now)) return false;
-  if (state.usageRefresh) return;
+  if (!isUsage(mode.value) || !isStale(mode.value)) return false;
+  if (state.usageRefresh === 'spin' || state.usageRefresh === 'pending') return;
   const wait = refreshAt + REFRESH_COOLDOWN_MS - performance.now();
-  if (wait > 0) return CT.toast('Try again in ' + Math.ceil(wait / 1000) + 's');
+  if (wait > 0) {
+    state.usageRefreshWait = 'wait ' + Math.ceil(wait / 1000) + 's';
+    clearTimeout(waitTimer);
+    waitTimer = setTimeout(() => { state.usageRefreshWait = ''; }, WAIT_SHOWN_MS);
+    return;
+  }
   refreshAt = performance.now();
   refreshDone = false;
+  refreshProvider = mode.value;
   state.usageRefresh = 'spin';
   CT.send({ type: 'refreshUsage', ack: true });
-  clearTimeout(spinTimer);
-  spinTimer = setTimeout(() => { state.usageRefresh = refreshDone ? '' : 'pending'; }, REFRESH_SPIN_MS);
+  setTimeout(() => { if (refreshDone) settleRefresh(); else state.usageRefresh = 'pending'; }, REFRESH_SPIN_MS);
   giveUpTimer = setTimeout(finishRefresh, REFRESH_GIVE_UP_MS);
 };
 // A usage that's been taken out of Settings → Usage while it's up gives way to the clock.

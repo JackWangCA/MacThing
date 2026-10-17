@@ -9,8 +9,9 @@ export const state = reactive({
   weather: { status: 'loading' }, calendar: { status: 'loading' }, usage: { status: 'loading' }, chatgptUsage: { status: 'loading' },
   volume: 0, volumeUnsupported: false, volumeNote: '', showVolume: false,
   flash: { icon: 'play', color: '', key: 0 }, flashing: false, toast: '',
-  // The back button's usage refresh: '' idle, 'spin' (the ⟳ turns once), 'pending' (••• until the Mac answers).
-  usageRefresh: ''
+  // The back button's usage refresh: '' idle, 'spin' (the ⟳ turns once), 'pending' (••• until the
+  // Mac answers), 'failed' (✕ until another try is allowed). usageRefreshWait: 'wait 45s', briefly.
+  usageRefresh: '', usageRefreshWait: ''
 });
 export const CT = initializeRuntime(state);
 // The art on screen only changes once its replacement is decoded, and a track that arrives
