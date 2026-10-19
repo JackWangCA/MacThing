@@ -5,14 +5,14 @@ import { createInterface } from 'node:readline';
 import { log } from '../log.js';
 
 /**
- * System output volume via the long-running native/bin/volumectl helper (CoreAudio).
+ * System output volume via the long-running native/bin/MacThingVolume helper (CoreAudio).
  * Emits 'change' with {volume: 0..1|null, muted, supported, device} — including changes
  * made on the Mac itself (keyboard volume keys, switching to AirPods, …).
  */
 export class Volume extends EventEmitter {
   constructor(binDir) {
     super();
-    this.bin = path.join(binDir, 'volumectl');
+    this.bin = path.join(binDir, 'MacThingVolume');
     this.state = null;
     this.proc = null;
     this.stopped = false;

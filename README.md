@@ -144,7 +144,9 @@ npm run setup-device  # only if you set the device up before the sleep watchdog 
 - `deviceSleepSeconds`, `deviceWakeSeconds`, `devicePowersave`: the device's own sleep once the Mac goes quiet — how long it waits, how long an input wakes it for, and whether it also idles the CPU. Changes reach the device the next time the bridge connects (`npm run restart`)
 - `macVolumeIndicator`: see below
 
-**macOS volume pop-up.** By default the knob sets the volume directly. The Sound menu reflects the change, but macOS doesn't show its volume pop-up. To get the pop-up, set `macVolumeIndicator: true`, restart, and allow `native/bin/volumectl` under **System Settings → Privacy & Security → Accessibility**. The knob then presses the Mac's volume keys. macOS requires that permission for any software that generates keystrokes. A physical keyboard doesn't need it because its keys come from hardware.
+**macOS volume pop-up.** The knob presses the Mac's volume keys, so macOS shows its volume pop-up. That needs `native/bin/MacThingVolume` allowed under **System Settings → Privacy & Security → Accessibility** (on macOS 27, **Device Control and Data Access**); the bridge asks the first time it runs without it. macOS requires that permission for any software that generates keystrokes. A physical keyboard doesn't need it because its keys come from hardware. Until it's allowed, the knob sets the volume directly: the Sound menu reflects the change, but there's no pop-up. To keep it that way without the permission, set `macVolumeIndicator: false`.
+
+The permission belongs to that exact build of `MacThingVolume`, so `native/build.sh` only rebuilds it when its source changes. If it does, the switch can still read on while the bridge logs that it needs access: remove `MacThingVolume` from the list with **−**, then restart the bridge and allow it again.
 
 ## Undo
 
@@ -174,7 +176,7 @@ Mac                                                         Car Thing (USB)
 bridge/main.js (Node, no npm deps)
  ├─ Now Playing ← /usr/bin/perl + MediaRemoteAdapter        Chromium 69 kiosk
  │               (streams JSON; also sends play/next/…)       file:///…/webapp/index.html
- ├─ Volume     ⇄ native/bin/volumectl (CoreAudio)             → symlink → /var/lib/carthing/ui
+ ├─ Volume     ⇄ native/bin/MacThingVolume (CoreAudio)         → symlink → /var/lib/carthing/ui
  ├─ App badges ← native/bin/appinfo (name + icon)             Vue app (compiled locally)
  ├─ Location, calendar ← native/bin/CarThingHelper.app
  ├─ Sleep/lock  ← native/bin/powerwatch (IOKit + CGSession; holds sleep ≤3 s to kill the backlight)
@@ -288,7 +290,7 @@ bridge/           Mac-side Node app (config.js: buttons, knob, volume…; settin
   widgets/        weather (Open-Meteo) and calendar feeds
   mac/            CarThingHelper wrapper, Mac light/dark detection
   settings-page/  the http://127.0.0.1:4747 page
-  audio/          volumectl wrapper
+  audio/          MacThingVolume wrapper
   device/         adb, minimal CDP client, UI sync, connection lifecycle
 native/           Swift helpers + build script (output in native/bin, git-ignored)
   helper/         CarThingHelper.app source (location + calendar)

@@ -276,7 +276,7 @@ function checkKeyAccess(state) {
   if (!config.macVolumeIndicator || state.keys || askedForKeyAccess) return;
   askedForKeyAccess = true;
   log.warn(
-    '[volume] to show the macOS volume indicator, allow "volumectl" in System Settings → ' +
+    '[volume] to show the macOS volume indicator, allow "MacThingVolume" in System Settings → ' +
       'Privacy & Security → Accessibility, then restart the bridge. Until then the knob sets the volume silently.',
   );
   volume.requestKeyAccess();
