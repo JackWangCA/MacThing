@@ -19,6 +19,9 @@ export const DEFAULTS = {
   calendarDays: 2, // days of events on the Calendar screen: today plus the next (n − 1)
   meetingAlert: 0, // when a timed event's alert covers the screen: 0 = off, 'event' = at the event's own alert, else minutes before
   usageSource: 'claude', // the Clock screen's usage views: 'claude' (Claude Code) | 'chatgpt' (Codex) | 'both' | 'none'
+  // What the knob turns: 'auto' = the Mac's output, or when it has no volume of its own (an HDMI
+  // monitor) the playing app's if it's Spotify or Music | 'system' | 'spotify' | 'music'
+  knobVolume: 'auto',
 };
 
 const VALID = {
@@ -34,6 +37,7 @@ const VALID = {
   calendarDays: (v) => Number.isInteger(v) && v >= 1 && v <= 7,
   meetingAlert: (v) => [0, 'event', 1, 5, 10].includes(v),
   usageSource: (v) => ['claude', 'chatgpt', 'both', 'none'].includes(v),
+  knobVolume: (v) => ['auto', 'system', 'spotify', 'music'].includes(v),
 };
 
 class Settings extends EventEmitter {

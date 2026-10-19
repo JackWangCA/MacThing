@@ -53,6 +53,8 @@ export const config = {
   // Mac-side settings page (weather location etc.), loopback only.
   settingsPort: Number(process.env.CARTHING_SETTINGS_PORT || 4747),
 
+  // What the knob turns (the Mac's output, Spotify, Music, or automatic) is the Knob volume
+  // setting, on the device's Settings screen and the Mac page.
   volumeStep: 1 / 16, // per knob detent — one press of the Mac's volume keys (16 steps)
   // true: turn the knob by pressing the Mac's volume keys so macOS shows its volume indicator.
   // Needs native/bin/MacThingVolume allowed under Privacy & Security → Accessibility (software

@@ -42,7 +42,7 @@
   .label { font-weight: 500; }
   .seg { display: inline-flex; background: var(--seg); border-radius: 9px; padding: 2px; }
   .seg button { border: 0; background: none; color: var(--text); font: inherit; font-size: 14px;
-    padding: 5px 12px; border-radius: 7px; cursor: pointer; }
+    padding: 5px 12px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
   .seg button[aria-pressed="true"] { background: var(--seg-on); box-shadow: 0 1px 3px rgba(0,0,0,.15); font-weight: 600; }
   select[data-key] { flex-shrink: 0; max-width: 100%; min-height: 34px; padding: 6px 34px 6px 12px;
     font: inherit; font-size: 14px; color: var(--text); background: var(--seg);
@@ -82,6 +82,7 @@
     <h1>MacThing</h1>
     <nav class="settings-nav" aria-label="Settings categories">
       <a href="#display" aria-current="page">Display</a>
+      <a href="#controls">Controls</a>
       <a href="#usage">AI Usage</a>
       <a href="#location">Weather</a>
       <a href="#calendar">Calendar</a>
@@ -109,6 +110,13 @@
       <section>
         <div class="row"><div><label class="label" for="usageSource">Show usage</label><div class="note">Whose plan the clock's usage view shows (ChatGPT: asks Codex on this Mac)</div></div>
           <select id="usageSource" data-key="usageSource"><option value="claude">Claude</option><option value="chatgpt">ChatGPT</option><option value="both">Both</option><option value="none">None</option></select></div>
+      </section>
+    </div>
+
+    <div class="settings-panel" id="controls" hidden role="region" aria-labelledby="category-title">
+      <section>
+        <div class="row"><div><div class="label">Knob volume</div><div class="note">What the knob turns.</div></div>
+          <span class="seg" data-key="knobVolume"><button data-v="auto" title="The Mac’s output, or the playing Spotify or Apple Music when the output has no volume">Auto</button><button data-v="system">Mac</button><button data-v="spotify">Spotify</button><button data-v="music">Apple Music</button></span></div>
       </section>
     </div>
 

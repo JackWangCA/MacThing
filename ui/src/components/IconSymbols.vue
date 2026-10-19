@@ -12,6 +12,7 @@ import note from '@phosphor-icons/core/assets/fill/music-notes-fill.svg?raw';
 import timer from '@phosphor-icons/core/assets/fill/timer-fill.svg?raw';
 import speaker from '@phosphor-icons/core/assets/fill/speaker-high-fill.svg?raw';
 import muted from '@phosphor-icons/core/assets/fill/speaker-x-fill.svg?raw';
+import spotify from '@phosphor-icons/core/assets/fill/spotify-logo-fill.svg?raw';
 import openOnMac from '@phosphor-icons/core/assets/bold/sign-out-bold.svg?raw';
 import refresh from '@phosphor-icons/core/assets/bold/arrow-clockwise-bold.svg?raw';
 import x from '@phosphor-icons/core/assets/bold/x-bold.svg?raw';
@@ -19,14 +20,21 @@ import x from '@phosphor-icons/core/assets/bold/x-bold.svg?raw';
 const ICONS = {
   'i-play': play, 'i-pause': pause, 'i-next': next, 'i-previous': previous,
   'i-heart': heart, 'i-heart-off': heartOff, 'i-note': note, 'i-timer': timer,
-  'i-speaker': speaker, 'i-muted': muted, 'i-open-on-mac': openOnMac, 'i-refresh': refresh, 'i-x': x
+  'i-speaker': speaker, 'i-muted': muted, 'i-spotify': spotify, 'i-open-on-mac': openOnMac, 'i-refresh': refresh, 'i-x': x
 };
 const inner = svg => svg.replace(/^<svg[^>]*>|<\/svg>\s*$/g, '');
 const symbols = Object.entries(ICONS).map(([id, svg]) => ({ id, body: inner(svg) }));
+// Apple Music (Phosphor has no logo for it): the beamed notes cut out of a rounded square, like the app's icon.
+const notesPath = (note.match(/ d="([^"]+)"/) || [])[1];
 </script>
 <template>
   <svg width="0" height="0" style="position: absolute">
     <symbol v-for="s in symbols" :id="s.id" :key="s.id" viewBox="0 0 256 256" v-html="s.body" />
+    <mask id="m-apple-music" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256">
+      <rect width="256" height="256" fill="#fff" />
+      <path :d="notesPath" fill="#000" transform="translate(126 128) scale(0.58 0.68) translate(-116 -124)" />
+    </mask>
+    <symbol id="i-apple-music" viewBox="0 0 256 256"><rect x="20" y="20" width="216" height="216" rx="54" mask="url(#m-apple-music)" /></symbol>
     <!-- Weather icons (64×64, full colour) -->
     <symbol id="w-cloud-shape" viewBox="0 0 64 64">
       <circle cx="24" cy="40" r="10" />
