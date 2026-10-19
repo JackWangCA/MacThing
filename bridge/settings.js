@@ -2,7 +2,6 @@ import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { config } from './config.js';
 import { log } from './log.js';
 
 // User-changeable settings (from the device's settings screen or the Mac settings page),
@@ -25,7 +24,13 @@ export const DEFAULTS = {
   knobVolume: 'auto',
   idleMinutes: 0, // once nothing has played this long on Now Playing, show idleScreen (0 = never)
   idleScreen: 'clock', // 'clock' | 'calendar' | 'weather'
-  sleepWithMac: config.sleepWithMac, // screen off while the Mac's display sleeps or the Mac is locked
+  // When the screen turns off: 'mac' = while the Mac's display sleeps or the Mac is locked |
+  // minutes the Mac has been idle (no keyboard or mouse, like a screen saver) | 'never'
+  screenSleep: 'mac',
+  // While the Mac is locked (and screenSleep isn't 'mac', which turns the screen off):
+  // 'unlocked' = everything works | 'nowplaying' | 'weather' | 'calendar' | 'clock' = held on that
+  // screen, with only the knob's volume and media controls
+  whenLocked: 'unlocked',
 };
 
 const VALID = {
@@ -44,7 +49,8 @@ const VALID = {
   knobVolume: (v) => ['auto', 'system', 'spotify', 'music'].includes(v),
   idleMinutes: (v) => [0, 1, 2, 5, 10].includes(v),
   idleScreen: (v) => ['clock', 'calendar', 'weather'].includes(v),
-  sleepWithMac: (v) => typeof v === 'boolean',
+  screenSleep: (v) => ['mac', 30, 60, 120, 240, 'never'].includes(v),
+  whenLocked: (v) => ['unlocked', 'nowplaying', 'weather', 'calendar', 'clock'].includes(v),
 };
 
 class Settings extends EventEmitter {
@@ -56,6 +62,7 @@ class Settings extends EventEmitter {
   #load() {
     try {
       const raw = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+      if (raw.sleepWithMac === false && raw.screenSleep === undefined) raw.screenSleep = 'never'; // the old on/off setting
       return Object.fromEntries(Object.entries(raw).filter(([k, v]) => VALID[k]?.(v)));
     } catch {
       return {};

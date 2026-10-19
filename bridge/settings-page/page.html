@@ -58,6 +58,7 @@
   .row.stack { display: block; }
   section + section { margin-top: 28px; }
   .row.off { opacity: .45; }
+  @media (max-width: 520px) { .row { flex-wrap: wrap; } }
   #calList { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); column-gap: 24px; margin-top: 12px; }
   .cal { display: grid; grid-template-columns: 16px 10px minmax(0, 1fr); gap: 10px; align-items: start; min-width: 0; padding: 10px 0; }
   .cal > div { min-width: 0; overflow-wrap: anywhere; }
@@ -110,8 +111,10 @@
           <span class="seg" data-key="knobVolume"><button data-v="auto" title="The Mac’s output, or the playing Spotify or Apple Music when the output has no volume">Auto</button><button data-v="system">Mac</button><button data-v="spotify">Spotify</button><button data-v="music">Apple Music</button></span></div>
       </section>
       <section>
-        <div class="row"><div><div class="label">Sleep with Mac</div><div class="note">Screen off when the Mac sleeps or locks</div></div>
-          <span class="seg" data-key="sleepWithMac"><button data-v="true">On</button><button data-v="false">Off</button></span></div>
+        <div class="row"><div><label class="label" for="screenSleep">Sleep</label><div class="note">Timed: once the Mac has sat idle that long</div></div>
+          <select id="screenSleep" data-key="screenSleep" data-type="number"><option value="mac">With Mac</option><option value="30">After 30 min</option><option value="60">After 1 hour</option><option value="120">After 2 hours</option><option value="240">After 4 hours</option><option value="never">Never</option></select></div>
+        <div class="row" id="whenLockedRow"><div><label class="label" for="whenLocked">While locked</label><div class="note" id="whenLockedNote"></div></div>
+          <select id="whenLocked" data-key="whenLocked"><option value="unlocked">Unlocked</option><option value="nowplaying">Now Playing only</option><option value="weather">Weather only</option><option value="calendar">Calendar only</option><option value="clock">Clock only</option></select></div>
       </section>
       <section>
         <div class="row"><div><div class="label">No music playing</div><div class="note">Where Now Playing goes when nothing has played</div></div>
@@ -182,6 +185,12 @@
     if (idleOff) $('#idleScreen').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === 'none')));
     $('#idleMinutes').disabled = idleOff;
     $('#idleAfterRow').classList.toggle('off', idleOff);
+    const sleepsWhenLocked = s.screenSleep === 'mac';
+    $('#whenLocked').disabled = sleepsWhenLocked;
+    $('#whenLockedRow').classList.toggle('off', sleepsWhenLocked);
+    $('#whenLockedNote').textContent = sleepsWhenLocked
+      ? 'With Mac sleeps while the Mac is locked'
+      : 'One screen leaves only volume and playback';
     const manual = s.location.mode === 'manual';
     document.querySelector(`input[name=loc][value=${manual ? 'manual' : 'auto'}]`).checked = true;
     $('#manualNote').textContent = manual ? `Using ${s.location.name}` : 'Search for a city';
