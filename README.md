@@ -138,6 +138,7 @@ npm run setup-device  # only if you set the device up before the sleep watchdog 
 A few of them change how the device behaves:
 
 - **Knob volume:** *Auto* (the default) turns the Mac's output volume, and when the output has no volume of its own — an HDMI or DisplayPort monitor, which shows "No volume control on <device>" — the playing app's volume instead, if that's Spotify or Apple Music. *Mac output* is the output only; *Spotify* and *Apple Music* always turn that app's own volume slider (the volume pill then shows that app's icon in place of the speaker).
+- **When idle** and **Idle screen:** once nothing has played for 1–10 minutes while Now Playing is up, the device switches to the Clock (or Calendar, or Weather). When music starts again it goes back to Now Playing, unless you've moved off that screen yourself. It never leaves another screen you picked, Settings, a meeting alert or a running timer. *Never* (the default) turns it off.
 
 **Hardware mapping and behavior.** Edit `bridge/config.js`, then `npm run restart`:
 

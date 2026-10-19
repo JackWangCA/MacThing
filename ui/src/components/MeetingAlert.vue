@@ -76,6 +76,7 @@ const action = computed(() => {
   if (e.start > state.now) return queued.value === keyOf(e) ? 'Cancel timer' : 'Queue ' + Math.ceil((e.end - e.start) / 60000) + ' min timer';
   return 'Start ' + Math.ceil((e.end - state.now) / 60000) + ' min timer';
 });
+CT.modalOpen = () => !!event.value;
 CT.dismissModal = key => {
   if (!event.value) return false;
   const e = event.value;
