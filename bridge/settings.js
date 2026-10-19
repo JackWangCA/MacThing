@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { config } from './config.js';
 import { log } from './log.js';
 
 // User-changeable settings (from the device's settings screen or the Mac settings page),
@@ -24,6 +25,7 @@ export const DEFAULTS = {
   knobVolume: 'auto',
   idleMinutes: 0, // once nothing has played this long on Now Playing, show idleScreen (0 = never)
   idleScreen: 'clock', // 'clock' | 'calendar' | 'weather'
+  sleepWithMac: config.sleepWithMac, // screen off while the Mac's display sleeps or the Mac is locked
 };
 
 const VALID = {
@@ -42,6 +44,7 @@ const VALID = {
   knobVolume: (v) => ['auto', 'system', 'spotify', 'music'].includes(v),
   idleMinutes: (v) => [0, 1, 2, 5, 10].includes(v),
   idleScreen: (v) => ['clock', 'calendar', 'weather'].includes(v),
+  sleepWithMac: (v) => typeof v === 'boolean',
 };
 
 class Settings extends EventEmitter {

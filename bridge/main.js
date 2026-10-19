@@ -172,7 +172,7 @@ let screenOn = null; // unknown until applied to the current device link
 // While the Mac is locked it stays off for good: what's on it is the locked-away Mac's business.
 function screenShouldBeOn() {
   if (manualSleep) return false;
-  if (!config.sleepWithMac) return true;
+  if (!settings.get().sleepWithMac) return true;
   if (systemAsleep || power.locked) return false;
   if (!power.displayAsleep) return true;
   return Date.now() - lastDeviceInput < config.screenWakeMs;
@@ -543,6 +543,7 @@ volume.on('change', (v) => {
 settings.on('change', (values, changed) => {
   link?.send({ type: 'settings', settings: values });
   if (changed.includes('knobVolume')) refreshKnobTarget();
+  if (changed.includes('sleepWithMac')) applyScreen();
 });
 settings.on('change', (_, changed) => {
   if (!changed.includes('usageSource')) return;
