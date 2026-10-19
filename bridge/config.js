@@ -55,9 +55,10 @@ export const config = {
 
   volumeStep: 1 / 16, // per knob detent — one press of the Mac's volume keys (16 steps)
   // true: turn the knob by pressing the Mac's volume keys so macOS shows its volume indicator.
-  // Needs native/bin/volumectl allowed under Privacy & Security → Accessibility (software
-  // can't press keys without it). false: set the volume directly — silent, no permission.
-  macVolumeIndicator: false,
+  // Needs native/bin/MacThingVolume allowed under Privacy & Security → Accessibility (software
+  // can't press keys without it); until it is, the knob sets the volume silently instead.
+  // false: always set the volume directly — silent, no permission.
+  macVolumeIndicator: true,
   knobDirection: 1, // 1 = turning right raises the volume (same as Spotify's firmware); -1 flips it
 
   // Turn the Car Thing's screen off whenever the Mac's display sleeps (including when the Mac

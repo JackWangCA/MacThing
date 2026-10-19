@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Builds the two native pieces the bridge needs:
-#   native/bin/volumectl                         CoreAudio volume helper (Swift)
+#   native/bin/MacThingVolume                    CoreAudio volume helper, presses the volume keys (Swift)
 #   native/bin/appinfo                           app name + icon lookup by bundle id (Swift)
 #   native/bin/powerwatch                        Mac sleep/wake + display sleep events (Swift)
 #   native/bin/artwork                           covers for the device, and the blurred background (Swift)
@@ -20,14 +20,22 @@ if [[ ! -d "$ADAPTER" ]]; then
   git clone -q --depth 1 --branch "$ADAPTER_TAG" https://github.com/ungive/mediaremote-adapter.git "$ADAPTER"
 fi
 
-echo "• volumectl, appinfo, powerwatch, artwork"
-swiftc -O -o "$OUT/volumectl" "$ROOT/native/volumectl.swift"
+echo "• appinfo, powerwatch, artwork"
 swiftc -O -o "$OUT/appinfo" "$ROOT/native/appinfo.swift"
 swiftc -O -o "$OUT/powerwatch" "$ROOT/native/powerwatch.swift"
 swiftc -O -o "$OUT/artwork" "$ROOT/native/artwork.swift"
 
 # Ad-hoc signed tools that hold a macOS permission lose it whenever the binary changes,
 # so they're only rebuilt when their source changed.
+VOLUME="$OUT/MacThingVolume"
+if [[ ! -x "$VOLUME" || "$ROOT/native/MacThingVolume.swift" -nt "$VOLUME" ]]; then
+  echo "• MacThingVolume (volume) — macOS will ask again before the knob can show the volume pop-up"
+  swiftc -O -o "$VOLUME" "$ROOT/native/MacThingVolume.swift"
+  codesign --force --sign - --identifier com.macthing.volume "$VOLUME" 2>/dev/null
+else
+  echo "• MacThingVolume unchanged (keeping its permission)"
+fi
+
 MUSICCTL="$OUT/musicctl"
 if [[ ! -x "$MUSICCTL" || "$ROOT/native/musicctl.swift" -nt "$MUSICCTL" ]]; then
   echo "• musicctl (Apple Music favorite/play) — macOS will ask again to let it control Music"
