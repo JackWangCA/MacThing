@@ -263,6 +263,7 @@ const FINE_KEY_STEP = 1 / 64; // one Option+Shift volume-key press
 
 function changeVolume(delta) {
   if (!Number.isFinite(delta) || delta === 0) return;
+  askForKeyAccess();
   if (config.macVolumeIndicator && volume.state?.keys) {
     const steps = Math.round(Math.abs(delta) / FINE_KEY_STEP);
     for (let i = 0; i < steps; i++) volume.pressKey(delta > 0);
@@ -271,15 +272,32 @@ function changeVolume(delta) {
   }
 }
 
+// Asked on a knob turn rather than at startup: macOS's prompt only stays up briefly, so it
+// should appear while someone is turning the knob and looking, with the device saying why.
+// Its button opens System Settings, where MacThingVolume is already listed, switched off.
+// A helper process keeps the first answer it got, so after asking, a fresh one is started every
+// few seconds until the permission shows up — allowing it then needs no restart.
 let askedForKeyAccess = false;
-function checkKeyAccess(state) {
-  if (!config.macVolumeIndicator || state.keys || askedForKeyAccess) return;
+const KEY_RECHECK_MS = 3000;
+const KEY_RECHECK_FOR_MS = 3 * 60 * 1000;
+function askForKeyAccess() {
+  if (!config.macVolumeIndicator || !volume.state || volume.state.keys || askedForKeyAccess) return;
   askedForKeyAccess = true;
   log.warn(
     '[volume] to show the macOS volume indicator, allow "MacThingVolume" in System Settings → ' +
-      'Privacy & Security → Accessibility, then restart the bridge. Until then the knob sets the volume silently.',
+      'Privacy & Security → Accessibility. Until then the knob sets the volume silently.',
   );
   volume.requestKeyAccess();
+  link?.send({ type: 'toast', text: 'Allow MacThingVolume on your Mac' });
+  const until = Date.now() + KEY_RECHECK_FOR_MS;
+  const timer = setInterval(() => {
+    if (volume.state?.keys || Date.now() > until) {
+      clearInterval(timer);
+      if (volume.state?.keys) log.info('[volume] MacThingVolume allowed: the knob shows the macOS volume indicator');
+      return;
+    }
+    volume.recheck();
+  }, KEY_RECHECK_MS);
 }
 
 function onDeviceMessage(msg) {
@@ -398,7 +416,6 @@ function debounce(fn, ms) {
 log.info('Car Thing bridge starting');
 source.on('change', (s) => onNowPlaying(s).catch((err) => log.warn('[now playing]', err.message)));
 volume.on('change', (v) => {
-  checkKeyAccess(v);
   link?.send({ type: 'volume', volume: v });
 });
 settings.on('change', (values) => link?.send({ type: 'settings', settings: values }));
