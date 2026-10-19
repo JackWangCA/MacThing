@@ -56,6 +56,8 @@
   .choice input { margin-top: 3px; accent-color: var(--accent); }
   .note { color: var(--muted); font-size: 13px; margin-top: 2px; }
   .row.stack { display: block; }
+  section + section { margin-top: 28px; }
+  .row.off { opacity: .45; }
   #calList { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); column-gap: 24px; margin-top: 12px; }
   .cal { display: grid; grid-template-columns: 16px 10px minmax(0, 1fr); gap: 10px; align-items: start; min-width: 0; padding: 10px 0; }
   .cal > div { min-width: 0; overflow-wrap: anywhere; }
@@ -81,17 +83,16 @@
   <aside class="settings-sidebar">
     <h1>MacThing</h1>
     <nav class="settings-nav" aria-label="Settings categories">
-      <a href="#display" aria-current="page">Display</a>
-      <a href="#controls">Controls</a>
+      <a href="#general" aria-current="page">General</a>
       <a href="#usage">AI Usage</a>
       <a href="#location">Weather</a>
       <a href="#calendar">Calendar</a>
     </nav>
   </aside>
   <div class="settings-content">
-    <h2 id="category-title">Display</h2>
+    <h2 id="category-title">General</h2>
     <p class="lede">Changes apply to the device right away.</p>
-    <div class="settings-panel" id="display" role="region" aria-labelledby="category-title">
+    <div class="settings-panel" id="general" role="region" aria-labelledby="category-title">
       <section>
         <div class="row"><span class="label">Appearance</span>
           <span class="seg" data-key="theme"><button data-v="dark">Dark</button><button data-v="light">Light</button><button data-v="auto">Match Mac</button></span></div>
@@ -99,16 +100,24 @@
           <span class="seg" data-key="artBackground"><button data-v="false">Off</button><button data-v="true">On</button></span></div>
         <div class="row"><span class="label">Temperature</span>
           <span class="seg" data-key="units"><button data-v="F">°F</button><button data-v="C">°C</button></span></div>
-        <div class="row"><span class="label">Time format</span>
-          <span class="seg" data-key="clock24h"><button data-v="false">12-hour</button><button data-v="true">24-hour</button></span></div>
         <div class="row"><span class="label">Clock face</span>
           <span class="seg" data-key="clockFace"><button data-v="analog">Analog</button><button data-v="numbers">Numbers</button><button data-v="digital">Digital</button></span></div>
-        <div class="row"><div><label class="label" for="idleMinutes">When idle</label><div class="note">Leave Now Playing when nothing has played</div></div>
-          <select id="idleMinutes" data-key="idleMinutes" data-type="number"><option value="0">Never</option><option value="1">After 1 min</option><option value="2">After 2 min</option><option value="5">After 5 min</option><option value="10">After 10 min</option></select></div>
-        <div class="row"><div><div class="label">Idle screen</div><div class="note">Where to go when idle</div></div>
-          <span class="seg" data-key="idleScreen"><button data-v="clock">Clock</button><button data-v="calendar">Calendar</button><button data-v="weather">Weather</button></span></div>
+        <div class="row"><span class="label">Time format</span>
+          <span class="seg" data-key="clock24h"><button data-v="false">12-hour</button><button data-v="true">24-hour</button></span></div>
+      </section>
+      <section>
+        <div class="row"><div><div class="label">Knob volume</div><div class="note">What the knob turns.</div></div>
+          <span class="seg" data-key="knobVolume"><button data-v="auto" title="The Mac’s output, or the playing Spotify or Apple Music when the output has no volume">Auto</button><button data-v="system">Mac</button><button data-v="spotify">Spotify</button><button data-v="music">Apple Music</button></span></div>
+      </section>
+      <section>
         <div class="row"><div><div class="label">Sleep with Mac</div><div class="note">Screen off when the Mac sleeps or locks</div></div>
           <span class="seg" data-key="sleepWithMac"><button data-v="true">On</button><button data-v="false">Off</button></span></div>
+      </section>
+      <section>
+        <div class="row"><div><div class="label">No music playing</div><div class="note">Where Now Playing goes when nothing has played</div></div>
+          <span class="seg" data-key="idleScreen" id="idleScreen"><button data-v="weather">Weather</button><button data-v="clock">Clock</button><button data-v="calendar">Calendar</button><button data-v="none">None</button></span></div>
+        <div class="row" id="idleAfterRow"><label class="label" for="idleMinutes">Show after</label>
+          <select id="idleMinutes" data-key="idleMinutes" data-type="number"><option value="0" hidden>—</option><option value="1">1 min</option><option value="2">2 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
       </section>
     </div>
 
@@ -116,13 +125,6 @@
       <section>
         <div class="row"><div><label class="label" for="usageSource">Show usage</label><div class="note">Whose plan the clock's usage view shows (ChatGPT: asks Codex on this Mac)</div></div>
           <select id="usageSource" data-key="usageSource"><option value="claude">Claude</option><option value="chatgpt">ChatGPT</option><option value="both">Both</option><option value="none">None</option></select></div>
-      </section>
-    </div>
-
-    <div class="settings-panel" id="controls" hidden role="region" aria-labelledby="category-title">
-      <section>
-        <div class="row"><div><div class="label">Knob volume</div><div class="note">What the knob turns.</div></div>
-          <span class="seg" data-key="knobVolume"><button data-v="auto" title="The Mac’s output, or the playing Spotify or Apple Music when the output has no volume">Auto</button><button data-v="system">Mac</button><button data-v="spotify">Spotify</button><button data-v="music">Apple Music</button></span></div>
       </section>
     </div>
 
@@ -175,6 +177,11 @@
       seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(s[seg.dataset.key]))));
     });
     document.querySelectorAll('select[data-key]').forEach((select) => { select.value = String(s[select.dataset.key]); });
+    // "None" is When idle's Never (idleMinutes 0); Show after is the rest of idleMinutes.
+    const idleOff = !s.idleMinutes;
+    if (idleOff) $('#idleScreen').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === 'none')));
+    $('#idleMinutes').disabled = idleOff;
+    $('#idleAfterRow').classList.toggle('off', idleOff);
     const manual = s.location.mode === 'manual';
     document.querySelector(`input[name=loc][value=${manual ? 'manual' : 'auto'}]`).checked = true;
     $('#manualNote').textContent = manual ? `Using ${s.location.name}` : 'Search for a city';
@@ -234,6 +241,10 @@
   }
 
   function saveChoice(control, value) {
+    if (control.dataset.key === 'idleScreen') {
+      // None turns the idle switch off; picking a screen while it's off turns it back on at 5 minutes.
+      return save(value === 'none' ? { idleMinutes: 0 } : { idleScreen: value, ...(state.settings.idleMinutes ? {} : { idleMinutes: 5 }) });
+    }
     save({ [control.dataset.key]: value === 'true' ? true : value === 'false' ? false : control.dataset.type === 'number' && value !== '' && !isNaN(value) ? Number(value) : value });
   }
   document.querySelectorAll('select[data-key]').forEach((select) => select.addEventListener('change', () => saveChoice(select, select.value)));
@@ -271,7 +282,7 @@
   function showCategory() {
     const panels = Array.from(document.querySelectorAll('.settings-panel'));
     const requested = location.hash.slice(1);
-    const category = panels.some((panel) => panel.id === requested) ? requested : 'display';
+    const category = panels.some((panel) => panel.id === requested) ? requested : 'general'; // older links' #display and #controls land here too
     panels.forEach((panel) => { panel.hidden = panel.id !== category; });
     document.querySelectorAll('.settings-nav a').forEach((link) => {
       const selected = link.hash === '#' + category;

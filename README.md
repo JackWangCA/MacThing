@@ -50,7 +50,7 @@ The backlight is the part that wears out, so "off" means the backlight really is
 
 **Usage pace.** Both Claude and ChatGPT show numeric pace for the session and week. An unstarted window shows **0.0x**; a window at or above its allowance shows **🔥🔥🔥**. Percentages and reset times stay visible. Fire artwork is bundled for offline use from [Twemoji v16.0.1](https://github.com/jdecked/twemoji/tree/v16.0.1), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), by Twitter and other contributors.
 
-**Settings** covers appearance (dark, light or match the Mac), the album art background, meeting alerts, whose usage the Clock shows (Claude, ChatGPT, both or none) and the weather location. Anything that needs typing or a longer list, or that you set once — a city, °F/°C, 12/24-hour time, and which calendars and how many days the Calendar screen shows — opens a settings page on your Mac at http://127.0.0.1:4747.
+**Settings** covers appearance (dark, light or match the Mac), the album art background, meeting alerts and whose usage the Clock shows (Claude, ChatGPT, both or none). Everything else — °F/°C, the clock face, 12/24-hour time, the knob volume, Sleep with Mac, what shows when no music is playing, the weather location, and which calendars and how many days the Calendar screen shows — is under **More settings on Mac**, which opens a settings page on your Mac at http://127.0.0.1:4747.
 
 ### Before you grant anything
 
@@ -133,12 +133,12 @@ npm run setup-device  # only if you set the device up before the sleep watchdog 
 
 ## Customizing
 
-**Everyday settings.** Use the device's Settings screen (fifth top button) or http://127.0.0.1:4747 on the Mac. The Mac page has a category sidebar for Display, AI Usage, Weather and Calendar; selecting a category opens its settings panel. They're saved in `~/Library/Application Support/carthing-now-playing/settings.json`.
+**Everyday settings.** Use the device's Settings screen (fifth top button) or http://127.0.0.1:4747 on the Mac. The Mac page has a category sidebar for General, AI Usage, Weather and Calendar; selecting a category opens its settings panel. They're saved in `~/Library/Application Support/carthing-now-playing/settings.json`.
 
 A few of them change how the device behaves:
 
 - **Knob volume:** *Auto* (the default) turns the Mac's output volume, and when the output has no volume of its own — an HDMI or DisplayPort monitor, which shows "No volume control on <device>" — the playing app's volume instead, if that's Spotify or Apple Music. *Mac output* is the output only; *Spotify* and *Apple Music* always turn that app's own volume slider (the volume pill then shows that app's icon in place of the speaker).
-- **When idle** and **Idle screen:** once nothing has played for 1–10 minutes while Now Playing is up, the device switches to the Clock (or Calendar, or Weather). When music starts again it goes back to Now Playing, unless you've moved off that screen yourself. It never leaves another screen you picked, Settings, a meeting alert or a running timer. *Never* (the default) turns it off.
+- **No music playing** and **Show after** (General on the Mac page): once nothing has played for 1–10 minutes while Now Playing is up, the device switches to Weather, the Clock or Calendar. When music starts again it goes back to Now Playing, unless you've moved off that screen yourself. It never leaves another screen you picked, Settings, a meeting alert or a running timer. *None* (the default) turns it off.
 - **Sleep with Mac:** *On* (the default) turns the screen off while the Mac's display sleeps or the Mac is locked; *Off* keeps it on. The device's own sleep when the Mac goes away is separate (`deviceSleepSeconds`).
 
 **Hardware mapping and behavior.** Edit `bridge/config.js`, then `npm run restart`:

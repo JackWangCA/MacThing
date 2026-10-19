@@ -1389,6 +1389,10 @@ h3 {
 .s-row.sel::before {
   display: none;
 }
+.s-spacer::before,
+.s-spacer + .s-row::before {
+  display: none; /* the empty slot reads as a gap, not a blank row */
+}
 .s-row.sel .s-value {
   color: var(--text);
 }
