@@ -20,7 +20,7 @@ background turned on, the second doesn't._
 | Control                               | Action                                                                                                                       |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Top buttons 1 · 2 · 3 · 4             | Now Playing · Calendar · Weather · Clock                                                                                     |
-| Turn knob                             | Volume — the Mac's output, Spotify's or Apple Music's, per the Knob volume setting (in Settings: move the selection)        |
+| Turn knob                             | Volume — the Mac's output, Spotify's or Apple Music's, per the Knob → Volume setting (in Settings: move the selection)        |
 | Press knob once / twice / three times | Play-pause / next track / previous track; starts Apple Music if nothing is playing (in Settings: change the selected option) |
 | Fifth top button (settings)           | Settings (press it again to close)                                                                                           |
 | Hold the fifth top button             | Sleep now — screen off until the next button or knob input                                                                   |
@@ -64,7 +64,7 @@ Nothing is required for the device to work: Now Playing and the clock need no pe
 | Clock                                     | works; no event line or meeting timer until Calendar is allowed | allow Calendars for Car Thing Helper           |
 | Clock → Claude usage                      | "Not signed in to Claude" or "Claude sign-in expired"       | run `claude auth login` in Terminal; Always Allow the Keychain prompt |
 | Back button (favorite)                    | toast: "Allow musicctl to control Music"                    | allow Automation for musicctl                  |
-| Knob on an output with no software volume | "No volume control on <device>"; under Knob volume: Auto, Spotify or Apple Music playing turns its volume instead, and with nothing playing it says "No music playing" | play from Spotify or Music, or use an output that has volume |
+| Knob on an output with no software volume | "No volume control on <device>"; under Knob → Volume: Auto, Spotify or Apple Music playing turns its volume instead, and with nothing playing it says "No music playing" | play from Spotify or Music, or use an output that has volume |
 | Knob on Spotify's or Apple Music's volume | toast: "Allow control of Spotify in Automation"            | allow Automation for node to control the app   |
 | Bridge not running                        | "Waiting for your Mac"                                      | start it, or `npm run install-agent`           |
 
@@ -137,10 +137,10 @@ npm run setup-device  # only if you set the device up before the sleep watchdog 
 
 A few of them change how the device behaves:
 
-- **Knob volume:** *Auto* (the default) turns the Mac's output volume, and when the output has no volume of its own — an HDMI or DisplayPort monitor, which shows "No volume control on <device>" — the playing app's volume instead, if that's Spotify or Apple Music. *Mac output* is the output only; *Spotify* and *Apple Music* always turn that app's own volume slider (the volume pill then shows that app's icon in place of the speaker).
-- **No music playing** and **Show after** (General on the Mac page): once nothing has played for 1–10 minutes while Now Playing is up, the device switches to Weather, the Clock or Calendar. When music starts again it goes back to Now Playing, unless you've moved off that screen yourself. It never leaves another screen you picked, Settings, a meeting alert or a running timer. *None* (the default) turns it off.
-- **Sleep:** *With Mac* (the default) turns the screen off while the Mac's display sleeps or the Mac is locked. *After 30 min* to *After 4 hours* turn it off once the Mac has gone that long without keyboard or mouse input, like a screen saver (and while the Mac sleeps). *Never* keeps it on. A button or knob press wakes it for a minute. The device's own sleep when the Mac goes away is separate (`deviceSleepSeconds`).
-- **While locked** (with Sleep set to anything but *With Mac*): *Unlocked* leaves everything working while the Mac is locked; *Now Playing only*, *Weather only*, *Calendar only* or *Clock only* hold the device on that screen until the Mac unlocks, with the top buttons and Settings off and the knob and back button only working the volume and playback.
+- **Knob → Volume:** *Auto* (the default) turns the Mac's output volume, and when the output has no volume of its own — an HDMI or DisplayPort monitor, which shows "No volume control on <device>" — the playing app's volume instead, if that's Spotify or Apple Music. *Mac output* is the output only; *Spotify* and *Apple Music* always turn that app's own volume slider (the volume pill then shows that app's icon in place of the speaker).
+- **When no music is playing → Show** and **After** (General on the Mac page): once nothing has played for 1–10 minutes while Now Playing is up, the device switches to Weather, the Clock or Calendar. When music starts again it goes back to Now Playing, unless you've moved off that screen yourself. It never leaves another screen you picked, Settings, a meeting alert or a running timer. *None* (the default) turns it off.
+- **Sleep and lock → Sleep:** *With Mac* (the default) turns the screen off while the Mac's display sleeps or the Mac is locked. *Mac idle 30 min* to *Mac idle 4 hr* turn it off once the Mac has gone that long without keyboard or mouse input, like a screen saver (and while the Mac sleeps). *Never* keeps it on. A button or knob press wakes it for a minute. The device's own sleep when the Mac goes away is separate (`deviceSleepSeconds`).
+- **Sleep and lock → When Mac is locked** (with Sleep set to anything but *With Mac*): *Everything works* leaves the device as it is; *Now Playing only*, *Weather only*, *Calendar only* or *Clock only* hold the device on that screen until the Mac unlocks, with the top buttons and Settings off and the knob and back button only working the volume and playback.
 
 **Hardware mapping and behavior.** Edit `bridge/config.js`, then `npm run restart`:
 

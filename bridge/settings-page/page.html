@@ -56,7 +56,8 @@
   .choice input { margin-top: 3px; accent-color: var(--accent); }
   .note { color: var(--muted); font-size: 13px; margin-top: 2px; }
   .row.stack { display: block; }
-  section + section { margin-top: 28px; }
+  .subhead { font-size: 13px; font-weight: 600; color: var(--muted); margin: 32px 0 2px; }
+  section:first-child > .subhead { margin-top: 0; }
   .row.off { opacity: .45; }
   @media (max-width: 520px) { .row { flex-wrap: wrap; } }
   #calList { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); column-gap: 24px; margin-top: 12px; }
@@ -95,6 +96,7 @@
     <p class="lede">Changes apply to the device right away.</p>
     <div class="settings-panel" id="general" role="region" aria-labelledby="category-title">
       <section>
+        <h3 class="subhead">Display</h3>
         <div class="row"><span class="label">Appearance</span>
           <span class="seg" data-key="theme"><button data-v="dark">Dark</button><button data-v="light">Light</button><button data-v="auto">Match Mac</button></span></div>
         <div class="row"><span class="label">Album art background</span>
@@ -107,19 +109,22 @@
           <span class="seg" data-key="clock24h"><button data-v="false">12-hour</button><button data-v="true">24-hour</button></span></div>
       </section>
       <section>
-        <div class="row"><div><div class="label">Knob volume</div><div class="note">What the knob turns.</div></div>
+        <h3 class="subhead">Knob</h3>
+        <div class="row"><div><div class="label">Volume</div><div class="note">What turning the knob controls</div></div>
           <span class="seg" data-key="knobVolume"><button data-v="auto" title="The Mac’s output, or the playing Spotify or Apple Music when the output has no volume">Auto</button><button data-v="system">Mac</button><button data-v="spotify">Spotify</button><button data-v="music">Apple Music</button></span></div>
       </section>
       <section>
-        <div class="row"><div><label class="label" for="screenSleep">Sleep</label><div class="note">Timed: once the Mac has sat idle that long</div></div>
-          <select id="screenSleep" data-key="screenSleep" data-type="number"><option value="mac">With Mac</option><option value="30">After 30 min</option><option value="60">After 1 hour</option><option value="120">After 2 hours</option><option value="240">After 4 hours</option><option value="never">Never</option></select></div>
-        <div class="row" id="whenLockedRow"><div><label class="label" for="whenLocked">While locked</label><div class="note" id="whenLockedNote"></div></div>
-          <select id="whenLocked" data-key="whenLocked"><option value="unlocked">Unlocked</option><option value="nowplaying">Now Playing only</option><option value="weather">Weather only</option><option value="calendar">Calendar only</option><option value="clock">Clock only</option></select></div>
+        <h3 class="subhead">Sleep and lock</h3>
+        <div class="row"><div><label class="label" for="screenSleep">Sleep</label><div class="note">With Mac: when the Mac’s display sleeps or the Mac locks. Idle: no keyboard or mouse on the Mac</div></div>
+          <select id="screenSleep" data-key="screenSleep" data-type="number"><option value="mac">With Mac</option><option value="30">Mac idle 30 min</option><option value="60">Mac idle 1 hr</option><option value="120">Mac idle 2 hr</option><option value="240">Mac idle 4 hr</option><option value="never">Never</option></select></div>
+        <div class="row" id="whenLockedRow"><div><label class="label" for="whenLocked">When Mac is locked</label><div class="note" id="whenLockedNote"></div></div>
+          <select id="whenLocked" data-key="whenLocked"><option value="unlocked">Everything works</option><option value="nowplaying">Now Playing only</option><option value="weather">Weather only</option><option value="calendar">Calendar only</option><option value="clock">Clock only</option></select></div>
       </section>
       <section>
-        <div class="row"><div><div class="label">No music playing</div><div class="note">Where Now Playing goes when nothing has played</div></div>
+        <h3 class="subhead">When no music is playing</h3>
+        <div class="row"><div><div class="label">Show</div><div class="note">Now Playing comes back when music starts</div></div>
           <span class="seg" data-key="idleScreen" id="idleScreen"><button data-v="weather">Weather</button><button data-v="clock">Clock</button><button data-v="calendar">Calendar</button><button data-v="none">None</button></span></div>
-        <div class="row" id="idleAfterRow"><label class="label" for="idleMinutes">Show after</label>
+        <div class="row" id="idleAfterRow"><label class="label" for="idleMinutes">After</label>
           <select id="idleMinutes" data-key="idleMinutes" data-type="number"><option value="0" hidden>—</option><option value="1">1 min</option><option value="2">2 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
       </section>
     </div>
@@ -189,8 +194,8 @@
     $('#whenLocked').disabled = sleepsWhenLocked;
     $('#whenLockedRow').classList.toggle('off', sleepsWhenLocked);
     $('#whenLockedNote').textContent = sleepsWhenLocked
-      ? 'With Mac sleeps while the Mac is locked'
-      : 'One screen leaves only volume and playback';
+      ? 'Asleep: Sleep is set to With Mac'
+      : 'Only: that screen, plus volume and playback';
     const manual = s.location.mode === 'manual';
     document.querySelector(`input[name=loc][value=${manual ? 'manual' : 'auto'}]`).checked = true;
     $('#manualNote').textContent = manual ? `Using ${s.location.name}` : 'Search for a city';
