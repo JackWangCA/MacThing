@@ -449,7 +449,8 @@ export function initializeRuntime(state) {
 
   // ---- Volume (knob turns anywhere but settings) --------------------------------------
 
-  var vol = null;          // {volume, muted, supported, device} from the Mac
+  var vol = null;          // {volume, muted, supported, device, app?} from the Mac (app: the knob turns that app's volume)
+  var lastTurn = -1e9;     // when the knob last turned
   var localVol = null;     // optimistic value while the knob is turning
   var localUntil = 0;
   var pendingDelta = 0;
@@ -462,13 +463,18 @@ export function initializeRuntime(state) {
     vol = msg.volume;
     if (performance.now() < localUntil) return; // knob in motion: don't fight the optimistic value
     renderVolume();
-    if (prev && (prev.volume !== vol.volume || prev.muted !== vol.muted || prev.device !== vol.device)) showVolume();
+    // Not when the knob switches between the output and an app's volume: nothing was turned.
+    // Except that an app's volume arrives in answer to the first turn (the Mac reads it then).
+    var changed = prev && prev.app === vol.app && (prev.volume !== vol.volume || prev.muted !== vol.muted || prev.device !== vol.device);
+    var answered = prev && vol.app && vol.supported && !prev.supported && performance.now() - lastTurn < 3000;
+    if (changed || answered) showVolume();
   });
 
   function renderVolume(optimistic) {
     if (!vol) return;
     state.volumeUnsupported = !vol.supported;
-    state.volumeNote = vol.supported ? '' : 'No volume control on ' + vol.device;
+    state.volumeNote = vol.supported ? '' : vol.note || 'No volume control on ' + vol.device;
+    state.volumeIcon = !vol.supported ? '' : vol.appId === 'com.spotify.client' ? 'spotify' : vol.appId === 'com.apple.Music' ? 'apple-music' : '';
     var v = optimistic != null ? optimistic : vol.muted ? 0 : vol.volume || 0;
     state.volume = v;
   }
@@ -481,8 +487,14 @@ export function initializeRuntime(state) {
 
   function onKnobVolume(steps) {
     if (!vol) return;
-    if (!vol.supported) return showVolume();
     var now = performance.now();
+    lastTurn = now;
+    if (!vol.supported) {
+      if (!vol.app) return showVolume(); // "No volume control on <device>"
+      // An app's volume the Mac hasn't read yet, or the app isn't running: it reads it for this
+      // turn and answers with the volume (or a toast).
+      return CT.send({ type: 'volume', delta: steps * CT.config.volumeStep });
+    }
     if (now > localUntil) localVol = vol.volume || 0;
     var next = Math.min(1, Math.max(0, localVol + steps * CT.config.volumeStep));
     pendingDelta += next - localVol;

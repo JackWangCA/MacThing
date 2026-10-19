@@ -20,7 +20,7 @@ background turned on, the second doesn't._
 | Control                               | Action                                                                                                                       |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Top buttons 1 · 2 · 3 · 4             | Now Playing · Calendar · Weather · Clock                                                                                     |
-| Turn knob                             | Mac output volume (in Settings: move the selection)                                                                          |
+| Turn knob                             | Volume — the Mac's output, Spotify's or Apple Music's, per the Knob volume setting (in Settings: move the selection)        |
 | Press knob once / twice / three times | Play-pause / next track / previous track; starts Apple Music if nothing is playing (in Settings: change the selected option) |
 | Fifth top button (settings)           | Settings (press it again to close)                                                                                           |
 | Hold the fifth top button             | Sleep now — screen off until the next button or knob input                                                                   |
@@ -64,7 +64,8 @@ Nothing is required for the device to work: Now Playing and the clock need no pe
 | Clock                                     | works; no event line or meeting timer until Calendar is allowed | allow Calendars for Car Thing Helper           |
 | Clock → Claude usage                      | "Not signed in to Claude" or "Claude sign-in expired"       | run `claude auth login` in Terminal; Always Allow the Keychain prompt |
 | Back button (favorite)                    | toast: "Allow musicctl to control Music"                    | allow Automation for musicctl                  |
-| Knob on an output with no software volume | "No volume control on <device>"                             | use an output that has one                     |
+| Knob on an output with no software volume | "No volume control on <device>"; under Knob volume: Auto, Spotify or Apple Music playing turns its volume instead, and with nothing playing it says "No music playing" | play from Spotify or Music, or use an output that has volume |
+| Knob on Spotify's or Apple Music's volume | toast: "Allow control of Spotify in Automation"            | allow Automation for node to control the app   |
 | Bridge not running                        | "Waiting for your Mac"                                      | start it, or `npm run install-agent`           |
 
 ## What you need
@@ -90,6 +91,8 @@ That's it. Within a few seconds the Car Thing switches to Now Playing, or to the
 Re-run `npm run setup-device` if the bridge logs `boot web app not pointed at our UI yet`, `no sleep watchdog` or `stock dimmer still running`. The rootfs edit normally survives a reboot, but it has been seen to revert, and a device that's been reflashed or restored will need it again. Nothing breaks meanwhile — the bridge points the device at this UI on every connect — but until you do, the Car Thing shows Spotify's own app before the bridge connects, doesn't sleep on its own when the Mac goes away, and dims whenever a hand covers the light sensor.
 
 The first time you favorite a song with the back button, macOS asks whether **musicctl** may control Music. That's `native/bin/musicctl`, a small helper that sends the favorite and play commands to Apple Music.
+
+The first time the knob turns Spotify's or Apple Music's own volume, macOS asks whether **node** (the bridge) may control that app — once for each app. The app has to be running already; the knob never launches it.
 
 The first time the Weather and Calendar screens load, macOS asks whether **Car Thing Helper** may use your location and your calendars. That's `native/bin/CarThingHelper.app`, a small helper so these permissions don't go to Node or Terminal. If you decline location, pick a place in Settings instead. You can change either answer later in System Settings → Privacy & Security.
 
@@ -131,6 +134,10 @@ npm run setup-device  # only if you set the device up before the sleep watchdog 
 ## Customizing
 
 **Everyday settings.** Use the device's Settings screen (fifth top button) or http://127.0.0.1:4747 on the Mac. The Mac page has a category sidebar for Display, AI Usage, Weather and Calendar; selecting a category opens its settings panel. They're saved in `~/Library/Application Support/carthing-now-playing/settings.json`.
+
+A few of them change how the device behaves:
+
+- **Knob volume:** *Auto* (the default) turns the Mac's output volume, and when the output has no volume of its own — an HDMI or DisplayPort monitor, which shows "No volume control on <device>" — the playing app's volume instead, if that's Spotify or Apple Music. *Mac output* is the output only; *Spotify* and *Apple Music* always turn that app's own volume slider (the volume pill then shows that app's icon in place of the speaker).
 
 **Hardware mapping and behavior.** Edit `bridge/config.js`, then `npm run restart`:
 
