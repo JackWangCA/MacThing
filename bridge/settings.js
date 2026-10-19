@@ -22,6 +22,8 @@ export const DEFAULTS = {
   // What the knob turns: 'auto' = the Mac's output, or when it has no volume of its own (an HDMI
   // monitor) the playing app's if it's Spotify or Music | 'system' | 'spotify' | 'music'
   knobVolume: 'auto',
+  idleMinutes: 0, // once nothing has played this long on Now Playing, show idleScreen (0 = never)
+  idleScreen: 'clock', // 'clock' | 'calendar' | 'weather'
 };
 
 const VALID = {
@@ -38,6 +40,8 @@ const VALID = {
   meetingAlert: (v) => [0, 'event', 1, 5, 10].includes(v),
   usageSource: (v) => ['claude', 'chatgpt', 'both', 'none'].includes(v),
   knobVolume: (v) => ['auto', 'system', 'spotify', 'music'].includes(v),
+  idleMinutes: (v) => [0, 1, 2, 5, 10].includes(v),
+  idleScreen: (v) => ['clock', 'calendar', 'weather'].includes(v),
 };
 
 class Settings extends EventEmitter {

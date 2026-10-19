@@ -8,6 +8,8 @@ const rows = [
   { key: 'theme', label: 'Appearance', options: [['dark', 'Dark'], ['light', 'Light'], ['auto', 'Match Mac']] },
   { key: 'artBackground', label: 'Album art background', options: [[false, 'Off'], [true, 'On']] },
   { key: 'knobVolume', label: 'Knob volume', options: [['auto', 'Auto'], ['system', 'Mac output'], ['spotify', 'Spotify'], ['music', 'Apple Music']] },
+  { key: 'idleMinutes', label: 'When idle', options: [[0, 'Never'], [1, 'After 1 min'], [2, 'After 2 min'], [5, 'After 5 min'], [10, 'After 10 min']] },
+  { key: 'idleScreen', label: 'Idle screen', options: [['clock', 'Clock'], ['calendar', 'Calendar'], ['weather', 'Weather']] },
   { key: 'meetingAlert', label: 'Meeting alerts', options: [[0, 'Off'], ['event', 'Event’s alert'], [1, '1 min before'], [5, '5 min before'], [10, '10 min before']] },
   { key: 'usageSource', label: 'AI Usage', options: [['claude', 'Claude'], ['chatgpt', 'ChatGPT'], ['both', 'Both'], ['none', 'None']] },
   { label: 'Weather', page: 'location', value: s => s.location && s.location.mode === 'manual' ? s.location.name : 'Current location' },
