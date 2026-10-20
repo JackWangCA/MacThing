@@ -43,26 +43,46 @@ export function untilText(resetsAt, now, length) {
   return hours < 24 ? hours + 'h' : half(minutes / 1440) + 'd';
 }
 
-const PROVIDERS = { claude: ['claude'], chatgpt: ['chatgpt'], both: ['claude', 'chatgpt'], none: [] };
-/** Whose usage the clock shows, a view each: Settings → Usage, Claude (the default), ChatGPT, both or none. */
-export const usageProviders = state => PROVIDERS[state.settings.usageSource] || PROVIDERS.claude;
-/** A provider's usage, as the Mac sent it ({status, session, week, …}). */
+const PROVIDERS = { bottlerocket: ['bottlerocket'], claude: ['bottlerocket'], chatgpt: ['chatgpt'], both: ['bottlerocket', 'chatgpt'], none: [] };
+/** Whose usage the clock shows, a view each: Settings → Usage, Bottlerocket (the default), ChatGPT, both or none. */
+export const usageProviders = state => PROVIDERS[state.settings.usageSource] || PROVIDERS.bottlerocket;
+/** A provider's usage, as the Mac sent it ({status, session, week, …} or Bottlerocket {spent, limit, percent}). */
 export const usageOf = (state, provider) => provider === 'chatgpt' ? state.chatgptUsage : state.usage;
 
+/** Dollars the way the tokens site prints them: $1,234.56. Grouped by hand because the device's
+ *  Chromium ignores toLocaleString's options, and a spend summed over dozens of rows arrives as
+ *  382.39000000000004 — every one of those digits would land on the screen. */
+export function moneyText(n) {
+  if (!Number.isFinite(n)) return '–';
+  const [whole, cents] = Math.abs(n).toFixed(2).split('.');
+  return (n < 0 ? '-' : '') + '$' + grouped(whole) + '.' + cents;
+}
+/** The same with the cents dropped, for the rail's big slot: $12,345.67 is wider than the rail
+ *  at any size that still reads as the headline, and $12,346 is not. */
+export function moneyRound(n) {
+  if (!Number.isFinite(n)) return '–';
+  return (n < 0 ? '-' : '') + '$' + grouped(String(Math.round(Math.abs(n))));
+}
+const grouped = whole => whole.replace(/\B(?=(\d{3})+$)/g, ',');
+
 /** Provider names stay visible even while no usage numbers are available. */
-export const usageName = provider => provider === 'chatgpt' ? 'ChatGPT' : 'Claude';
+export const usageName = provider => provider === 'chatgpt' ? 'ChatGPT' : 'Bottlerocket';
 export function usageMessage(usage, provider, now) {
   const name = usageName(provider);
   const retry = usage.retryAt > now ? 'Retrying in ' + untilText(usage.retryAt, now) + '.' : 'Retrying shortly.';
+  // Both token states are fixed in the same place, so both say where that is.
+  const onTheMac = 'Add a Bottlerocket API token in Settings → Usage on your Mac.';
   return ({
     ok: {},
-    signedOut: provider === 'chatgpt'
-      ? { title: 'Not signed in to ChatGPT', detail: 'Open Codex on your Mac and sign in.' }
-      : { title: 'Not signed in to Claude', detail: 'Run claude auth login in Terminal on your Mac.' },
-    expired: { title: 'Claude sign-in expired', detail: 'Open Claude Code on your Mac and sign in if prompted.' },
-    none: { title: 'Codex isn’t on this Mac', detail: 'Install the ChatGPT app or the Codex CLI and it’ll show here.' },
+    signedOut: { title: 'Not signed in to ChatGPT', detail: 'Open Codex on your Mac and sign in.' },
+    noToken: { title: 'No Bottlerocket token', detail: onTheMac },
+    badToken: { title: 'Bottlerocket token refused', detail: (usage.detail || '') + ' ' + onTheMac },
+    none: provider === 'chatgpt'
+      ? { title: 'Codex isn’t on this Mac', detail: 'Install the ChatGPT app or the Codex CLI and it’ll show here.' }
+      : { title: 'No Bottlerocket tokens', detail: 'This account has no personal tokens to add up.' },
     rateLimited: { title: name + ' usage delayed', detail: name + ' is limiting usage checks. ' + retry },
-    error: { title: name + ' usage unavailable', detail: retry }
+    // A sign-in that the account or app registration refuses says why; everything else just retries.
+    error: { title: name + ' usage unavailable', detail: usage.detail ? usage.detail + ' ' + retry : retry }
   })[usage.status] || { title: 'Getting ' + name + ' usage…' };
 }
 export function usageAge(updatedAt, now) {

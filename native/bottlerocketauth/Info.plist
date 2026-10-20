@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- WebKit files the sign-in cookies under this identifier
+       (~/Library/HTTPStorages/com.carthing.bottlerocketauth.binarycookies), so changing it
+       signs you out of Bottlerocket. Rebuilding is fine; renaming is not. -->
+  <key>CFBundleIdentifier</key><string>com.carthing.bottlerocketauth</string>
+  <key>CFBundleName</key><string>Bottlerocket Sign-in</string>
+  <key>CFBundleExecutable</key><string>BottlerocketAuth</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleVersion</key><string>1</string>
+  <key>LSMinimumSystemVersion</key><string>14.0</string>
+  <!-- Normally invisible; it only becomes a real app, with a Dock icon, for --login. -->
+  <key>LSUIElement</key><true/>
+</dict>
+</plist>

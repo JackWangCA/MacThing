@@ -1304,6 +1304,35 @@ h3 {
   font-weight: 700;
   fill: var(--panel);
 }
+/* The rail's big slot is sized for the clock: 23:59 measures 258px of the 272 inside the rail.
+   A three-digit percentage (287px) and a spend in dollars (403px) both run past that, over the
+   stage, since .left-rail draws above it. Each steps down to a size that fits instead. Measured
+   on the device; both selectors need to outrank .font-huge, which is set later in this file. */
+#screen-clock .left-rail .usage-tight {
+  font-size: 96px;
+}
+#screen-clock .left-rail .usage-tighter {
+  font-size: 64px;
+  line-height: 76px;
+}
+.u-money {
+  font-size: 52px;
+  font-weight: 600;
+  fill: var(--text);
+}
+.u-money-of {
+  font-size: 22px;
+  font-weight: 500;
+  fill: var(--muted, var(--bar-track));
+}
+.u-status-dollar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  font-weight: 600;
+  color: var(--bar-track);
+}
 .u-pace {
   fill: var(--white);
 }

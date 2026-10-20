@@ -62,7 +62,8 @@ Nothing is required for the device to work: Now Playing and the clock need no pe
 | Calendar                                  | "Calendar access is off", naming the System Settings pane   | allow Calendars for Car Thing Helper           |
 | Weather                                   | "Location access is off" with the place-picker hint         | allow Location, or pick a city on the Mac page |
 | Clock                                     | works; no event line or meeting timer until Calendar is allowed | allow Calendars for Car Thing Helper           |
-| Clock → Claude usage                      | "Not signed in to Claude" or "Claude sign-in expired"       | run `claude auth login` in Terminal; Always Allow the Keychain prompt |
+| Clock → Bottlerocket usage                | "No Bottlerocket token" or "token refused"                  | paste a personal token under AI Usage on the Mac page |
+| Clock → ChatGPT usage                     | "Not signed in to ChatGPT"                                  | sign in to Codex on the Mac                    |
 | Back button (library/favorite)            | toast: "Allow musicctl to control Music"                    | allow Automation for musicctl                  |
 | Knob on an output with no software volume | "No volume control on <device>"; under Knob volume: Auto, Spotify or Apple Music playing turns its volume instead, and with nothing playing it says "No music playing" | play from Spotify or Music, or use an output that has volume |
 | Knob on Spotify's or Apple Music's volume | toast: "Allow control of Spotify in Automation"            | allow Automation for node to control the app   |
@@ -145,6 +146,10 @@ A few of them change how the device behaves:
 - **Knob volume:** *Auto* (the default) turns the Mac's output volume, and when the output has no volume of its own — an HDMI or DisplayPort monitor, which shows "No volume control on <device>" — the playing app's volume instead, if that's Spotify or Apple Music. *Mac output* is the output only; *Spotify* and *Apple Music* always turn that app's own volume slider (the volume pill then shows that app's icon in place of the speaker).
 - **When idle** and **Idle screen:** once nothing has played for 1–10 minutes while Now Playing is up, the device switches to the Clock (or Calendar, or Weather). When music starts again it goes back to Now Playing, unless you've moved off that screen yourself. It never leaves another screen you picked, Settings, a meeting alert or a running timer. *Never* (the default) turns it off.
 - **Sleep with Mac:** *On* (the default) turns the screen off while the Mac's display sleeps or the Mac is locked; *Off* keeps it on. The device's own sleep when the Mac goes away is separate (`deviceSleepSeconds`).
+
+**Bottlerocket usage.** Under **AI Usage** on the Mac page, paste one of your personal tokens from [the tokens site](https://tokens.bottlerocket.tesla.com/personal-tokens) and the clock's usage view shows this week's spend against your weekly limit. It's kept in `~/Library/Application Support/carthing-now-playing/bottlerocket-token.json`, readable only by you; saving an empty box removes it. Starting the bridge from a terminal, `BOTTLEROCKET_TOKEN` in the environment works too.
+
+Signing in through Tesla SSO instead was built and then abandoned — silent re-authorisation turned out to be a conditional-access policy that can be withdrawn, and was, and the only window placement that kept WebKit running was a visible one. `native/bottlerocketauth/NOTES.md` has the measurements, in case the policy changes.
 
 **Hardware mapping and behavior.** Edit `bridge/config.js`, then `./macthing restart`:
 
