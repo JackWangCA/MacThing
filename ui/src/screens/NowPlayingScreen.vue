@@ -56,7 +56,9 @@ function fitTitle() {
   const overflow = Math.max(0, last.getBoundingClientRect().bottom - content.getBoundingClientRect().bottom);
   t.style.webkitLineClamp = String(Math.max(1, Math.min(5, Math.floor((t.offsetHeight - overflow) / 36))));
 }
-watch(() => [np.value.active, np.value.artist, np.value.title, album.value, state.current], () => nextTick(fitTitle));
+// Separate sources, so the title is only measured again when one of them changes, not whenever a
+// Now Playing message (every 15s, and with each play/pause) replaces state.np.
+watch([() => np.value.active, () => np.value.artist, () => np.value.title, album, () => state.current], () => nextTick(fitTitle));
 watch(() => [state.np, state.npAt], updateProgress);
 const screen = CT.screen('nowplaying');
 screen.show = () => { updateProgress(); nextTick(fitTitle); };
