@@ -12,7 +12,7 @@ const rows = [
   { key: 'idleScreen', label: 'Idle screen', options: [['clock', 'Clock'], ['calendar', 'Calendar'], ['weather', 'Weather']] },
   { key: 'sleepWithMac', label: 'Sleep with Mac', options: [[true, 'On'], [false, 'Off']] },
   { key: 'meetingAlert', label: 'Meeting alerts', options: [[0, 'Off'], ['event', 'Event’s alert'], [1, '1 min before'], [5, '5 min before'], [10, '10 min before']] },
-  { key: 'usageSource', label: 'AI Usage', options: [['claude', 'Claude'], ['chatgpt', 'ChatGPT'], ['both', 'Both'], ['none', 'None']] },
+  { key: 'usageSource', label: 'AI Usage', options: [['bottlerocket', 'Bottlerocket'], ['chatgpt', 'ChatGPT'], ['both', 'Both'], ['none', 'None']] },
   { label: 'Weather', page: 'location', value: s => s.location && s.location.mode === 'manual' ? s.location.name : 'Current location' },
   { label: 'More settings on Mac', page: '', value: () => '' }
 ];

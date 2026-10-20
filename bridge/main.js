@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Car Thing bridge: macOS Now Playing, volume, weather, calendar and Claude/ChatGPT usage ⇄ the Car Thing's screen,
+// Car Thing bridge: macOS Now Playing, volume, weather, calendar and Bottlerocket/ChatGPT usage ⇄ the Car Thing's screen,
 // knob and buttons. Also serves the Mac-side settings page.
 //   npm start          run the bridge
 //   npm run dev        …and redeploy the device UI whenever ui/ changes
@@ -7,6 +7,7 @@
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import tls from 'node:tls';
 import { APP_VOLUME, AppVolume } from './audio/app-volume.js';
 import { Volume } from './audio/volume.js';
 import { config, paths } from './config.js';
@@ -23,9 +24,20 @@ import { MacPower } from './mac/power.js';
 import { settings } from './settings.js';
 import { startSettingsPage } from './settings-page/server.js';
 import { Calendar } from './widgets/calendar.js';
-import { ClaudeUsage } from './widgets/usage.js';
+import { BottlerocketUsage } from './widgets/bottlerocket-usage.js';
 import { CodexUsage } from './widgets/codex-usage.js';
 import { Weather } from './widgets/weather.js';
+
+// Behind a network that re-signs TLS (a corporate proxy), the root the Mac trusts is in its
+// keychain and not in the list Node ships with, so every request dies as UNABLE_TO_GET_ISSUER_
+// CERT_LOCALLY. Trust both. Node before 22.15 has neither call and needs neither.
+if (tls.getCACertificates && tls.setDefaultCACertificates) {
+  try {
+    tls.setDefaultCACertificates([...tls.getCACertificates('bundled'), ...tls.getCACertificates('system')]);
+  } catch (err) {
+    log.warn('[tls] keeping the bundled roots only', err.message);
+  }
+}
 
 const source = new MediaRemoteSource(paths.bin);
 const volume = new Volume(paths.bin);
@@ -35,10 +47,10 @@ const artwork = new ArtworkCache(path.join(paths.bin, 'artwork'), { blur: config
 const helper = new MacHelper(paths.bin);
 const weather = new Weather(helper, settings);
 const calendar = new Calendar(helper, settings);
-// Settings → Usage: only the providers it names are read (none: no Keychain or Codex logs at all).
-const wantsUsage = (provider) => [provider, 'both'].includes(settings.get().usageSource);
-const usage = new ClaudeUsage({ enabled: () => wantsUsage('claude') });
-const chatgptUsage = new CodexUsage({ enabled: () => wantsUsage('chatgpt') });
+// Settings → Usage: only the providers it names are read (none: no Bottlerocket sign-in or Codex).
+const usageSource = () => settings.get().usageSource;
+const usage = new BottlerocketUsage({ enabled: () => usageSource() === 'bottlerocket' || usageSource() === 'both' });
+const chatgptUsage = new CodexUsage({ enabled: () => usageSource() === 'chatgpt' || usageSource() === 'both' });
 const appearance = new MacAppearance();
 const power = new MacPower(paths.bin);
 
@@ -251,6 +263,20 @@ async function macStatus() {
   return {
     location: { status: s.location || 'unknown', name: weather.auto?.name || null },
     calendar: { status: s.calendar || 'unknown', list: cals.ok ? cals.calendars : [] },
+    // Spend and whether a token is set — never the token itself.
+    bottlerocket: await bottlerocketStatus(usage),
+  };
+}
+
+async function bottlerocketStatus(widget) {
+  const state = widget.state;
+  return {
+    status: state.status || 'loading',
+    hasToken: await widget.hasToken().catch(() => false),
+    detail: state.detail || '',
+    spent: Number.isFinite(state.spent) ? state.spent : null,
+    limit: Number.isFinite(state.limit) ? state.limit : null,
+    percent: Number.isFinite(state.percent) ? state.percent : null,
   };
 }
 
@@ -661,7 +687,12 @@ usage.start();
 chatgptUsage.start();
 appearance.start();
 power.start();
-startSettingsPage({ port: config.settingsPort, settings, status: macStatus });
+startSettingsPage({
+  port: config.settingsPort,
+  settings,
+  status: macStatus,
+  setBottlerocketToken: (token) => usage.setToken(token),
+});
 
 trackDevices(debounce(refreshDevices, 400));
 setInterval(refreshDevices, 30 * 1000); // a stale adb server sends no events; look anyway

@@ -7,21 +7,21 @@ import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
 import ClaudeUsage from '../components/ClaudeUsage.vue';
 import BackActionIcon from '../components/BackActionIcon.vue';
-import { SESSION_MS, WEEK_MS, paceNumber, untilText, usageProviders, usageOf, usageName, usageUpdatedText } from '../usage.js';
+import { SESSION_MS, WEEK_MS, moneyRound, moneyText, paceNumber, untilText, usageProviders, usageOf, usageName, usageUpdatedText } from '../usage.js';
 import { timer, total, remaining, timerLabel, timerTitle, timerUnit, stepPreset, currentMeetingKey, pickMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
 const next = computed(() => state.calendar.status === 'ok' ? state.calendar.events.find(e => !e.allDay && e.start > state.now && CT.dayNumber(e.start) === CT.dayNumber(state.now)) : null);
 // The clock button, pressed on the clock, steps it to the timer, then each usage Settings → Usage
-// asks for (Claude, ChatGPT, both or none), then back. Knob and wheel work the timer only while
+// asks for (Bottlerocket, ChatGPT, both or none), then back. Knob and wheel work the timer only while
 // it's up: turn to pick a length, press to start or pause, press twice to reset. Past 60 minutes
 // there's a meeting stop: the end of the meeting going on now, or the start of the next one today.
 // During a meeting the timer opens on it; reset there drops back to the preset, stopped. Opening a
-// usage asks the Mac for fresh numbers (Claude's at most once a minute).
+// usage asks the Mac for fresh numbers (at most once a minute).
 const providers = computed(() => usageProviders(state));
 const modes = computed(() => ['clock', 'timer', ...providers.value]);
-const isUsage = m => m === 'claude' || m === 'chatgpt';
+const isUsage = m => m === 'bottlerocket' || m === 'chatgpt';
 const mode = ref('clock');
 const screen = CT.screen('clock');
 screen.reselect = () => {
@@ -81,6 +81,23 @@ watch(providers, list => { if (isUsage(mode.value) && !list.includes(mode.value)
 function usageRail(provider) {
   const u = usageOf(state, provider);
   if (u.status !== 'ok') return { eyebrow: usageName(provider) + ' usage', title: '--', subtitle: '' };
+  if (provider === 'bottlerocket') {
+    // Dollars run far wider than the clock this slot is sized for, so the share of the limit
+    // takes it and the exact spend sits in the middle of the ring, where there's room. The two
+    // that still don't fit at the full size step down: a three-digit percentage, and the spend
+    // itself when there's no limit to take a share of.
+    const limited = u.limit > 0;
+    const title = limited ? Math.round(u.percent) + '%' : moneyRound(u.spent);
+    return {
+      eyebrow: 'This week',
+      title,
+      // Measured on the device against the 272px inside the rail: three glyphs fit at the full
+      // size (99% is 234), four need 96 (100% is 287 otherwise), more need 64. That covers a
+      // spend well past its limit, 455%, as well as dollars.
+      titleClass: title.length <= 3 ? '' : title.length === 4 ? 'usage-tight' : 'usage-tighter',
+      subtitle: limited ? 'of ' + moneyText(u.limit) : 'No weekly limit'
+    };
+  }
   return {
     italicSuffix: 'x',
     subtitleClass: 'usage-week',
@@ -99,7 +116,9 @@ const railViews = computed(() => {
 const resets = computed(() => {
   if (!isUsage(mode.value)) return null;
   const u = usageOf(state, mode.value);
-  return u.status === 'ok' ? { session: untilText(u.session.resetsAt, state.now, SESSION_MS), week: untilText(u.week.resetsAt, state.now, WEEK_MS) } : null;
+  if (u.status !== 'ok') return null;
+  if (mode.value === 'bottlerocket') return { money: true, text: untilText(u.resetsAt, state.now, WEEK_MS) };
+  return { session: untilText(u.session.resetsAt, state.now, SESSION_MS), week: untilText(u.week.resetsAt, state.now, WEEK_MS) };
 });
 // While it's up and not started, a meeting that starts sets it too, as does one that turns up
 // when the calendar first loads (after a reload that reopened the timer). It never starts or comes
@@ -134,7 +153,8 @@ screen.press = () => {
   <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer' }">
     <LeftRail :view="mode" :views="railViews" :truncate-lower="!resets">
       <template #lower>
-        <template v-if="resets"><div class="usage-resets">Resets: Session <b class="primary medium">{{ resets.session }}</b> · Week <b class="primary medium">{{ resets.week }}</b></div></template>
+        <template v-if="resets && resets.money"><div class="usage-resets">Resets in <b class="primary medium">{{ resets.text }}</b></div></template>
+        <template v-else-if="resets"><div class="usage-resets">Resets: Session <b class="primary medium">{{ resets.session }}</b> · Week <b class="primary medium">{{ resets.week }}</b></div></template>
         <template v-else-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template>
       </template>
     </LeftRail>

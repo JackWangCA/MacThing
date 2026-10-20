@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { state } from '../state.js';
 import StageMessage from './StageMessage.vue';
 import BackActionIcon from './BackActionIcon.vue';
-import { SESSION_MS, WEEK_MS, elapsed, usageOf, usageMessage, usageName, usageStaleAge, usageAge } from '../usage.js';
+import { SESSION_MS, WEEK_MS, elapsed, moneyText, usageOf, usageMessage, usageName, usageStaleAge, usageAge } from '../usage.js';
 // Claude or ChatGPT usage (the clock button after the timer; Settings → Usage picks which): two rings across the stage, the size of the clock
 // and the timer, the five-hour session outside and the week inside. Each ring, clockwise from 12:
 // the faint track is the whole allowance and the solid arc (rounded at both ends) is what's been
@@ -46,24 +46,42 @@ function ring(r, w, length, initial, paceOffset) {
     initial
   };
 }
-const rings = computed(() => !ok.value ? [] : [
+const money = computed(() => props.provider === 'bottlerocket');
+const rings = computed(() => {
+  if (!ok.value) return [];
   // A 32px offset leaves 13px between the 28px ring and the 10px pace dot.
-  ring(166, usage.value.session, SESSION_MS, 'S', 32),
-  ring(126, usage.value.week, WEEK_MS, 'W', -32)
-]);
+  if (money.value) {
+    const percent = Number.isFinite(usage.value.percent) ? usage.value.percent : 0;
+    return [ring(166, { percent, resetsAt: usage.value.resetsAt }, WEEK_MS, '$', 32)];
+  }
+  return [
+    ring(166, usage.value.session, SESSION_MS, 'S', 32),
+    ring(126, usage.value.week, WEEK_MS, 'W', -32)
+  ];
+});
+const spentText = computed(() => moneyText(usage.value.spent));
+// The ring's inner circle is 304px across, and only about 287 of it at the top of this text.
+// A glyph runs ~30px at the full 52, so $10,000.00 would already touch the ring: step the size
+// down past seven or so characters rather than let the dollars cross it. An inline size is what
+// it takes to beat the stylesheet, which outranks a font-size attribute.
+const spentSize = computed(() => Math.min(52, Math.floor(470 / Math.max(1, spentText.value.length))));
 const message = computed(() => usageMessage(usage.value, props.provider, state.now));
 </script>
 <template>
   <div class="fill">
     <template v-if="ok">
-      <svg class="u-face" viewBox="0 0 480 480" :aria-label="provider === 'chatgpt' ? 'ChatGPT usage' : 'Claude usage'">
+      <svg class="u-face" viewBox="0 0 480 480" :aria-label="money ? 'Bottlerocket usage' : provider === 'chatgpt' ? 'ChatGPT usage' : 'Claude usage'">
         <g v-for="g in rings" :key="g.r" transform="rotate(-90 240 240)">
           <circle class="u-track" cx="240" cy="240" :r="g.r" />
           <circle v-if="g.used" class="u-used" cx="240" cy="240" :r="g.r" :stroke-dasharray="g.used.array" :stroke-dashoffset="g.used.offset" />
           <circle v-if="g.over" class="u-over" cx="240" cy="240" :r="g.r" :stroke-dasharray="g.over.array" :stroke-dashoffset="g.over.offset" />
         </g>
-        <!-- The provider's mark, 56px across in the middle of the rings. -->
-        <path class="u-logo" transform="translate(212 212) scale(2.3333)" :d="LOGOS[provider]" />
+        <!-- ChatGPT keeps its mark. Bottlerocket puts this week's dollars in the middle of the ring. -->
+        <template v-if="money">
+          <text class="u-money" x="240" y="228" text-anchor="middle" :style="{ fontSize: spentSize + 'px' }">{{ spentText }}</text>
+          <text v-if="usage.limit > 0" class="u-money-of" x="240" y="268" text-anchor="middle">of {{ moneyText(usage.limit) }}</text>
+        </template>
+        <path v-else class="u-logo" transform="translate(212 212) scale(2.3333)" :d="LOGOS[provider]" />
         <g v-for="g in rings" :key="'marks' + g.r">
           <circle v-for="(c, i) in g.caps" :key="i" class="u-cap" :class="c.kind" :cx="c.x" :cy="c.y" r="14" />
           <circle v-if="g.pace" class="u-pace" :cx="g.pace.x" :cy="g.pace.y" r="5" />
@@ -74,7 +92,7 @@ const message = computed(() => usageMessage(usage.value, props.provider, state.n
     </template>
     <div v-if="usageStaleAge(usage, state.now)" class="back-action font-small medium primary" :aria-label="'Usage updated ' + usageAge(usage.updatedAt, state.now)"><template v-if="state.usageRefreshWait">{{ state.usageRefreshWait }}</template><template v-else>{{ usageStaleAge(usage, state.now) }} <template v-if="state.usageRefresh === 'pending'">•••</template><BackActionIcon v-else :name="state.usageRefresh === 'failed' ? 'x' : 'refresh'" :spinning="state.usageRefresh === 'spin'" /></template></div>
     <StageMessage :title="message.title" :detail="message.detail">
-      <template #icon><svg class="u-logo u-status-logo" viewBox="0 0 24 24" role="img" :aria-label="usageName(provider) + ' logo'"><path :d="LOGOS[provider]" /></svg></template>
+      <template #icon><span v-if="money" class="u-status-logo u-status-dollar" role="img" :aria-label="usageName(provider) + ' logo'">$</span><svg v-else class="u-logo u-status-logo" viewBox="0 0 24 24" role="img" :aria-label="usageName(provider) + ' logo'"><path :d="LOGOS[provider]" /></svg></template>
     </StageMessage>
   </div>
 </template>

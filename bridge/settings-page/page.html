@@ -56,7 +56,7 @@
   .choice input { margin-top: 3px; accent-color: var(--accent); }
   .note { color: var(--muted); font-size: 13px; margin-top: 2px; }
   .row.stack { display: block; }
-  #calList { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); column-gap: 24px; margin-top: 12px; }
+  #calList, #remList { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); column-gap: 24px; margin-top: 12px; }
   .cal { display: grid; grid-template-columns: 16px 10px minmax(0, 1fr); gap: 10px; align-items: start; min-width: 0; padding: 10px 0; }
   .cal > div { min-width: 0; overflow-wrap: anywhere; }
   .cal .dot { margin: 6px 0 0; }
@@ -74,6 +74,13 @@
   .saved { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg);
     padding: 8px 14px; border-radius: 99px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
   .saved.on { opacity: 1; }
+  .signin { margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .signin-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  .signin input { flex: 1 1 260px; font: inherit; padding: 7px 10px; border: 1px solid var(--line); border-radius: 7px;
+    background: var(--bg); color: var(--text); }
+  .signin a, .signin button { color: var(--accent); font: inherit; font-weight: 600; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: none; }
+  .signin button[disabled] { color: var(--muted); cursor: default; text-decoration: none; }
+  .signin a:hover, .signin button:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -114,8 +121,18 @@
 
     <div class="settings-panel" id="usage" hidden role="region" aria-labelledby="category-title">
       <section>
-        <div class="row"><div><label class="label" for="usageSource">Show usage</label><div class="note">Whose plan the clock's usage view shows (ChatGPT: asks Codex on this Mac)</div></div>
-          <select id="usageSource" data-key="usageSource"><option value="claude">Claude</option><option value="chatgpt">ChatGPT</option><option value="both">Both</option><option value="none">None</option></select></div>
+        <div class="row"><div><label class="label" for="usageSource">Show usage</label><div class="note">Whose spend the clock's usage view shows. Bottlerocket is this week’s dollars against the weekly limit.</div></div>
+          <select id="usageSource" data-key="usageSource"><option value="bottlerocket">Bottlerocket</option><option value="chatgpt">ChatGPT</option><option value="both">Both</option><option value="none">None</option></select></div>
+        <div id="brSignIn" class="signin" hidden>
+          <label class="label" for="brToken">Bottlerocket API token</label>
+          <div class="note" id="brNote">One of your personal tokens. It stays on this Mac, readable only by you.</div>
+          <div class="signin-actions">
+            <input type="password" id="brToken" autocomplete="off" spellcheck="false" placeholder="Paste a token">
+            <button type="button" id="brSave">Save</button>
+            <a href="https://tokens.bottlerocket.tesla.com/personal-tokens" target="_blank" rel="noopener">Get one</a>
+          </div>
+        </div>
+        <p class="note" id="brStatus" hidden></p>
       </section>
     </div>
 
@@ -189,34 +206,86 @@
         : 'macOS will ask for permission the first time.';
 
     renderCalendars();
+    renderBottlerocket();
   }
 
-  // Which calendars feed the device. null means every one, so calendars added later come along too.
-  function renderCalendars() {
-    const cal = state.calendar || {};
-    const list = cal.list || [];
-    const chosen = state.settings.calendars;
+  function money(n) {
+    return (n < 0 ? '-' : '') + '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function renderBottlerocket() {
+    const source = state.settings.usageSource;
+    const wants = source === 'bottlerocket' || source === 'both';
+    const br = state.bottlerocket || {};
+    const status = $('#brStatus');
+    // The field stays up while there's no working token, and once there is one it folds away.
+    $('#brSignIn').hidden = !wants || (br.hasToken && br.status !== 'badToken');
+    $('#brNote').textContent =
+      br.status === 'badToken' ? (br.detail || 'Bottlerocket refused that token.') + ' Try another one.'
+      : br.hasToken ? 'A token is saved. Paste another to replace it, or save an empty box to remove it.'
+      : 'One of your personal tokens. It stays on this Mac, readable only by you.';
+    $('#brNote').classList.toggle('warn', br.status === 'badToken');
+
+    if (!wants || !br.hasToken || br.status === 'badToken') { status.hidden = true; return; }
+    status.hidden = false;
+    status.classList.toggle('warn', br.status === 'error' || br.status === 'rateLimited' || br.status === 'none');
+    status.textContent =
+      br.status === 'ok' && br.limit != null ? `This week ${money(br.spent)} of ${money(br.limit)} · ${Math.round(br.percent)}% of the weekly limit.`
+      : br.status === 'ok' ? `This week ${money(br.spent)}. No weekly limit is set.`
+      : br.status === 'none' ? 'That token works, but its account has no personal tokens to add up.'
+      : br.status === 'rateLimited' ? 'Bottlerocket is limiting usage checks. The page will try again.'
+      : br.status === 'loading' ? 'Reading this week’s spend…'
+      : 'Bottlerocket usage is unavailable. The page will try again.';
+  }
+
+  $('#brSave').addEventListener('click', async () => {
+    const field = $('#brToken');
+    const button = $('#brSave');
+    button.disabled = true;
+    button.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/bottlerocket-token', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: field.value }),
+      });
+      Object.assign(state, await res.json());
+      field.value = ''; // it's saved; no reason to keep it in the page
+      render();
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Save';
+    }
+  });
+  $('#brToken').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#brSave').click(); });
+
+  // Which calendars feed the device. Written as a reusable picker so another list can use it
+  // over different EventKit entities, so they share a renderer. A saved null means every one, so
+  // something added later comes along too — which is why "all checked" saves as null below.
+  function renderChoices(source, key, noteId, listId, words) {
+    const list = source.list || [];
+    const chosen = state.settings[key];
     const on = (c) => !chosen || chosen.includes(c.id);
 
-    const calNote = $('#calNote');
+    const note = $(noteId);
     const none = chosen && chosen.length === 0;
-    calNote.classList.toggle('warn', cal.status !== 'authorized' || none);
-    calNote.textContent =
-      cal.status !== 'authorized'
-        ? cal.status === 'denied' || cal.status === 'restricted'
-          ? 'Calendar access is off for “Car Thing Helper”. Turn it on in System Settings → Privacy & Security → Calendars.'
+    note.classList.toggle('warn', source.status !== 'authorized' || none);
+    note.textContent =
+      source.status !== 'authorized'
+        ? source.status === 'denied' || source.status === 'restricted'
+          ? `${words.access} access is off for “Car Thing Helper”. Turn it on in System Settings → Privacy & Security → ${words.pane}.`
           : 'macOS will ask for permission the first time.'
-      : none ? 'No calendars chosen — the device has nothing to show.'
-      : !chosen ? 'Every calendar, including any you add later.'
-      : `${list.filter(on).length} of ${list.length} calendars.`;
+      : !list.length ? `No ${words.plural} on this Mac.`
+      : none ? `No ${words.plural} chosen — the device has nothing to show.`
+      : !chosen ? `Every ${words.one}, including any you add later.`
+      : `${list.filter(on).length} of ${list.length} ${words.plural}.`;
 
-    $('#calList').replaceChildren(...list.map((c) => {
+    $(listId).replaceChildren(...list.map((c) => {
       const box = document.createElement('input');
       box.type = 'checkbox';
       box.checked = on(c);
       box.addEventListener('change', () => {
         const ids = list.filter((x) => (x.id === c.id ? box.checked : on(x))).map((x) => x.id);
-        save({ calendars: ids.length === list.length ? null : ids });
+        save({ [key]: ids.length === list.length ? null : ids });
       });
       const dot = document.createElement('span');
       dot.className = 'dot';
@@ -232,6 +301,11 @@
       return label;
     }));
   }
+  const renderCalendars = () =>
+    renderChoices(state.calendar || {}, 'calendars', '#calNote', '#calList',
+      { access: 'Calendar', pane: 'Calendars', one: 'calendar', plural: 'calendars' });
+  // Smart lists (Today, Scheduled, Flagged) aren't lists as far as EventKit is concerned, so only
+  // real ones are offered here. "What's due today" is what the device's view works out for itself.
 
   function saveChoice(control, value) {
     save({ [control.dataset.key]: value === 'true' ? true : value === 'false' ? false : control.dataset.type === 'number' && value !== '' && !isNaN(value) ? Number(value) : value });

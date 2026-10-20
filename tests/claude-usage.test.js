@@ -221,8 +221,8 @@ test('transient request failure preserves marked last-known usage and clears aft
 });
 
 test('usage messages identify each provider, including loading and throttling', () => {
-  for(const provider of ['claude','chatgpt']){
-    const name=provider==='claude'?'Claude':'ChatGPT';
+  for(const provider of ['bottlerocket','chatgpt']){
+    const name=provider==='bottlerocket'?'Bottlerocket':'ChatGPT';
     for(const status of ['loading','error','rateLimited']){
       const m=usageMessage({status,retryAt:NOW+5*60000},provider,NOW);
       assert(m.title.includes(name));

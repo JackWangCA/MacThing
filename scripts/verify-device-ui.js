@@ -168,35 +168,35 @@ try {
   await pause(1100);
   assert.match(await rail(), /30 minute timer1[67]:\d\d/, 'Timer counts down');
   await capture('timer');
-  await message({ type: 'usage', usage: { status: 'ok', session: { percent: 42, resetsAt: now + 754000 + 133 * 60000 }, week: { percent: 86, resetsAt: Date.UTC(2026, 8, 24, 9) }, updatedAt: now + 754000 } });
+  await message({ type: 'usage', usage: { status: 'ok', spent: 12.4, limit: 50, percent: 24.8, resetsAt: now + 3 * 86400000, updatedAt: now + 754000 } });
   await press('4');
   await pause(400); // the timer fades out (0.3 s)
-  assert.equal(await clockView(), 'claude', 'The clock button goes on to Claude usage');
+  assert.equal(await clockView(), 'bottlerocket', 'The clock button goes on to Bottlerocket usage');
   assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "refreshUsage")'), true, 'Opening usage asks the Mac for fresh numbers');
-  // The session (42% used, 56% of its time gone) is under pace; the week (86%, 75%) is twice it.
-  assert.match(await rail(), /Session: 42% used\s*0\.6x\s*Week: 2\.\dx · 86%/);
-  // In place of the next event: the session resets in 2 h 13 min, the week on Thursday at 9.
-  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets: Session 2h · Week 2d$/);
-  // The session (42% used, 56% of its time gone) is behind its pace; the week (86%, 75%) is ahead of it.
-  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-over").length'), 1, 'Usage past the pace takes the accent');
-  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 2, 'Both usage windows mark their pace with a dot');
-  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-behind").length'), 0, 'Under-pace usage leaves the track clear');
-  assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .u-label")).map(l => l.textContent).join()'), 'S,W', 'Each ring is named');
+  assert.match(await rail(), /This week\s*25%\s*of \$50\.00/); // the spend itself is in the ring, not the rail
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets in 3d$/);
+  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-over").length'), 0, 'Spend under the week’s pace leaves the accent off');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 1, 'The weekly ring marks its pace with a dot');
+  assert.equal(await evaluate('document.querySelector("#screen-clock .u-money").textContent'), '$12.40', 'The ring shows dollars spent');
+  assert.equal(await evaluate('document.querySelector("#screen-clock .u-money-of").textContent'), 'of $50.00', 'and the weekly limit beside it');
   await capture('usage');
-  await message({ type: 'usage', usage: { status: 'ok', session: { percent: 0, resetsAt: null }, week: { percent: 0, resetsAt: null }, updatedAt: now } });
-  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets: Session 5h · Week 7d$/);
-  assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .u-pace")).every(d => Number(d.getAttribute("cx")) === 240 && Number(d.getAttribute("cy")) < 240)'), true, 'Unstarted windows mark their pace at 12 o’clock');
-  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 2, 'Unstarted windows keep both pace dots');
+  await message({ type: 'usage', usage: { status: 'ok', spent: 0, limit: 50, percent: 0, resetsAt: null, updatedAt: now } });
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets in 7d$/);
+  assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .u-pace")).every(d => Number(d.getAttribute("cx")) === 240 && Number(d.getAttribute("cy")) < 240)'), true, 'An unstarted week marks its pace at 12 o’clock');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 1, 'The week keeps its pace dot');
   await capture('usage-unstarted');
-  await message({ type: 'usage', usage: { status: 'ok', session: { percent: 100, resetsAt: now + 3600000 }, week: { percent: 100, resetsAt: now + 86400000 }, updatedAt: now } });
-  assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .left-rail-view.on .rail-fires img")).filter(img => img.complete && img.naturalWidth > 0).length'), 6, 'Session and week each show three bundled fires at the limit');
+  await message({ type: 'usage', usage: { status: 'ok', spent: 50, limit: 50, percent: 100, resetsAt: now + 86400000, updatedAt: now } });
+  assert.match(await rail(), /This week\s*100%\s*of \$50\.00/);
   await capture('usage-limit');
-  await message({ type: 'usage', usage: { status: 'expired' } });
-  assert.match(await evaluate('document.querySelector("#screen-clock .stage-message").textContent'), /Claude sign-in expired/);
-  await capture('usage-expired');
+  await message({ type: 'usage', usage: { status: 'noToken' } });
+  assert.match(await evaluate('document.querySelector("#screen-clock .stage-message").textContent'), /No Bottlerocket token.*Settings → Usage on your Mac/s);
+  await capture('usage-no-token');
+  await message({ type: 'usage', usage: { status: 'badToken', detail: 'Bottlerocket refused it (HTTP 401).' } });
+  assert.match(await evaluate('document.querySelector("#screen-clock .stage-message").textContent'), /Bottlerocket token refused.*HTTP 401/s);
+  await capture('usage-bad-token');
   await message({ type: 'usage', usage: { status: 'rateLimited', retryAt: now + 754000 + 5 * 60000 } });
-  assert.match(await evaluate('document.querySelector("#screen-clock .fade-view.on .stage-message").textContent'), /Claude usage delayed.*Retrying in 5m/);
-  assert.equal(await evaluate('document.querySelector("#screen-clock .fade-view.on .u-status-logo").getAttribute("aria-label")'), 'Claude logo');
+  assert.match(await evaluate('document.querySelector("#screen-clock .fade-view.on .stage-message").textContent'), /Bottlerocket usage delayed.*Retrying in 5m/);
+  assert.equal(await evaluate('document.querySelector("#screen-clock .fade-view.on .u-status-logo").getAttribute("aria-label")'), 'Bottlerocket logo');
   await capture('usage-rate-limited');
   // Settings → Usage → Both adds ChatGPT's view after Claude's: Codex's limits the same way, the
   // session (82%, 80% of it gone) just over pace, the week (10%, 32% gone) under it.

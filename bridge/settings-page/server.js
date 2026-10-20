@@ -10,9 +10,10 @@ const page = fs.readFileSync(new URL('./page.html', import.meta.url));
  * plus the same toggles as the device's settings screen. Loopback only; requests must carry a
  * loopback Host (DNS-rebinding guard), and writes must be same-origin JSON (CSRF guard).
  *
- * @param {{port: number, settings: import('../settings.js').settings, status: () => Promise<object>}} opts
+ * @param {{port: number, settings: import('../settings.js').settings, status: () => Promise<object>,
+ *   setBottlerocketToken: (token: string) => Promise<unknown>}} opts
  */
-export function startSettingsPage({ port, settings, status }) {
+export function startSettingsPage({ port, settings, status, setBottlerocketToken }) {
   const origins = [`http://127.0.0.1:${port}`, `http://localhost:${port}`];
 
   const server = http.createServer(async (req, res) => {
@@ -35,7 +36,7 @@ export function startSettingsPage({ port, settings, status }) {
         const q = (url.searchParams.get('q') || '').trim();
         return json(200, { places: q.length < 2 ? [] : await searchPlaces(q) });
       }
-      if (req.method === 'POST' && url.pathname === '/api/settings') {
+      if (req.method === 'POST' && (url.pathname === '/api/settings' || url.pathname === '/api/bottlerocket-token')) {
         if (!origins.includes(req.headers.origin) || !req.headers['content-type']?.startsWith('application/json')) {
           return json(403, { error: 'forbidden' });
         }
@@ -43,6 +44,12 @@ export function startSettingsPage({ port, settings, status }) {
         for await (const chunk of req) {
           body += chunk;
           if (body.length > 10000) return json(413, { error: 'too large' });
+        }
+        if (url.pathname === '/api/bottlerocket-token') {
+          // Saved, then read back through status() so the page learns whether it works —
+          // and so the token itself is never part of a reply.
+          await setBottlerocketToken(JSON.parse(body).token);
+          return json(200, await status());
         }
         settings.update(JSON.parse(body));
         return json(200, { settings: settings.get() });
