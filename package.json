@@ -14,23 +14,15 @@
     "node": ">=22"
   },
   "scripts": {
+    "setup": "./macthing setup",
+    "start": "./macthing run",
+    "dev": "./macthing run --dev",
+    "test": "node --test tests/*.test.js",
     "build": "npm run build:ui && ./native/build.sh",
     "build:ui": "vite build",
-    "prestart": "npm run build:ui",
-    "start": "node bridge/main.js",
-    "predev": "npm run build:ui",
-    "dev": "DEBUG=1 node bridge/main.js --watch",
     "screenshot": "node scripts/screenshot.js",
     "mock-screens": "node scripts/mock-screens.js",
-    "setup-device": "./scripts/setup-device.sh",
-    "restore-device": "./scripts/restore-device.sh",
-    "preinstall-agent": "npm run build:ui",
-    "install-agent": "./scripts/launch-agent.sh install",
-    "uninstall-agent": "./scripts/launch-agent.sh uninstall",
-    "prerestart": "npm run build:ui",
-    "restart": "./scripts/launch-agent.sh restart",
-    "status": "./scripts/launch-agent.sh status",
-    "logs": "./scripts/launch-agent.sh logs"
+    "verify-device": "node scripts/verify-device-ui.js"
   },
   "dependencies": {
     "vue": "^3.5.43"

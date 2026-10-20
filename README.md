@@ -5,7 +5,7 @@ It has four screens: Now Playing, Calendar, Weather and Clock.
 
 No reflashing: this runs on the community firmware you already have, replaces the web app the
 device shows, and can be undone with one command. Nothing is installed on the device that a
-`npm run restore-device` doesn't put back.
+`./macthing uninstall --device` doesn't put back.
 
 https://github.com/user-attachments/assets/f47f9c9d-7ae7-4c24-92b9-900ebb423bcd
 
@@ -66,7 +66,7 @@ Nothing is required for the device to work: Now Playing and the clock need no pe
 | Back button (favorite)                    | toast: "Allow musicctl to control Music"                    | allow Automation for musicctl                  |
 | Knob on an output with no software volume | "No volume control on <device>"; under Knob volume: Auto, Spotify or Apple Music playing turns its volume instead, and with nothing playing it says "No music playing" | play from Spotify or Music, or use an output that has volume |
 | Knob on Spotify's or Apple Music's volume | toast: "Allow control of Spotify in Automation"            | allow Automation for node to control the app   |
-| Bridge not running                        | "Waiting for your Mac"                                      | start it, or `npm run install-agent`           |
+| Bridge not running                        | "Waiting for your Mac"                                      | `./macthing start`                             |
 
 ## What you need
 
@@ -77,18 +77,21 @@ Nothing is required for the device to work: Now Playing and the clock need no pe
 
 ## Setup (once)
 
+Plug the Car Thing in, then:
+
 ```bash
 git clone https://github.com/srcurran/MacThing.git
 cd MacThing
-npm ci                 # installs the locked Vue/Vite dependencies
-npm run build          # builds the Vue UI and native helpers, then self-tests the media adapter
-npm run setup-device   # makes the Car Thing boot into this UI (reversible; see "Undo")
-npm run install-agent  # starts the bridge now and at every login
+./macthing setup
 ```
 
-That's it. Within a few seconds the Car Thing switches to Now Playing, or to the Clock if nothing is playing.
+Or clone it and **double-click `MacThing.command`** in Finder, which runs the same thing in a Terminal window.
 
-Re-run `npm run setup-device` if the bridge logs `boot web app not pointed at our UI yet`, `no sleep watchdog` or `stock dimmer still running`. The rootfs edit normally survives a reboot, but it has been seen to revert, and a device that's been reflashed or restored will need it again. Nothing breaks meanwhile — the bridge points the device at this UI on every connect — but until you do, the Car Thing shows Spotify's own app before the bridge connects, doesn't sleep on its own when the Mac goes away, and dims whenever a hand covers the light sensor.
+That one command checks what's installed, pulls the dependencies, builds the Vue UI and the native helpers, makes the Car Thing boot into this UI (reversible; see "Undo"), and starts the bridge — now and at every login. It's safe to run again any time. Within a few seconds the Car Thing switches to Now Playing, or to the Clock if nothing is playing.
+
+Everything else is a subcommand of the same script; `./macthing` on its own lists them.
+
+Re-run `./macthing device` if the bridge logs `boot web app not pointed at our UI yet`, `no sleep watchdog` or `stock dimmer still running`. The rootfs edit normally survives a reboot, but it has been seen to revert, and a device that's been reflashed or restored will need it again. Nothing breaks meanwhile — the bridge points the device at this UI on every connect — but until you do, the Car Thing shows Spotify's own app before the bridge connects, doesn't sleep on its own when the Mac goes away, and dims whenever a hand covers the light sensor.
 
 The first time you favorite a song with the back button, macOS asks whether **musicctl** may control Music. That's `native/bin/musicctl`, a small helper that sends the favorite and play commands to Apple Music.
 
@@ -100,36 +103,36 @@ The first time the Weather and Calendar screens load, macOS asks whether **Car T
 
 The Car Thing is only a display. The work happens in the **bridge**, a small Node program on your Mac (`bridge/main.js`). It reads Now Playing and the volume, and drives the Car Thing over USB. The Car Thing shows "Waiting for your Mac" whenever the bridge isn't running.
 
-### Automatically at login (recommended)
+### Automatically at login (what `setup` leaves you with)
 
-`npm run install-agent` installs a per-user LaunchAgent at `~/Library/LaunchAgents/com.carthing.bridge.plist`. macOS then starts the bridge when you log in and restarts it if it ever exits. There's nothing to open or keep running yourself. Unplugging, replugging or rebooting the Car Thing is handled automatically.
-
-```bash
-npm run status          # is it running?
-npm run logs            # follow the log (~/Library/Logs/carthing-bridge.log)
-npm run restart         # restart it, e.g. after pulling updates
-npm run uninstall-agent # stop it and remove it from login
-```
-
-The agent records the absolute path of the `node` you installed it with. If you later remove that Node version (for example with nvm), run `npm run install-agent` again.
-
-### Manually
+`./macthing setup` installs a per-user LaunchAgent at `~/Library/LaunchAgents/com.carthing.bridge.plist`. macOS then starts the bridge when you log in and restarts it if it ever exits. There's nothing to open or keep running yourself. Unplugging, replugging or rebooting the Car Thing is handled automatically.
 
 ```bash
-npm start       # runs in the foreground; Ctrl-C to stop
-npm run dev     # rebuilds Vue and redeploys on source changes; logs raw knob/button events
+./macthing status    # running? Car Thing plugged in? permissions granted?
+./macthing logs      # follow the log (~/Library/Logs/carthing-bridge.log)
+./macthing restart   # rebuild the UI and restart the bridge
+./macthing stop      # stop it, and don't start it at login
+./macthing start     # and put it back
 ```
 
-Don't run a manual copy while the agent is running, because both would fight over the device. Run `npm run uninstall-agent` first, and `npm run install-agent` when you're done.
+The agent records the absolute path of the `node` it was installed with. If you later remove that Node version (for example with nvm), run `./macthing start` again to rewrite it.
+
+### In a terminal instead
+
+```bash
+./macthing run         # runs in the foreground; Ctrl-C to stop
+./macthing run --dev   # rebuilds Vue and redeploys on source changes; logs raw knob/button events
+```
+
+Both would fight over the device, so `run` refuses while the background bridge is up. `./macthing stop` first, and `./macthing start` when you're done.
 
 ### After pulling updates
 
 ```bash
-npm ci                # install dependency updates from the lockfile
-npm run build         # needed if native/ changed; also builds the Vue UI
-npm run restart       # rebuilds Vue, restarts the bridge, and deploys the compiled UI
-npm run setup-device  # only if you set the device up before the sleep watchdog or the dimmer existed
+./macthing update    # pull, reinstall dependencies, rebuild, restart
 ```
+
+It stops rather than clobber uncommitted changes. If the device itself misbehaves afterwards — say you set it up before the sleep watchdog or the dimmer existed — `./macthing device` re-applies its boot setup.
 
 ## Customizing
 
@@ -141,7 +144,7 @@ A few of them change how the device behaves:
 - **When idle** and **Idle screen:** once nothing has played for 1–10 minutes while Now Playing is up, the device switches to the Clock (or Calendar, or Weather). When music starts again it goes back to Now Playing, unless you've moved off that screen yourself. It never leaves another screen you picked, Settings, a meeting alert or a running timer. *Never* (the default) turns it off.
 - **Sleep with Mac:** *On* (the default) turns the screen off while the Mac's display sleeps or the Mac is locked; *Off* keeps it on. The device's own sleep when the Mac goes away is separate (`deviceSleepSeconds`).
 
-**Hardware mapping and behavior.** Edit `bridge/config.js`, then `npm run restart`:
+**Hardware mapping and behavior.** Edit `bridge/config.js`, then `./macthing restart`:
 
 - `buttons`: what each button does (`screen:<name>`, `settings`, or a media command)
 - `knobClicks` and `multiClickMs`: the single, double and triple press actions, and how long a single press waits for more
@@ -150,7 +153,7 @@ A few of them change how the device behaves:
 - `knobDirection`: `1` matches Spotify's own mapping (turning right raises the volume); `-1` flips it
 - `sleepWithMac` and `screenWakeMs`: the default for the Sleep with Mac setting, and how long a button or knob wake lasts while the Mac's display is off
 - `buttonHolds` and `holdMs`: what a held button does (`sleep` by default on the settings button) and how long the hold is. A button with a hold acts on release, so one press isn't both things
-- `deviceSleepSeconds`, `deviceWakeSeconds`, `devicePowersave`: the device's own sleep once the Mac goes quiet — how long it waits, how long an input wakes it for, and whether it also idles the CPU. Changes reach the device the next time the bridge connects (`npm run restart`)
+- `deviceSleepSeconds`, `deviceWakeSeconds`, `devicePowersave`: the device's own sleep once the Mac goes quiet — how long it waits, how long an input wakes it for, and whether it also idles the CPU. Changes reach the device the next time the bridge connects (`./macthing restart`)
 - `macVolumeIndicator`: see below
 
 **macOS volume pop-up.** The knob presses the Mac's volume keys, so macOS shows its volume pop-up. That needs `native/bin/MacThingVolume` allowed under **System Settings → Privacy & Security → Accessibility** (on macOS 27, **Device Control and Data Access**); the first time you turn the knob without it, macOS asks and the Car Thing shows "Allow MacThingVolume on your Mac". Apple's prompt can close on its own after a few seconds; its button opens that list, where MacThingVolume is already added: switch it on. macOS only asks once, so if the prompt closes before you get to it, open that list yourself and switch MacThingVolume on. No restart needed either way. macOS requires that permission for any software that generates keystrokes. A physical keyboard doesn't need it because its keys come from hardware. Until it's allowed, the knob sets the volume directly: the Sound menu reflects the change, but there's no pop-up. To keep it that way without the permission, set `macVolumeIndicator: false`.
@@ -160,8 +163,8 @@ The permission belongs to that exact build of `MacThingVolume`, so `native/build
 ## Undo
 
 ```bash
-npm run uninstall-agent   # remove the login item
-npm run restore-device    # put Spotify's original web app and config back, then reboot the Car Thing
+./macthing uninstall --device   # remove the login item, then put Spotify's original web app and
+                                # config back and reboot the Car Thing (omit --device to keep it)
 ```
 
 ## Design
@@ -211,7 +214,7 @@ The device this was built on runs Spotify's final firmware, `v8.9.2`, community-
 - Weston compositor
 - 32-bit userland on a 64-bit kernel, 512 MB RAM
 
-`npm run setup-device` changes four things, and `npm run restore-device` reverts all of them:
+`./macthing device` changes four things, and `./macthing uninstall --device` reverts all of them:
 
 - `/usr/share/qt-superbird-app/webapp` becomes a symlink to `/var/lib/carthing/ui`. Spotify's original is kept as `webapp.spotify`.
 - Spotify's background app (`qt-superbird-app`) no longer autostarts. It was using about 15% CPU on wake-word listening and Bluetooth pairing. The original config is kept as `/etc/supervisord.conf.spotify`.
@@ -247,7 +250,7 @@ The page does its own small version of this: after the same timeout with no mess
 - The kernel has no USB HID gadget driver, so the Car Thing can't simply act as a USB media-key device.
 - The device clock is never set, so the idle clock uses the Mac's time and timezone.
 - The backlight switch is `/sys/class/aml_bl/power` (`echo 0|1`). The standard `/sys/class/backlight/aml-bl/bl_power` accepts writes and does nothing, and its `brightness` only sets the level, so neither turns the LEDs off. Writing either leaves them lit while the page goes black.
-- `npm run setup-device` doesn't survive a power cycle (see Setup).
+- `./macthing device` doesn't survive a power cycle (see Setup).
 - Userland is 32-bit, so a raw `input_event` is 16 bytes, not 24. This matters only if you read or inject `/dev/input/event*` yourself.
 - The UI must be plain ES2017 and CSS that Chromium 69 supports: no `?.`, `??`, flex `gap`, `inset`, `aspect-ratio` or `clamp()`.
 
@@ -267,8 +270,8 @@ ioreg -p IOUSB -w0 -l | grep -i superbird; adb devices
 
 **The screen is dark.** That's usually correct: it follows your Mac's display, goes off while the Mac
 is locked, and the device blanks itself when the bridge stops talking to it. Press a button — one
-press only wakes it. If it stays dark with the Mac awake and unlocked, check `npm run status` and
-`npm run logs`.
+press only wakes it. If it stays dark with the Mac awake and unlocked, check `./macthing status` and
+`./macthing logs`.
 
 **The screen is black but the backlight is on.** Only possible on firmware where
 `/sys/class/aml_bl/power` is missing; see the gotcha below.
@@ -276,7 +279,7 @@ press only wakes it. If it stays dark with the Mac awake and unlocked, check `np
 **Nothing playing, but something is.** Whatever macOS shows in Control Center's Now Playing is what
 this shows. If Control Center is also empty, `npm run build` self-tests the MediaRemote adapter.
 
-**Watchdog and boot web app warnings in the log.** Run `npm run setup-device`.
+**Watchdog and boot web app warnings in the log.** Run `./macthing device`.
 
 ## Known limitations
 
@@ -286,7 +289,7 @@ this shows. If Control Center is also empty, `npm run build` self-tests the Medi
 - **Non-Latin scripts.** The device has no CJK font, so Japanese, Chinese or Korean titles render as boxes. Adding a Noto Sans CJK subset to `ui/fonts` would fix it.
 - **Volume depends on the output device.** HDMI, S/PDIF and some USB DACs have no software volume. The screen then says "No volume control on …".
 - **Weather data.** Your location leaves the Mac rounded to about 1 km, and only to Open-Meteo. Hourly and daily labels use the forecast place's own timezone.
-- **Rebuilding the helper can reset its permissions.** `CarThingHelper.app` is ad-hoc signed, so after changing and rebuilding `native/helper/` macOS may ask for Location and Calendars again. `npm run build` skips the helper when its source hasn't changed.
+- **Rebuilding the helper can reset its permissions.** `CarThingHelper.app` is ad-hoc signed, so after changing and rebuilding `native/helper/` macOS may ask for Location and Calendars again. `./macthing setup` skips the helper when its source hasn't changed, which is why re-running it doesn't cost you the grants.
 - **Single press delay.** A single knob or back-button press waits `multiClickMs` (350 ms) to see whether a second press follows, so play/pause reacts slightly later than it would without double and triple presses.
 - **No real suspend.** Sleep means backlight off, CPU idled and the UI stopped redrawing. Chromium stays loaded so waking is instant, and the device keeps drawing a little current as long as the cable does.
 - **Waking takes up to a second.** While the Mac is away, `sleepd.sh` notices a button or knob event on its next one-second poll rather than instantly.
@@ -345,7 +348,7 @@ needed on the device. The build copies the existing fonts, SVG hands, and CSS lo
 CSS must still avoid flex `gap` (the `.gap-*` utilities use margins instead), `inset`, `aspect-ratio`, and `clamp()`; JavaScript syntax
 is transpiled, but new browser APIs still require compatibility checks.
 
-`npm run restart` automatically rebuilds the UI before restarting the bridge.
+`./macthing restart` rebuilds the UI before restarting the bridge.
 `npm run dev` rebuilds source changes and deploys only after a successful build, then reopens the
 screen and view you were on (the weather's Today, the calendar's month, the clock's timer).
 Run `node scripts/verify-device-ui.js` with a connected device for isolated screen/state

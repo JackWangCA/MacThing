@@ -89,4 +89,4 @@ supervisorctl status backlight 2>/dev/null | grep -q STOPPED && lit=no
 supervisorctl reread >/dev/null 2>&1; supervisorctl update >/dev/null 2>&1
 [ "$lit" = no ] && supervisorctl stop backlight >/dev/null 2>&1
 supervisorctl start carthing-sleep >/dev/null 2>&1; supervisorctl status carthing-sleep backlight'
-echo "Done. Start the bridge (npm start) — it deploys the UI and takes over the screen."
+echo "Done. Start the bridge (./macthing start) — it deploys the UI and takes over the screen."
