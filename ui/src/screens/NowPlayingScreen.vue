@@ -19,7 +19,16 @@ const marks = computed(() => np.value.active && np.value.marks || null);
 // twice, big then small, every time a song changes.
 const markable = computed(() => Boolean(np.value.active && np.value.markable));
 const fraction = ref(0);
-function updateProgress() { fraction.value = np.value.duration ? elapsed() / np.value.duration : 0; }
+const played = ref(0); // how far in, counted up live beside the bar (the length is the bar's job)
+function updateProgress() {
+  played.value = elapsed();
+  fraction.value = np.value.duration ? played.value / np.value.duration : 0;
+}
+// The time beside the bar, and the longest it can get on this track — drawn invisibly to hold the
+// slot open, so the bar keeps one width while the number counts up. Nothing playing: the 0:00
+// placeholder sizes itself.
+const timeNow = computed(() => np.value.duration ? durationText(played.value) : np.value.active ? '' : '0:00');
+const timeMax = computed(() => np.value.duration ? durationText(np.value.duration) : np.value.active ? '' : '0:00');
 // Measured typography is the only imperative layout here. These inline values
 // deliberately override .np-title's fallback font-size/line-height.
 
@@ -85,7 +94,7 @@ onUnmounted(() => clearInterval(timer));
           <svg :class="{ on: marks && marks.inLibrary }"><use href="#i-check" /></svg>
           <svg :class="{ on: marks && marks.favorited }"><use href="#i-heart" /></svg>
         </div>
-        <div class="np-progress flex items-center gap-8 primary"><UiProgress :value="fraction" /><span class="np-duration flex-none regular">{{ np.duration ? durationText(np.duration) : np.active ? '' : '0:00' }}</span></div>
+        <div class="np-progress flex items-center gap-8 primary"><UiProgress :value="fraction" /><span class="np-duration flex-none regular"><span class="np-duration-max">{{ timeMax }}</span><span class="np-duration-now">{{ timeNow }}</span></span></div>
       </template>
     </LeftRail>
     <ScreenStage :class="{ 'bg-panel': hasArt }"><!-- behind art: one continuous background, so nothing is left as a square when the art fades -->

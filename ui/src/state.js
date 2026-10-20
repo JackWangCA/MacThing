@@ -69,7 +69,24 @@ export const ambientPreBlurred = computed(() => !!shownBlur.value);
 export const hasArt = computed(() => !!(state.np.active && (shownArt.value || state.np.artworkKey)));
 CT.onSecond(now => { state.now = now; });
 CT.on('tick', () => { state.now = CT.now(); });
-CT.on('nowPlaying', msg => { state.np = msg.np; state.npAt = performance.now(); });
+// Which song this is, for telling a fresh position from a corrected one.
+const trackOf = np => np.active ? np.title + '\n' + np.artist + '\n' + np.album : '';
+// The Mac works out the position afresh for every update it sends, so its number and the one the
+// device has been counting up on its own land a few tenths apart — the link's doing, mostly. Taken
+// at face value that reads as the seconds stepping back or showing twice, and at a pause, where
+// the number is meant to sit still, it's the only thing moving. So a correction this small is
+// treated as the two clocks disagreeing and the device keeps its own count; anything larger is a
+// seek or a new song, and the Mac is right.
+const DRIFT_S = 1.5;
+CT.on('nowPlaying', msg => {
+  const before = state.np, showing = elapsed();
+  state.np = msg.np;
+  state.npAt = performance.now();
+  if (before.active && trackOf(before) === trackOf(msg.np)
+    && msg.np.elapsed != null && Math.abs(msg.np.elapsed - showing) < DRIFT_S) {
+    state.np.elapsed = showing;
+  }
+});
 CT.on('artwork', msg => { state.artwork = msg; });
 CT.on('weather', msg => { state.weather = msg.weather; });
 CT.on('calendar', msg => { state.calendar = msg.calendar; });
