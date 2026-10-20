@@ -32,9 +32,9 @@ watch(() => state.current, current => { if (NOTCHED.includes(current)) notchAt.v
     <div class="screens fill" :data-switch="state.screenSwitch || null"><NowPlayingScreen /><CalendarScreen /><WeatherScreen /><ClockScreen /><SettingsScreen /></div>
     <div class="page-notch" :class="{ on: NOTCHED.includes(state.current) }" :style="{ transform: 'translateX(' + notchAt * 201 + 'px)' }" />
     <MeetingAlert />
-    <div class="volume-hud fill flex items-center gap-16">
-      <svg class="vol-icon flex-none"><use :href="state.volumeIcon ? '#i-' + state.volumeIcon : state.volume === 0 ? '#i-muted' : '#i-speaker'" /></svg>
-      <UiProgress v-show="!state.volumeUnsupported" :value="state.volume" /><span v-show="state.volumeUnsupported" class="font-small weight-light truncate">{{ state.volumeNote }}</span>
+    <div class="volume-hud">
+      <UiProgress v-show="!state.volumeUnsupported" :value="state.volume" />
+      <div v-show="state.volumeUnsupported" class="vol-note font-small weight-light truncate">{{ state.volumeNote }}</div>
     </div>
     <div :key="state.flash.key" class="flash disc flex center" :class="{ on: state.flash.key > 0 && !badgeTookFlash }" :style="{ color: state.flash.color }"><svg><use :href="'#i-' + state.flash.icon" /></svg></div>
     <div class="toast" :class="{ on: !!state.toast }">{{ state.toast }}</div>

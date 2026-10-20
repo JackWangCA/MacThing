@@ -549,17 +549,21 @@ h3 {
   opacity: 1;
 }
 
-/* Volume: a pill floating in the middle of the display while the knob turns. */
+/* Volume: a slim bar along the very top edge while the knob turns. It slides down out of the edge
+   it's pinned to, so translateY(-100%) covers both heights below without naming either.
+   It lands on the page notch's 2px, which steps aside for it; the paused glyph it used to hide is
+   in the middle of the stage and no longer in the way.
+   The bar carries its own colours rather than the theme's bar tokens: it sits directly on
+   whatever is on screen, artwork included, so it borrows the flash disc's white-on-dark, which is
+   the same in every theme. The theme pair would flip it — dark fill on a near-white track in the
+   light theme — and a dark bar filling from the left reads as something loading, not as volume. */
 .volume-hud {
-  width: 336px;
-  height: 72px;
-  margin: auto; /* centred inside .fill */
-  padding: 0 24px;
-  border-radius: 36px;
-  background: var(--hud-bg);
-  box-shadow: 0 10px 30px var(--shadow);
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
   opacity: 0;
-  transform: scale(0.94);
+  transform: translateY(-100%);
   pointer-events: none;
   transition:
     opacity 0.18s ease,
@@ -567,20 +571,39 @@ h3 {
 }
 .show-volume .volume-hud {
   opacity: 1;
-  transform: scale(1);
+  transform: translateY(0);
 }
-.show-volume .paused-glyph {
+/* The notch is on this same top edge, and the bar's track is translucent, so it would show
+   through: it stands down while the bar is up. Dropping transform from the transition is the
+   point of this rule, not the opacity. The notch slides 201px per page over 0.6s with an
+   overshoot, and hiding it alone doesn't stop that slide — switch pages late in the bar's 1.6s
+   and the notch is still travelling when it fades back in, so a lump glides and bounces along
+   the top edge just as the bar leaves, which reads as the volume bar moving by itself. With only
+   opacity transitioning, the notch jumps to the new page's position while nobody can see it, and
+   is already sitting there when it returns. */
+.show-volume .page-notch {
   opacity: 0;
+  transition: opacity 0.3s ease;
 }
-.vol-icon {
-  width: 28px;
-  height: 28px;
+.volume-hud .ui-progress {
+  height: 6px;
+  border-radius: 0;
+  background: var(--disc);
 }
-/* "No volume control on <device>" replaces the bar, and the pill fits the message. */
+.volume-hud .progress-fill {
+  background: var(--disc-ink);
+}
+/* "No volume control on <device>" has nowhere to go in a 6px line, so in that one case the bar
+   grows into a strip deep enough to read. */
 .volume-unsupported .volume-hud {
-  width: -webkit-max-content;
-  width: max-content;
-  max-width: 560px;
+  background: var(--hud-bg);
+  box-shadow: 0 6px 20px var(--shadow);
+}
+.vol-note {
+  height: 44px;
+  line-height: 44px;
+  text-align: center;
+  padding: 0 24px;
 }
 
 /* Centred on the stage. */

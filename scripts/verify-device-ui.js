@@ -362,11 +362,51 @@ try {
   await message({ type: 'volume', volume: { supported: true, volume: 0.6, muted: false } });
   await capture('volume');
   assert.equal(await evaluate('document.querySelector(".volume-hud .ui-progress").getAttribute("aria-valuenow")'), '60');
+  // Pinned to the top edge and spanning the display. Read off the computed style rather than a
+  // bounding box: the bar is mid-slide for the first 180ms and the box would be a moving target.
+  assert.equal(await evaluate('getComputedStyle(document.querySelector(".volume-hud")).top'), '0px', 'Volume bar sits on the top edge');
+  assert.equal(await evaluate('getComputedStyle(document.querySelector(".volume-hud")).width'), '800px', 'Volume bar spans the display');
+  assert.equal(await evaluate('getComputedStyle(document.querySelector(".volume-hud .ui-progress")).height'), '6px');
+  // The notch shares the top edge with the bar, which is translucent, so it stands down while the
+  // bar is up — and its 201px-per-page slide has to stand down with it. Hiding it by opacity alone
+  // leaves the slide running underneath: a page switched late in the bar's 1.6s puts the notch
+  // back on screen still travelling, and it reads as the bar moving by itself.
+  assert.equal(await evaluate(`(function () {
+    var app = document.getElementById('app'), had = app.classList.contains('show-volume');
+    app.classList.add('show-volume');
+    var t = getComputedStyle(document.querySelector('.page-notch')).transitionProperty;
+    if (!had) app.classList.remove('show-volume');
+    return t;
+  })()`), 'opacity', 'Page notch stops sliding while the volume bar is up');
   await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
   // The page batches knob turns for 40ms; on the device that can take a few hundred.
   const sentVolume = 'window.fixtureSent.some(m => m.type === "volume" && m.delta > 0)';
   for (let i = 0; i < 10 && !(await evaluate(sentVolume)); i++) await pause(100);
   assert.equal(await evaluate(sentVolume), true, 'Knob rotation sends volume');
+  // The Mac applies a spin's queued deltas one at a time and reports after each, so what comes
+  // back is the spin replayed — every down-turn and up-turn. Rendering that mid-stream slid the
+  // bar 200px away from where the knob was left and then crawled it back. The dialled value has
+  // to stand for the whole stream, and only the Mac's last word, once it has gone quiet, counts.
+  // Volumes here are sixteenths so the arithmetic is exact: 0.5 plus four detents is 0.75.
+  const volumeNow = 'document.querySelector(".volume-hud .ui-progress").getAttribute("aria-valuenow")';
+  await pause(2700); // let the turn above give up waiting, so this starts clean
+  await message({ type: 'volume', volume: { supported: true, volume: 0.5, muted: false } });
+  await pause(150);
+  for (let i = 0; i < 4; i++) {
+    await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
+    await pause(60);
+  }
+  // A replay that wanders, and crosses the dialled value on the way — which is what defeated
+  // releasing the hold on a value match.
+  for (const v of [0.5625, 0.75, 0.5, 0.4375, 0.5625, 0.6875]) {
+    await message({ type: 'volume', volume: { supported: true, volume: v, muted: false } });
+    await pause(90);
+    assert.equal(await evaluate(volumeNow), '75', 'Volume bar holds the dialled value while the Mac replays the spin');
+  }
+  // The hold is not permanent: once the reports stop, the Mac's last word is taken.
+  await message({ type: 'volume', volume: { supported: true, volume: 0.25, muted: false } });
+  await pause(1300);
+  assert.equal(await evaluate(volumeNow), '25', 'Volume bar takes the Mac value once its reports settle');
   await message({ type: 'volume', volume: { supported: false, device: 'Digital output', volume: 0.6 } });
   await capture('volume-unsupported');
   assert.equal(await evaluate('getComputedStyle(document.querySelector(".volume-hud .ui-progress")).display'), 'none');
