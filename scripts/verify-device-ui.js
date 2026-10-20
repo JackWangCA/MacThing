@@ -207,8 +207,7 @@ try {
   await pause(100);
   assert.match(await rail(), /Next meeting in10\s*min/, 'Past 60 minutes: the next meeting\'s start');
   await press('Enter'); await press('Enter');
-  await press('4');
-  await pause(400);
+  await toClock();
   // During a meeting the timer opens set to its end, and runs to it.
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now - 600000, end: now + 1200000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await press('4');
