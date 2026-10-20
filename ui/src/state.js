@@ -6,7 +6,7 @@ export const state = reactive({
   current: 'nowplaying', leaving: '', screenSwitch: 'fade', offline: true, asleep: false, light: false,
   settings: { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', meetingAlert: 0, usageSource: 'claude', knobVolume: 'auto', idleMinutes: 0, idleScreen: 'clock', screenSleep: 'mac', whenLocked: 'unlocked', location: { mode: 'auto' } },
   now: Date.now(), np: { active: false }, npAt: 0, artwork: null,
-  weather: { status: 'loading' }, calendar: { status: 'loading' }, usage: { status: 'loading' }, chatgptUsage: { status: 'loading' },
+  weather: { status: 'loading' }, calendar: { status: 'loading' }, perpetual: { status: 'loading' }, usage: { status: 'loading' }, chatgptUsage: { status: 'loading' },
   volume: 0, volumeUnsupported: false, volumeNote: '', volumeIcon: '', showVolume: false,
   flash: { icon: 'play', color: '', key: 0 }, flashing: false, toast: '',
   // The back button's usage refresh: '' idle, 'spin' (the ⟳ turns once), 'pending' (••• until the
@@ -51,18 +51,23 @@ watch(() => [state.np.artworkKey, state.artwork], () => {
   }
 });
 export const artworkUrl = computed(() => state.np.active ? shownArt.value : '');
+// Nothing playing: today's perpetual-calendar cover (drawn on the Mac) is the art, on Now Playing's
+// stage and as the album art background.
+export const idleCover = computed(() => !state.np.active && state.perpetual.status === 'ok' ? state.perpetual : null);
 // For the album art background: the Mac's blurred image when it sent one, else the cover to blur here.
-export const ambientUrl = computed(() => state.np.active ? shownBlur.value || shownArt.value : '');
+export const ambientUrl = computed(() => state.np.active ? shownBlur.value || shownArt.value
+  : idleCover.value ? idleCover.value.blurUrl || idleCover.value.dataUrl : '');
 // The tint over the album art background, black under the dark theme's white text and white under
 // the light theme's dark text. Each theme's usual strength, or more when the Mac measured the art
 // as too bright (dark) or too dark (light) for the text to stay readable over it.
 const AMBIENT_TINT = { dark: 0.3, light: 0.4 };
 export const ambientTint = computed(() => {
   const theme = state.light ? 'light' : 'dark';
-  const alpha = Math.min(0.6, Math.max(AMBIENT_TINT[theme], shownTint.value && shownTint.value[theme] || 0));
+  const measured = state.np.active ? shownTint.value : idleCover.value && idleCover.value.blurUrl && idleCover.value.tint;
+  const alpha = Math.min(0.6, Math.max(AMBIENT_TINT[theme], measured && measured[theme] || 0));
   return (state.light ? 'rgba(255,255,255,' : 'rgba(0,0,0,') + alpha.toFixed(2) + ')';
 });
-export const ambientPreBlurred = computed(() => !!shownBlur.value);
+export const ambientPreBlurred = computed(() => state.np.active ? !!shownBlur.value : !!(idleCover.value && idleCover.value.blurUrl));
 // The track has art, even if it's still loading (as it is just after the page mounts). Backgrounds
 // follow this rather than artworkUrl, so they're already the art's while it loads and it fades
 // in, instead of the no-art greys showing first and snapping over.
@@ -73,6 +78,7 @@ CT.on('nowPlaying', msg => { state.np = msg.np; state.npAt = performance.now(); 
 CT.on('artwork', msg => { state.artwork = msg; });
 CT.on('weather', msg => { state.weather = msg.weather; });
 CT.on('calendar', msg => { state.calendar = msg.calendar; });
+CT.on('perpetual', msg => { state.perpetual = msg.perpetual; });
 CT.on('usage', msg => { state.usage = msg.usage; });
 CT.on('chatgptUsage', msg => { state.chatgptUsage = msg.usage; });
 

@@ -23,6 +23,7 @@ import { MacPower } from './mac/power.js';
 import { settings } from './settings.js';
 import { startSettingsPage } from './settings-page/server.js';
 import { Calendar } from './widgets/calendar.js';
+import { PerpetualCover } from './widgets/perpetual.js';
 import { ClaudeUsage } from './widgets/usage.js';
 import { CodexUsage } from './widgets/codex-usage.js';
 import { Weather } from './widgets/weather.js';
@@ -35,6 +36,7 @@ const artwork = new ArtworkCache(path.join(paths.bin, 'artwork'), { blur: config
 const helper = new MacHelper(paths.bin);
 const weather = new Weather(helper, settings);
 const calendar = new Calendar(helper, settings);
+const perpetual = new PerpetualCover(path.join(paths.bin, 'artwork'), { blur: config.ambientBlurOnMac });
 // Settings → Usage: only the providers it names are read (none: no Keychain or Codex logs at all).
 const wantsUsage = (provider) => [provider, 'both'].includes(settings.get().usageSource);
 const usage = new ClaudeUsage({ enabled: () => wantsUsage('claude') });
@@ -156,6 +158,7 @@ function pushAll(target) {
   pushNowPlaying(target);
   target.send({ type: 'weather', weather: weather.state });
   target.send({ type: 'calendar', calendar: calendar.state });
+  target.send({ type: 'perpetual', perpetual: perpetual.state });
   target.send({ type: 'usage', usage: usage.state });
   target.send({ type: 'chatgptUsage', usage: chatgptUsage.state });
   target.send({ type: 'screen', on: screenOn !== false }); // the page may have gone dark by itself
@@ -574,6 +577,7 @@ settings.on('change', (_, changed) => {
 });
 weather.on('change', (state) => link?.send({ type: 'weather', weather: state }));
 calendar.on('change', (state) => link?.send({ type: 'calendar', calendar: state }));
+perpetual.on('change', (state) => link?.send({ type: 'perpetual', perpetual: state }));
 usage.on('change', (state) => link?.send({ type: 'usage', usage: state }));
 chatgptUsage.on('change', (state) => link?.send({ type: 'chatgptUsage', usage: state }));
 appearance.on('change', (dark) => link?.send({ type: 'appearance', dark }));
@@ -600,6 +604,7 @@ volume.start();
 helper.start();
 weather.start();
 calendar.start();
+perpetual.start();
 usage.start();
 chatgptUsage.start();
 appearance.start();

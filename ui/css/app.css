@@ -927,19 +927,18 @@ h3 {
 }
 
 /* No cover: a note where the art goes (the stage's own shade keeps the square). Nothing playing:
-   the track's layout with muted placeholder text, an empty bar and no duration. */
+   the perpetual calendar, after pketh's perpetual-calendar: the month, date and day on the rail,
+   the time at its foot, and today's cover (drawn on the Mac) in the art's place, once it's here. */
 .np-placeholder svg {
   width: 160px;
   height: 160px;
   color: var(--line);
 }
-.idle .art-layer {
+.idle:not(.idle-cover) .art-layer {
   visibility: hidden;
 }
-.idle .left-rail-content > p,
-.idle .np-title,
-.idle .np-duration {
-  color: var(--muted);
+.np-time {
+  color: var(--text); /* full strength, not the rail's muted foot */
 }
 
 /* ===== weather ===== */

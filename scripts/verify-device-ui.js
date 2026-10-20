@@ -74,9 +74,11 @@ try {
   await capture('favorite');
   assert.match(await evaluate('document.querySelector(".toast").textContent'), /Added to Favorites/);
   await message({ type: 'settings', settings });
+  await message({ type: 'perpetual', perpetual: { status: 'ok', day: 20718, dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' } });
   await message({ type: 'nowPlaying', np: { active: false } });
   await capture('idle');
-  assert.equal(await evaluate('document.querySelector(".np-title").textContent'), 'Song Title');
+  assert.match(await evaluate('document.querySelector("#screen-nowplaying .left-rail").textContent'), /September\s*22\s*Tuesday\s*2:35/, 'Nothing playing: the date and time');
+  assert.equal(await evaluate('!!document.querySelector("#screen-nowplaying .np-placeholder")'), false, 'and the perpetual cover in place of the art');
   await message({ type: 'weather', weather: { status: 'noLocation', reason: 'denied' } });
   await evaluate("CT.show('weather')");
   await capture('weather-denied');
