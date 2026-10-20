@@ -20,11 +20,13 @@ export function paceK(w, length, now) {
   return (used / (1 - used)) / (t / (1 - t));
 }
 
-/** A glanceable K label: a decimal below 10, whole numbers above it, three fires at the limit. */
+/** A glanceable K label: a decimal below 10, whole numbers above it, three fires at the limit.
+ *  Any use above zero shows at least 0.1x, so 0.0x means none. */
 export function paceNumber(w, length, now) {
   const k = paceK(w, length, now);
   if (!Number.isFinite(k)) return '🔥🔥🔥';
   const rounded = Math.round(k * 10) / 10;
+  if (k > 0 && rounded < 0.1) return '0.1x';
   return (rounded < 10 ? rounded.toFixed(1) : String(Math.round(k))) + 'x';
 }
 
