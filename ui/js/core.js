@@ -67,6 +67,7 @@ export function initializeRuntime(state) {
   function setConnected(on) {
     if (on !== connected) offlineSince = on ? 0 : performance.now();
     if (on && !connected) opening = true;
+    if (!on) CT.lockedTo = null; // no Mac to say it's still locked; it says again on reconnecting
     connected = on;
     state.offline = !on;
   }
@@ -183,7 +184,7 @@ export function initializeRuntime(state) {
   /** Shows a screen. `fade` crossfades even between pages, rather than sliding to the side. */
   CT.show = function (name, fade) {
     var next = CT.screens[name];
-    if (!next) return;
+    if (!next || (CT.lockedTo && name !== CT.lockedTo)) return;
     if (name !== CT.current) {
       var prev = CT.screens[CT.current];
       if (name === 'settings') beforeSettings = CT.current;
@@ -200,6 +201,14 @@ export function initializeRuntime(state) {
     }
   };
   CT.closeSettings = function () { CT.show(beforeSettings); };
+
+  // The While locked setting: with the Mac locked, the bridge can hold the device on one screen.
+  // Nothing moves it off that screen, and the buttons and knob only work the volume and playback.
+  CT.lockedTo = null;
+  CT.on('lock', function (msg) {
+    CT.lockedTo = msg.screen && CT.screens[msg.screen] ? msg.screen : null;
+    if (CT.lockedTo) CT.show(CT.lockedTo, true);
+  });
 
   // Whenever the Mac connects (the page loading, or the bridge coming back), an empty Now Playing
   // gives way to the Idle screen (unless When idle is Never). From there, or from the page's first screen, it moves to Now Playing
@@ -316,6 +325,7 @@ export function initializeRuntime(state) {
 
   function runButton(action) {
     if (!action) return;
+    if (CT.lockedTo && (action.indexOf('screen:') === 0 || action === 'settings')) return;
     if (action.indexOf('screen:') === 0 || action === 'settings') autoScreen = false;
     if (action.indexOf('screen:') === 0) {
       var name = action.slice(7), screen = CT.screens[name];
@@ -337,7 +347,7 @@ export function initializeRuntime(state) {
   var clickTimer = null;
   function knobPress() {
     var screen = CT.screens[CT.current];
-    if (screen.press && screen.press() !== false) return;
+    if (!CT.lockedTo && screen.press && screen.press() !== false) return;
     clicks++;
     clearTimeout(clickTimer);
     clickTimer = setTimeout(function () {
@@ -367,7 +377,7 @@ export function initializeRuntime(state) {
     // A screen can take the back button for itself (Settings opens the Mac's settings page on it,
     // the clock's stale usage refreshes on it).
     var screen = CT.screens[CT.current];
-    if (key === 'Escape' && screen && screen.back && screen.back() !== false) return;
+    if (key === 'Escape' && !CT.lockedTo && screen && screen.back && screen.back() !== false) return;
     if (key === 'Escape' && CT.current === 'settings') return CT.closeSettings();
     var actions = (CT.config.buttonClicks || {})[key];
     if (actions) return buttonPress(key, actions);
@@ -447,7 +457,7 @@ export function initializeRuntime(state) {
     if (!d || wakeInstead()) return;
     var steps = (d > 0 ? 1 : -1) * (CT.config.knobDirection || 1);
     var screen = CT.screens[CT.current];
-    if (!screen.turn || screen.turn(steps) === false) onKnobVolume(steps);
+    if (CT.lockedTo || !screen.turn || screen.turn(steps) === false) onKnobVolume(steps);
   }, { passive: false, capture: true });
 
   document.addEventListener('contextmenu', function (e) { e.preventDefault(); });

@@ -159,6 +159,7 @@ function pushAll(target) {
   target.send({ type: 'usage', usage: usage.state });
   target.send({ type: 'chatgptUsage', usage: chatgptUsage.state });
   target.send({ type: 'screen', on: screenOn !== false }); // the page may have gone dark by itself
+  pushLock(target);
 }
 
 // ---- Screen sleep ---------------------------------------------------------
@@ -168,17 +169,38 @@ let lastDeviceInput = 0;
 let manualSleep = false; // held down the sleep button; any input clears it
 let screenOn = null; // unknown until applied to the current device link
 
-// The Car Thing's screen follows the Mac's display; a button/knob press wakes it for a while.
-// While the Mac is locked it stays off for good: what's on it is the locked-away Mac's business.
+let macIdleMs = 0; // kept up to date while the Sleep setting is a number of minutes
+
+// The Sleep setting. With Mac: the screen follows the Mac's display, and while the Mac is locked it
+// stays off for good (what's on it is the locked-away Mac's business). A number of minutes: off
+// once the Mac has gone that long without input, like a screen saver, or while it sleeps. Either
+// way a button/knob press wakes it for a while. Never: always on, unless the sleep button is held.
 function screenShouldBeOn() {
   if (manualSleep) return false;
-  if (!settings.get().sleepWithMac) return true;
-  if (systemAsleep || power.locked) return false;
-  if (!power.displayAsleep) return true;
-  return Date.now() - lastDeviceInput < config.screenWakeMs;
+  const mode = settings.get().screenSleep;
+  if (mode === 'never') return true;
+  if (mode === 'mac' && power.locked) return false;
+  if (systemAsleep) return false;
+  const idle = mode === 'mac' ? power.displayAsleep : macIdleMs >= mode * 60 * 1000;
+  return !idle || Date.now() - lastDeviceInput < config.screenWakeMs;
+}
+
+// While Locked: the screen the device is held on while the Mac is locked, or null.
+function lockedScreen() {
+  const s = settings.get();
+  return power.locked && s.screenSleep !== 'mac' && s.whenLocked !== 'unlocked' ? s.whenLocked : null;
+}
+let sentLock;
+/** Tells the device which screen it's held on; only on a change unless `target` is a fresh page. */
+function pushLock(target) {
+  const screen = lockedScreen();
+  if (!target && screen === sentLock) return;
+  sentLock = screen;
+  (target || link)?.send({ type: 'lock', screen });
 }
 
 async function applyScreen() {
+  pushLock();
   const on = screenShouldBeOn();
   if (!link || on === screenOn) return;
   screenOn = on;
@@ -543,7 +565,7 @@ volume.on('change', (v) => {
 settings.on('change', (values, changed) => {
   link?.send({ type: 'settings', settings: values });
   if (changed.includes('knobVolume')) refreshKnobTarget();
-  if (changed.includes('sleepWithMac')) applyScreen();
+  if (changed.includes('screenSleep') || changed.includes('whenLocked')) refreshIdle();
 });
 settings.on('change', (_, changed) => {
   if (!changed.includes('usageSource')) return;
@@ -589,7 +611,12 @@ setInterval(refreshDevices, 30 * 1000); // a stale adb server sends no events; l
 refreshDevices();
 
 setInterval(() => link?.send(tickMessage()), 2000);
-setInterval(() => applyScreen(), 5000); // lets the post-input wake window expire
+// Lets the post-input wake window expire, and reads the Mac's idle time for a timed Sleep setting.
+async function refreshIdle() {
+  if (typeof settings.get().screenSleep === 'number') macIdleMs = (await power.idleMs()) ?? 0;
+  applyScreen();
+}
+setInterval(refreshIdle, 5000);
 setInterval(() => syncAppVolume(), 10 * 1000); // follows the app's own volume slider while the knob turns it
 setInterval(heartbeat, config.heartbeatMs);
 setInterval(() => link?.send(nowPlayingMessage()), 15000); // re-anchor the device's progress clock

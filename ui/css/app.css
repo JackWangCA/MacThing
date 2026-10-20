@@ -1375,19 +1375,13 @@ h3 {
 .s-row.sel {
   background: var(--selected);
 }
-.s-row.sel::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 4px;
-  border-radius: 0 2px 2px 0;
-  background: var(--accent);
-}
 .s-row.sel + .s-row::before,
 .s-row.sel::before {
   display: none;
+}
+.s-spacer::before,
+.s-spacer + .s-row::before {
+  display: none; /* the empty slot reads as a gap, not a blank row */
 }
 .s-row.sel .s-value {
   color: var(--text);
