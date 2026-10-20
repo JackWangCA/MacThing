@@ -28,8 +28,9 @@ page's, so after a UI change, re-run it and replace the images in Figma
   `device-overview.png`, and [README Now Playing](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=327-1568),
   exported as `device-nowplaying.png`.
 
-Both cuts export as MP4 from Figma (1920×1080, 30 fps). The README's videos are re-encoded with `ffmpeg -c:v libx264 -crf 22 -preset slow -pix_fmt yuv420p -movflags +faststart -an`
-(about 3.5 MB) and uploaded to GitHub.
+Each cut exports as MP4 from Figma (1920×1080, 30 fps). For GitHub they're re-encoded with
+`ffmpeg -c:v libx264 -crf 22 -preset slow -pix_fmt yuv420p -movflags +faststart -an` (the full cut
+comes to about 3.5 MB, the new-screens cut about 0.9 MB) and uploaded to GitHub.
 
 ## Scenes and albums
 
