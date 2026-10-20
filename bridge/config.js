@@ -68,7 +68,7 @@ export const config = {
   sleepWithMac: true, // the default for the Sleep with Mac setting (device Settings, Mac page)
   screenWakeMs: 60 * 1000,
 
-  // Deep sleep, run by the device itself (device/sleepd.sh, installed by `npm run setup-device`).
+  // Deep sleep, run by the device itself (device/sleepd.sh, installed by `./macthing device`).
   // The bridge writes deviceHeartbeat every heartbeatMs with the screen state it wants; when the
   // Mac stops writing it — shut down, cable pulled, bridge stopped — the device turns its own
   // backlight off after deviceSleepSeconds and idles the CPU, since nothing on the Mac can do it
@@ -89,7 +89,7 @@ export const config = {
   heartbeatMs: 10 * 1000,
   deviceHeartbeat: '/tmp/carthing-heartbeat', // tmpfs: the rootfs is read-only and flash wears out
 
-  // Auto-brightness (device/dimmerd.sh, installed by `npm run setup-device` in place of Spotify's
+  // Auto-brightness (device/dimmerd.sh, installed by `./macthing device` in place of Spotify's
   // daemon). The light sensor is where your hand goes when you reach for the controls, so the
   // screen only dims once the room has read darker for this long. Brighter happens right away.
   deviceDimDelaySeconds: 10,

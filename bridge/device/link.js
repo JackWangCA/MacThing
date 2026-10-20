@@ -45,6 +45,10 @@ export class DeviceLink extends EventEmitter {
     const sync = await syncUi(this.serial, paths.ui, config.deviceUiDir);
     if (sync.changed) log.info(`[device] UI deployed (${sync.version})`);
     this.uiVersion = sync.version;
+    // A deploy that dies before the page reloads leaves the new files on disk and the old
+    // page on screen. .booted is written only after this version has actually loaded.
+    const booted = (await shell(this.serial, `cat ${config.deviceUiDir}/.booted 2>/dev/null; true`)).trim();
+    this.needsReload = sync.changed || booted !== sync.version;
 
     const sleepd = await syncDaemon(this.serial, {
       name: 'sleepd', program: 'carthing-sleep', confFile: 'sleep.conf',
@@ -55,7 +59,7 @@ export class DeviceLink extends EventEmitter {
     });
     this.sleepd = sleepd.installed;
     if (sleepd.changed) log.info('[device] sleep watchdog updated');
-    else if (!sleepd.installed) log.warn('[device] no sleep watchdog — run `npm run setup-device` so the screen sleeps when the Mac is off');
+    else if (!sleepd.installed) log.warn('[device] no sleep watchdog — run `./macthing device` so the screen sleeps when the Mac is off');
 
     const dimmer = await syncDaemon(this.serial, {
       name: 'dimmerd', program: 'backlight', confFile: 'dimmer.conf',
@@ -65,11 +69,11 @@ export class DeviceLink extends EventEmitter {
       return { installed: false, changed: false };
     });
     if (dimmer.changed) log.info('[device] dimmer updated');
-    else if (!dimmer.installed) log.warn("[device] stock dimmer still running — run `npm run setup-device` so a hand on the controls doesn't dim the screen");
+    else if (!dimmer.installed) log.warn("[device] stock dimmer still running — run `./macthing device` so a hand on the controls doesn't dim the screen");
 
     const installed = await isBootInstalled(this.serial, config.deviceUiDir);
     this.pageUrl = installed ? config.deviceBootUrl : `file://${config.deviceUiDir}/index.html`;
-    if (!installed) log.warn('[device] boot web app not pointed at our UI yet — run `npm run setup-device` so it survives reboots');
+    if (!installed) log.warn('[device] boot web app not pointed at our UI yet — run `./macthing device` so it survives reboots');
 
     const target = await this.#waitForPage();
     const cdp = await CDP.connect(target.webSocketDebuggerUrl);
@@ -94,11 +98,18 @@ export class DeviceLink extends EventEmitter {
     if (target.url !== this.pageUrl) {
       log.info(`[device] opening UI (was ${target.url})`);
       await cdp.send('Page.navigate', { url: this.pageUrl });
-    } else if (sync.changed) {
+    } else if (this.needsReload) {
+      log.info(`[device] reloading UI (${sync.version})`);
       await this.reload();
     } else {
+      await this.#markBooted();
       this.emit('ready'); // our UI is already up; it just needs state
     }
+  }
+
+  async #markBooted() {
+    if (!this.uiVersion) return;
+    await shell(this.serial, `echo ${this.uiVersion} > ${config.deviceUiDir}/.booted`).catch(() => {});
   }
 
   async #waitForPage(timeoutMs = 90000) {
@@ -121,7 +132,10 @@ export class DeviceLink extends EventEmitter {
     } catch {
       return log.warn('[device] bad payload', payload.slice(0, 200));
     }
-    if (msg.type === 'hello') this.emit('ready');
+    if (msg.type === 'hello') {
+      this.#markBooted();
+      this.emit('ready');
+    }
     this.emit('message', msg);
   }
 

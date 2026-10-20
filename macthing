@@ -1,0 +1,288 @@
+#!/bin/zsh
+# MacThing — one command for everything. `./macthing` on its own prints this list.
+#
+# Everything the project can do lives behind a subcommand here, so there's one name to remember
+# instead of a page of npm scripts. The pieces it drives (native/build.sh, scripts/setup-device.sh,
+# scripts/restore-device.sh) are still runnable on their own if you want them.
+set -euo pipefail
+
+ROOT="${0:A:h}"
+LABEL="com.carthing.bridge"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+LOG="$HOME/Library/Logs/carthing-bridge.log"
+DOMAIN="gui/$(id -u)"
+SETTINGS_URL="http://127.0.0.1:4747"
+
+cd "$ROOT"
+
+# ---- output ---------------------------------------------------------------
+
+if [[ -t 1 ]]; then
+  BOLD=$'\e[1m'; DIM=$'\e[2m'; RED=$'\e[31m'; GREEN=$'\e[32m'; YELLOW=$'\e[33m'; OFF=$'\e[0m'
+else
+  BOLD=''; DIM=''; RED=''; GREEN=''; YELLOW=''; OFF=''
+fi
+step() { print -r -- "${BOLD}▸ $*${OFF}"; }
+note() { print -r -- "  ${DIM}$*${OFF}"; }
+warn() { print -r -- "  ${YELLOW}! $*${OFF}"; }
+die()  { print -r -- "${RED}✗ $*${OFF}" >&2; exit 1; }
+
+usage() {
+  cat <<'EOF'
+MacThing — a Spotify Car Thing as a second screen for your Mac.
+
+  ./macthing setup      Set everything up, start to finish. Safe to re-run.
+  ./macthing status     Is the bridge running? Is the Car Thing plugged in?
+  ./macthing logs       Follow the bridge's log (Ctrl-C to stop watching)
+  ./macthing restart    Rebuild the UI and restart the bridge
+  ./macthing update     Pull, reinstall dependencies, rebuild, restart
+
+  ./macthing start      Start the bridge now and at every login
+  ./macthing stop       Stop it, and don't start it at login
+  ./macthing run        Run it in this terminal instead (Ctrl-C quits)
+                        --dev  rebuild and redeploy the UI whenever a source file changes
+
+  ./macthing device     Re-apply the Car Thing's boot setup (safe to re-run)
+  ./macthing uninstall  Stop and remove from login. --device also puts the Car Thing back.
+
+First time here? Plug the Car Thing in and run ./macthing setup — or double-click
+MacThing.command in Finder, which does the same thing.
+EOF
+}
+
+# ---- bits and pieces ------------------------------------------------------
+
+# Both of these answer "nothing" rather than failing when the thing they ask about is absent, and
+# both end in `|| true` for it: under `set -o pipefail` a pipeline whose first command exits
+# non-zero — launchctl with no such service, adb with no server — fails the whole substitution,
+# and `set -e` would take the script down mid-sentence instead of printing "not running".
+carthing_serial() {
+  command -v adb >/dev/null 2>&1 || return 0
+  adb devices -l 2>/dev/null | awk '/spotify-car-thing|Car_Thing/ && $2=="device" {print $1; exit}' || true
+}
+
+agent_installed() { [[ -f "$PLIST" ]] }
+# The line is tab-indented "pid = 123". [[:space:]] rather than \s: the awk macOS ships is BWK
+# awk, which doesn't know the GNU shorthands and silently matches nothing.
+agent_pid() {
+  launchctl print "$DOMAIN/$LABEL" 2>/dev/null | awk '/^[[:space:]]*pid = /{print $3; exit}' || true
+}
+
+require_tools() {
+  command -v node >/dev/null 2>&1 || die "Node isn't installed. Get Node 22 or later from nodejs.org, or: brew install node"
+  local major=${${$(node -v)#v}%%.*}
+  (( major >= 22 )) || die "Node $(node -v) is too old — this needs Node 22 or later."
+  command -v npm >/dev/null 2>&1 || die "npm isn't on your PATH, though node is. Reinstall Node."
+  command -v adb >/dev/null 2>&1 || die "adb isn't installed. Run: brew install android-platform-tools"
+  command -v swiftc >/dev/null 2>&1 || die "The Xcode command-line tools are missing. Run: xcode-select --install"
+}
+
+install_dependencies() {
+  # npm ci wipes and reinstalls every time, which is slow; only worth it when something changed.
+  if [[ -d node_modules && node_modules -nt package-lock.json ]]; then
+    note "dependencies are up to date"
+  else
+    npm ci --silent
+    touch node_modules
+  fi
+}
+
+# bootout returns before launchd has finished letting go. Bootstrapping the same label while the
+# old one is on its way out fails with "Input/output error" (5), and asking straight afterwards
+# whether it's running still answers yes — so every caller waits for it to actually be gone.
+unload_agent() {
+  launchctl bootout "$DOMAIN/$LABEL" 2>/dev/null || true
+  local waited=0
+  while launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1 && (( waited < 50 )); do
+    sleep 0.1
+    (( waited += 1 ))
+  done
+}
+
+install_agent() {
+  local node_bin adb_bin
+  node_bin="$(command -v node)"
+  adb_bin="$(command -v adb)"
+  mkdir -p "${PLIST:h}"
+  # The absolute path of this node is baked in: launchd has no PATH of its own. Swap Node versions
+  # (nvm and friends) and this needs writing again, which `start` and `setup` both do.
+  cat > "$PLIST" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>$LABEL</string>
+  <key>ProgramArguments</key>
+  <array><string>$node_bin</string><string>$ROOT/bridge/main.js</string></array>
+  <key>WorkingDirectory</key><string>$ROOT</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>${adb_bin:h}:${node_bin:h}:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ProcessType</key><string>Interactive</string>
+  <key>StandardOutPath</key><string>$LOG</string>
+  <key>StandardErrorPath</key><string>$LOG</string>
+</dict>
+</plist>
+EOF
+  unload_agent
+  launchctl bootstrap "$DOMAIN" "$PLIST" ||
+    die "launchd refused to start the bridge. 'launchctl bootstrap $DOMAIN $PLIST' says why."
+}
+
+# ---- commands -------------------------------------------------------------
+
+cmd_setup() {
+  step "Checking what's installed"
+  require_tools
+  note "node $(node -v), adb $(adb version 2>/dev/null | head -1 | awk '{print $NF}')"
+
+  step "Installing dependencies"
+  install_dependencies
+
+  step "Building the UI and the native helpers"
+  npm run --silent build
+
+  step "Setting up the Car Thing"
+  if [[ -n "$(carthing_serial || true)" ]]; then
+    ./scripts/setup-device.sh
+  else
+    warn "No Car Thing found over adb — skipping that part."
+    warn "Plug it in and run ./macthing device when you have it connected."
+  fi
+
+  step "Starting the bridge, now and at every login"
+  install_agent
+  sleep 2
+
+  print
+  cmd_status
+  print
+  note "macOS will ask for a few permissions the first time each feature runs."
+  note "Settings live at $SETTINGS_URL, or on the device's own Settings screen."
+}
+
+cmd_status() {
+  local pid serial
+  pid="$(agent_pid)"
+  if [[ -n "$pid" ]]; then
+    print -r -- "${GREEN}●${OFF} Bridge running (pid $pid), and it starts at login."
+  elif agent_installed; then
+    print -r -- "${YELLOW}●${OFF} Bridge installed but not running. ${DIM}./macthing logs${OFF} to see why."
+  else
+    print -r -- "${DIM}○${OFF} Bridge not set to run. ${DIM}./macthing start${OFF} to fix that."
+  fi
+
+  serial="$(carthing_serial || true)"
+  if [[ -n "$serial" ]]; then
+    print -r -- "${GREEN}●${OFF} Car Thing connected ($serial)"
+  elif command -v adb >/dev/null 2>&1; then
+    print -r -- "${DIM}○${OFF} No Car Thing on USB"
+  else
+    print -r -- "${DIM}○${OFF} adb isn't installed, so the Car Thing can't be reached"
+  fi
+
+  # The bridge's own view of its Mac permissions, which is the usual thing to be wrong.
+  local state
+  if state="$(curl -fsS --max-time 2 "$SETTINGS_URL/api/state" 2>/dev/null)"; then
+    print -r -- "$state" | node -e '
+      let raw = "";
+      process.stdin.on("data", (c) => (raw += c)).on("end", () => {
+        const s = JSON.parse(raw);
+        const mark = (ok) => (ok ? "●" : "○");
+        for (const key of ["location", "calendar", "reminders"]) {
+          const got = s[key]?.status;
+          if (got) console.log(`  ${mark(got === "authorized")} ${key}: ${got}`);
+        }
+        if (s.bottlerocket?.status) console.log(`  ${mark(s.bottlerocket.status === "ok")} usage: ${s.bottlerocket.status}`);
+      });'
+    print -r -- "  ${DIM}settings: $SETTINGS_URL${OFF}"
+  fi
+  print -r -- "  ${DIM}log: $LOG${OFF}"
+}
+
+cmd_logs() {
+  [[ -f "$LOG" ]] || die "No log yet at $LOG — the bridge hasn't run. Try ./macthing start"
+  tail -n 50 -f "$LOG"
+}
+
+cmd_restart() {
+  step "Rebuilding the UI"
+  npm run --silent build:ui
+  if agent_installed; then
+    launchctl kickstart -k "$DOMAIN/$LABEL"
+    note "bridge restarted; it deploys the new UI to the device on connect"
+  else
+    warn "The bridge isn't set to run. ./macthing start"
+  fi
+}
+
+cmd_update() {
+  if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then
+    die "You have uncommitted changes. Commit or stash them, then run this again."
+  fi
+  step "Pulling"
+  git pull --ff-only
+  step "Installing dependencies"
+  install_dependencies
+  step "Rebuilding"
+  npm run --silent build
+  step "Restarting"
+  agent_installed && launchctl kickstart -k "$DOMAIN/$LABEL" || warn "the bridge isn't set to run"
+  note "If the device acts up afterwards, ./macthing device re-applies its boot setup."
+}
+
+cmd_start() {
+  require_tools
+  [[ -x native/bin/MacThingVolume ]] || die "Nothing is built yet. Run ./macthing setup first."
+  install_agent
+  note "Started, and it will start again at every login."
+}
+
+cmd_stop() {
+  unload_agent
+  rm -f "$PLIST"
+  note "Stopped, and it won't start at login. ./macthing start brings it back."
+}
+
+cmd_run() {
+  [[ -z "$(agent_pid)" ]] || die "The background bridge is already running — the two would fight over the device. Run ./macthing stop first."
+  npm run --silent build:ui
+  if [[ "${1:-}" == "--dev" ]]; then
+    DEBUG=1 exec node bridge/main.js --watch
+  fi
+  exec node bridge/main.js
+}
+
+cmd_device() {
+  [[ -n "$(carthing_serial || true)" ]] || die "No Car Thing found over adb. Plug it in and check: adb devices -l"
+  ./scripts/setup-device.sh
+}
+
+cmd_uninstall() {
+  cmd_stop
+  if [[ "${1:-}" == "--device" ]]; then
+    step "Putting the Car Thing back the way it was"
+    [[ -n "$(carthing_serial || true)" ]] || die "No Car Thing found over adb — plug it in to undo its setup."
+    ./scripts/restore-device.sh
+  else
+    note "The Car Thing is still set up for this UI. ./macthing uninstall --device undoes that too."
+  fi
+}
+
+case "${1:-}" in
+  setup) cmd_setup ;;
+  status) cmd_status ;;
+  logs) cmd_logs ;;
+  restart) cmd_restart ;;
+  update) cmd_update ;;
+  start) cmd_start ;;
+  stop) cmd_stop ;;
+  run) cmd_run "${2:-}" ;;
+  device) cmd_device ;;
+  uninstall) cmd_uninstall "${2:-}" ;;
+  ''|-h|--help|help) usage ;;
+  *) print -r -- "${RED}Don't know '$1'.${OFF}" >&2; print >&2; usage >&2; exit 2 ;;
+esac
