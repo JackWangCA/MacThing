@@ -1129,12 +1129,13 @@ h3 {
   letter-spacing: -0.02em;
 }
 
-/* Digital face: hours stacked over minutes, filling the stage. */
+/* Digital face: hours stacked over minutes, right-aligned, filling the stage. */
 .c-digital {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
+  padding-right: var(--stage-safe-right); /* the stage's right inset, like every other screen */
   font-family: Merriweather, Georgia, serif;
   font-weight: 900;
   font-size: 236px;
