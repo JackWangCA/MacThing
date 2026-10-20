@@ -16,6 +16,10 @@ page's, so after a UI change, re-run it and replace the images in Figma
   timer set and running, Settings, Claude usage, ChatGPT usage, the alert again and the meeting timer.
 - [Short cut](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=327-1691): 14 seconds, the same without the
   calendar month, the timer before it starts and Settings.
+- [New screens cut](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=398-1539): 15 seconds of only
+  what's new in 1.0: nothing playing (the perpetual calendar), the digital clock, Claude usage with the
+  meeting alert rising over it, the meeting timer, and Ovlov playing, where it ends. The alert is the
+  card cut from `meeting-alert.png`, over a dimmed screen.
 - [New screens](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=328-1567): Claude, ChatGPT, the meeting timer
   and nothing playing.
 - [New albums](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=329-1567): covers, blurred backgrounds and
@@ -24,8 +28,7 @@ page's, so after a UI change, re-run it and replace the images in Figma
   `device-overview.png`, and [README Now Playing](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=327-1568),
   exported as `device-nowplaying.png`.
 
-Both cuts export as MP4 from Figma (1920×1080, 30 fps). The README's video is the full cut,
-re-encoded with `ffmpeg -c:v libx264 -crf 22 -preset slow -pix_fmt yuv420p -movflags +faststart -an`
+Both cuts export as MP4 from Figma (1920×1080, 30 fps). The README's videos are re-encoded with `ffmpeg -c:v libx264 -crf 22 -preset slow -pix_fmt yuv420p -movflags +faststart -an`
 (about 3.5 MB) and uploaded to GitHub.
 
 ## Scenes and albums
@@ -49,7 +52,7 @@ that image from `artwork/backgrounds/`, so the screen and its backdrop match.
 | `claude`, `nowplaying-post` | Björk — *Post* ([Wikipedia](https://en.wikipedia.org/wiki/Post_(Bj%C3%B6rk_album))) | `post.jpg` |
 | `chatgpt`, `nowplaying-goodbye` | Do Make Say Think — *Goodbye Enemy Airship the Landlord Is Dead* ([Wikipedia](https://en.wikipedia.org/wiki/Goodbye_Enemy_Airship_the_Landlord_Is_Dead)) | `goodbye.jpg` |
 | `meeting-timer`, `nowplaying-ovlov` | Ovlov — *Am* ([Bandcamp](https://ovlov.bandcamp.com/album/am-2)) | `ovlov.jpg` |
-| `nowplaying-empty` | the day's perpetual-calendar cover, drawn as the bridge draws it | — |
+| `nowplaying-empty` | the day's perpetual-calendar cover, drawn as the bridge draws it | `perpetual.jpg` |
 
 The older backgrounds are exported from those layers (they came from the 0.2.3 Figma page). `post.jpg`, `goodbye.jpg` and `ovlov.jpg`
 are made from the covers by `native/bin/artwork`, as the bridge makes them.

@@ -9,7 +9,8 @@
     "newScreens": "328:1567",
     "newAlbums": "329:1567",
     "deviceOverview": "333:1567",
-    "deviceNowPlaying": "327:1568"
+    "deviceNowPlaying": "327:1568",
+    "newScreensCut": "398:1539"
   },
   "albums": [
     {
@@ -92,6 +93,10 @@
     {
       "file": "artwork/backgrounds/ovlov.jpg",
       "sha256": "823f8be8db6a76958bf62f5c355aeebb09ac078d4cd163cf56957b563e4a118d"
+    },
+    {
+      "file": "artwork/backgrounds/perpetual.jpg",
+      "sha256": "9b1ac7d8e832b27e6cb5f4a5c72241749d65f3de85827ab71bd349dec11781f6"
     },
     {
       "file": "artwork/backgrounds/post.jpg",
