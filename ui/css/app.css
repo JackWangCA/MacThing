@@ -1130,17 +1130,18 @@ h3 {
   letter-spacing: -0.02em;
 }
 
+/* Digital face: hours stacked over minutes, filling the stage. */
 .c-digital {
-  align-items: baseline;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  padding-top: 170px;
-  font-size: 150px;
-  line-height: 1;
-  letter-spacing: -0.055em;
-}
-.c-digital-sec {
-  font-size: 44px;
-  letter-spacing: -0.02em;
+  font-family: Merriweather, Georgia, serif;
+  font-weight: 900;
+  font-size: 236px;
+  line-height: 0.86;
+  letter-spacing: -0.04em;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 /* ===== timer ===== */
