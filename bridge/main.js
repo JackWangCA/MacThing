@@ -20,6 +20,7 @@ import { MediaRemoteSource } from './nowplaying/mediaremote.js';
 import { MacAppearance } from './mac/appearance.js';
 import { MacHelper } from './mac/helper.js';
 import { MacPower } from './mac/power.js';
+import { Reminders, AWAY_MS } from './widgets/reminders.js';
 import { settings } from './settings.js';
 import { startSettingsPage } from './settings-page/server.js';
 import { Calendar } from './widgets/calendar.js';
@@ -43,6 +44,12 @@ const usage = new ClaudeUsage({ enabled: () => wantsUsage('claude') });
 const chatgptUsage = new CodexUsage({ enabled: () => wantsUsage('chatgpt') });
 const appearance = new MacAppearance();
 const power = new MacPower(paths.bin);
+// You're at the Mac: awake, unlocked, display on, and some input in the last few minutes.
+const reminders = new Reminders({
+  settings,
+  presence: async () =>
+    !systemAsleep && !power.locked && !power.displayAsleep && ((await power.idleMs()) ?? 0) < AWAY_MS,
+});
 
 /** @type {DeviceLink|null} */
 let link = null;
@@ -581,6 +588,10 @@ perpetual.on('change', (state) => link?.send({ type: 'perpetual', perpetual: sta
 usage.on('change', (state) => link?.send({ type: 'usage', usage: state }));
 chatgptUsage.on('change', (state) => link?.send({ type: 'chatgptUsage', usage: state }));
 appearance.on('change', (dark) => link?.send({ type: 'appearance', dark }));
+reminders.on('due', (reminder) => {
+  log.info(`[reminders] ${reminder.text}`);
+  link?.send({ type: 'reminder', reminder });
+});
 power.on('display', () => applyScreen());
 power.on('lock', (locked) => {
   log.info(`[screen] Mac ${locked ? 'locked' : 'unlocked'}`);
@@ -609,7 +620,8 @@ usage.start();
 chatgptUsage.start();
 appearance.start();
 power.start();
-startSettingsPage({ port: config.settingsPort, settings, status: macStatus });
+reminders.start();
+startSettingsPage({ port: config.settingsPort, settings, status: macStatus, reminders });
 
 trackDevices(debounce(refreshDevices, 400));
 setInterval(refreshDevices, 30 * 1000); // a stale adb server sends no events; look anyway
@@ -665,6 +677,7 @@ async function shutdown() {
   volume.stop();
   helper.stop();
   power.stop();
+  reminders.stop();
   setTimeout(() => process.exit(0), 300);
 }
 process.on('SIGINT', shutdown);

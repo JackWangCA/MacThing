@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { log } from './log.js';
+import { EVERY_MINUTES, MAX_REMINDERS, MAX_TEXT } from './widgets/reminders.js';
 
 // User-changeable settings (from the device's settings screen or the Mac settings page),
 // persisted outside the repo. Developer-level options live in config.js instead.
@@ -31,6 +32,8 @@ export const DEFAULTS = {
   // 'unlocked' = everything works | 'nowplaying' | 'weather' | 'calendar' | 'clock' = held on that
   // screen, with only the knob's volume and media controls
   whenLocked: 'unlocked',
+  // Task reminders: [{ id, text, every (minutes at the Mac), on }]. See widgets/reminders.js.
+  reminders: [],
 };
 
 const VALID = {
@@ -51,6 +54,18 @@ const VALID = {
   idleScreen: (v) => ['clock', 'calendar', 'weather'].includes(v),
   screenSleep: (v) => ['mac', 30, 60, 120, 240, 'never'].includes(v),
   whenLocked: (v) => ['unlocked', 'nowplaying', 'weather', 'calendar', 'clock'].includes(v),
+  reminders: (v) =>
+    Array.isArray(v) &&
+    v.length <= MAX_REMINDERS &&
+    v.every(
+      (r) =>
+        typeof r?.id === 'string' &&
+        typeof r.text === 'string' &&
+        r.text.trim().length > 0 &&
+        r.text.length <= MAX_TEXT &&
+        EVERY_MINUTES.includes(r.every) &&
+        typeof r.on === 'boolean',
+    ),
 };
 
 class Settings extends EventEmitter {

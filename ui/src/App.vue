@@ -10,6 +10,7 @@ import WeatherScreen from './screens/WeatherScreen.vue';
 import ClockScreen from './screens/ClockScreen.vue';
 import SettingsScreen from './screens/SettingsScreen.vue';
 import MeetingAlert from './components/MeetingAlert.vue';
+import ReminderAlert from './components/ReminderAlert.vue';
 // The paused badge on Now Playing shows flashes itself (it swaps its icon), so the flash's own disc stays hidden.
 const pausedBadge = computed(() => state.current === 'nowplaying' && state.np.active && !state.np.playing);
 const ambient = computed(() => !!(state.settings.artBackground && (hasArt.value || idleCover.value)));
@@ -25,6 +26,7 @@ watch(() => state.current, current => { if (NOTCHED.includes(current)) notchAt.v
     <div class="screens fill" :data-switch="state.screenSwitch || null"><NowPlayingScreen /><CalendarScreen /><WeatherScreen /><ClockScreen /><SettingsScreen /></div>
     <div class="page-notch" :class="{ on: NOTCHED.includes(state.current) }" :style="{ transform: 'translateX(' + notchAt * 201 + 'px)' }" />
     <MeetingAlert />
+    <ReminderAlert />
     <div class="volume-hud fill flex items-center gap-16">
       <svg class="vol-icon flex-none"><use :href="state.volumeIcon ? '#i-' + state.volumeIcon : state.volume === 0 ? '#i-muted' : '#i-speaker'" /></svg>
       <UiProgress v-show="!state.volumeUnsupported" :value="state.volume" /><span v-show="state.volumeUnsupported" class="font-small weight-light truncate">{{ state.volumeNote }}</span>

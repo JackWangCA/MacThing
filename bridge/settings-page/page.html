@@ -44,12 +44,23 @@
   .seg button { border: 0; background: none; color: var(--text); font: inherit; font-size: 14px;
     padding: 5px 12px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
   .seg button[aria-pressed="true"] { background: var(--seg-on); box-shadow: 0 1px 3px rgba(0,0,0,.15); font-weight: 600; }
-  select[data-key] { flex-shrink: 0; max-width: 100%; min-height: 34px; padding: 6px 34px 6px 12px;
+  select[data-key], .rem select { flex-shrink: 0; max-width: 100%; min-height: 34px; padding: 6px 34px 6px 12px;
     font: inherit; font-size: 14px; color: var(--text); background: var(--seg);
     border: 1px solid var(--line); border-radius: 9px; outline-color: var(--accent); color-scheme: light;
     appearance: none; -webkit-appearance: none; background-image: var(--select-arrow);
     background-repeat: no-repeat; background-position: right 12px center; background-size: 12px 12px; }
-  @media (prefers-color-scheme: dark) { select[data-key] { color-scheme: dark; } }
+  @media (prefers-color-scheme: dark) { select[data-key], .rem select { color-scheme: dark; } }
+  .rem { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+  .rem + .rem { border-top: 1px solid var(--line); }
+  .rem input[type=checkbox] { accent-color: var(--accent); }
+  .rem input[type=text] { flex: 1; min-width: 0; padding: 7px 10px; font: inherit; color: var(--text);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 9px; outline-color: var(--accent); }
+  .rem.off input[type=text], .rem.off select { opacity: .45; }
+  .btn { border: 1px solid var(--line); background: var(--seg); color: var(--text); font: inherit; font-size: 14px;
+    padding: 6px 12px; border-radius: 9px; cursor: pointer; white-space: nowrap; }
+  .btn.quiet { border-color: transparent; background: none; color: var(--muted); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  #addReminder { margin-top: 12px; }
   h2 { font-size: 24px; font-weight: 600; letter-spacing: -.02em; margin: 0; }
   .choice { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; cursor: pointer; }
   .choice + .choice { border-top: 1px solid var(--line); }
@@ -91,6 +102,7 @@
       <a href="#weather">Weather</a>
       <a href="#clock">Clock</a>
       <a href="#usage">AI usage</a>
+      <a href="#reminders">Reminders</a>
     </nav>
   </aside>
   <div class="settings-content">
@@ -176,6 +188,15 @@
           <select id="usageSource" data-key="usageSource"><option value="claude">Claude</option><option value="chatgpt">ChatGPT</option><option value="both">Both</option><option value="none">None</option></select></div>
       </section>
     </div>
+
+    <div class="settings-panel" id="reminders" hidden role="region" aria-labelledby="category-title">
+      <section>
+        <h3 class="subhead">Reminders</h3>
+        <div class="note">A card on the device every so often. Only time at your Mac counts: locked, asleep or away from the keyboard for 5 minutes, the count pauses, and a long enough break starts it over.</div>
+        <div id="remList"></div>
+        <button type="button" class="btn" id="addReminder">Add reminder</button>
+      </section>
+    </div>
   </div>
 </main>
 <div class="saved" id="saved">Saved</div>
@@ -230,7 +251,46 @@
         : 'macOS will ask for permission the first time.';
 
     renderCalendars();
+    renderReminders();
   }
+
+  // Task reminders: each row saves the whole list. The text saves when it loses focus.
+  const EVERY = [15, 20, 30, 45, 60, 90, 120];
+  const MAX_REMINDERS = 8;
+  const everyText = (m) => (m % 60 ? `Every ${m} min` : m === 60 ? 'Every hour' : `Every ${m / 60} hours`);
+  function saveReminders(list) { return save({ reminders: list }); }
+  function renderReminders() {
+    const list = state.settings.reminders || [];
+    const edit = (i, patch) => saveReminders(list.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+    $('#remList').replaceChildren(...list.map((r, i) => {
+      const row = document.createElement('div');
+      row.className = 'rem' + (r.on ? '' : ' off');
+      const on = Object.assign(document.createElement('input'), { type: 'checkbox', checked: r.on, title: 'On' });
+      on.addEventListener('change', () => edit(i, { on: on.checked }));
+      const text = Object.assign(document.createElement('input'), { type: 'text', value: r.text, maxLength: 40, placeholder: 'Drink water' });
+      text.addEventListener('change', () => { if (text.value.trim()) edit(i, { text: text.value.trim() }); else text.value = r.text; });
+      const every = document.createElement('select');
+      every.append(...EVERY.map((m) => Object.assign(document.createElement('option'), { value: m, textContent: everyText(m), selected: m === r.every })));
+      every.addEventListener('change', () => edit(i, { every: Number(every.value) }));
+      const test = Object.assign(document.createElement('button'), { type: 'button', className: 'btn quiet', textContent: 'Show now' });
+      test.addEventListener('click', () => fetch('/api/reminders/test', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: r.id }),
+      }));
+      const remove = Object.assign(document.createElement('button'), { type: 'button', className: 'btn quiet', textContent: 'Remove' });
+      remove.addEventListener('click', () => saveReminders(list.filter((_, j) => j !== i)));
+      row.append(on, text, every, test, remove);
+      return row;
+    }));
+    $('#addReminder').disabled = list.length >= MAX_REMINDERS;
+  }
+  $('#addReminder').addEventListener('click', async () => {
+    const list = state.settings.reminders || [];
+    const ideas = ['Drink water', 'Stand up', 'Walk around', 'Look away from the screen'];
+    const text = ideas.find((t) => !list.some((r) => r.text === t)) || 'Take a break';
+    await saveReminders([...list, { id: Math.random().toString(36).slice(2, 10), text, every: 45, on: true }]);
+    const inputs = document.querySelectorAll('#remList input[type=text]');
+    inputs[inputs.length - 1]?.select();
+  });
 
   // Which calendars feed the device. null means every one, so calendars added later come along too.
   function renderCalendars() {
@@ -330,7 +390,7 @@
   showCategory();
   window.addEventListener('hashchange', showCategory);
   load();
-  setInterval(() => { if (document.activeElement !== $('#q')) load(); }, 3000); // reflect changes made on the device
+  setInterval(() => { if (document.activeElement !== $('#q') && !$('#remList').contains(document.activeElement)) load(); }, 3000); // reflect changes made on the device
   if (location.hash === '#location' || location.hash === '#weather') setTimeout(() => $('#q').focus(), 100);
 </script>
 </body>
