@@ -15,5 +15,7 @@
   <key>NSLocationWhenInUseUsageDescription</key><string>Your location is used to show local weather on the Car Thing.</string>
   <key>NSCalendarsFullAccessUsageDescription</key><string>Your upcoming events are shown on the Car Thing's calendar screen.</string>
   <key>NSCalendarsUsageDescription</key><string>Your upcoming events are shown on the Car Thing's calendar screen.</string>
+  <key>NSRemindersFullAccessUsageDescription</key><string>Your due reminders are shown on the Car Thing's calendar screen.</string>
+  <key>NSRemindersUsageDescription</key><string>Your due reminders are shown on the Car Thing's calendar screen.</string>
 </dict>
 </plist>

@@ -17,9 +17,10 @@ export const DEFAULTS = {
   artBackground: false, // blurred album art behind Now Playing and the widgets
   location: { mode: 'auto' }, // or { mode: 'manual', name, lat, lon }
   calendars: null, // null = every calendar in the Mac's Calendar app; else an array of calendar ids
+  reminderLists: null, // null = every list in the Mac's Reminders app; else an array of list ids
   calendarDays: 2, // days of events on the Calendar screen: today plus the next (n − 1)
   meetingAlert: 0, // when a timed event's alert covers the screen: 0 = off, 'event' = at the event's own alert, else minutes before
-  usageSource: 'claude', // the Clock screen's usage views: 'claude' (Claude Code) | 'chatgpt' (Codex) | 'both' | 'none'
+  usageSource: 'bottlerocket', // the Clock screen's usage views: 'bottlerocket' | 'chatgpt' (Codex) | 'both' | 'none'
   // What the knob turns: 'auto' = the Mac's output, or when it has no volume of its own (an HDMI
   // monitor) the playing app's if it's Spotify or Music | 'system' | 'spotify' | 'music'
   knobVolume: 'auto',
@@ -38,9 +39,10 @@ const VALID = {
     v?.mode === 'auto' ||
     (v?.mode === 'manual' && typeof v.name === 'string' && Number.isFinite(v.lat) && Number.isFinite(v.lon)),
   calendars: (v) => v === null || (Array.isArray(v) && v.every((id) => typeof id === 'string')),
+  reminderLists: (v) => v === null || (Array.isArray(v) && v.every((id) => typeof id === 'string')),
   calendarDays: (v) => Number.isInteger(v) && v >= 1 && v <= 7,
   meetingAlert: (v) => [0, 'event', 1, 5, 10].includes(v),
-  usageSource: (v) => ['claude', 'chatgpt', 'both', 'none'].includes(v),
+  usageSource: (v) => ['bottlerocket', 'chatgpt', 'both', 'none'].includes(v),
   knobVolume: (v) => ['auto', 'system', 'spotify', 'music'].includes(v),
   idleMinutes: (v) => [0, 1, 2, 5, 10].includes(v),
   idleScreen: (v) => ['clock', 'calendar', 'weather'].includes(v),
@@ -56,6 +58,8 @@ class Settings extends EventEmitter {
   #load() {
     try {
       const raw = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+      // Older builds stored Claude as the usage view. That view is Bottlerocket now.
+      if (raw.usageSource === 'claude') raw.usageSource = 'bottlerocket';
       return Object.fromEntries(Object.entries(raw).filter(([k, v]) => VALID[k]?.(v)));
     } catch {
       return {};

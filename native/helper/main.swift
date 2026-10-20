@@ -1,12 +1,16 @@
-// CarThingHelper — location + calendar for the bridge. Lives in an .app bundle so macOS can ask
-// for (and remember) Location Services and Calendars permission under its own name.
+// CarThingHelper — location, calendar and reminders for the bridge. Lives in an .app bundle so
+// macOS can ask for (and remember) Location Services, Calendars and Reminders permission under
+// its own name.
 //
 // stdin, one JSON object per line:
 //   {"id":1,"cmd":"status"}
 //   {"id":2,"cmd":"location"}                          prompts for permission the first time
 //   {"id":3,"cmd":"events","from":<ms>,"to":<ms>}      prompts for permission the first time
+//   {"id":4,"cmd":"calendars"}
+//   {"id":5,"cmd":"reminders","to":<ms>}               prompts for permission the first time
+//   {"id":6,"cmd":"reminderLists"}
 // stdout, one JSON object per line: replies carry the request's "id"; unsolicited notices
-// carry "event": "ready" | "calendarChanged" | "locationAuthorization".
+// carry "event": "ready" | "eventKitChanged" | "locationAuthorization".
 
 import AppKit
 import CoreLocation
@@ -31,6 +35,9 @@ func disclaimResponsibility() {
 }
 disclaimResponsibility()
 setvbuf(stdout, nil, _IOLBF, 0)
+
+/// How long a location request waits for a fresh fix before settling for the last known one.
+let LOCATION_WAIT: TimeInterval = 20
 
 func send(_ obj: [String: Any]) {
   guard let data = try? JSONSerialization.data(withJSONObject: obj),
@@ -64,14 +71,18 @@ final class Helper: NSObject, CLLocationManagerDelegate {
   let locationManager = CLLocationManager()
   let geocoder = CLGeocoder()
   var locationWaiters: [Any] = []
+  var locationDeadline: DispatchWorkItem?
   var askedForCalendar = false
+  var askedForReminders = false
 
   override init() {
     super.init()
     locationManager.delegate = self
     locationManager.desiredAccuracy = kCLLocationAccuracyKilometer
+    // One notification for the whole store: it doesn't say whether an event or a reminder moved,
+    // so both widgets listen to it and re-read their own half.
     NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: store, queue: .main) { _ in
-      send(["event": "calendarChanged"])
+      send(["event": "eventKitChanged"])
     }
   }
 
@@ -84,8 +95,8 @@ final class Helper: NSObject, CLLocationManagerDelegate {
     }
   }
 
-  var calendarStatus: String {
-    switch EKEventStore.authorizationStatus(for: .event) {
+  func entityStatus(_ entity: EKEntityType) -> String {
+    switch EKEventStore.authorizationStatus(for: entity) {
     case .notDetermined: return "notDetermined"
     case .denied: return "denied"
     case .restricted: return "restricted"
@@ -95,17 +106,27 @@ final class Helper: NSObject, CLLocationManagerDelegate {
     }
   }
 
+  var calendarStatus: String { entityStatus(.event) }
+  var remindersStatus: String { entityStatus(.reminder) }
+
   func handle(_ msg: [String: Any]) {
     let id = msg["id"] ?? NSNull()
     switch msg["cmd"] as? String {
     case "status":
-      send(["id": id, "ok": true, "location": locationStatus, "calendar": calendarStatus])
+      send([
+        "id": id, "ok": true, "location": locationStatus, "calendar": calendarStatus,
+        "reminders": remindersStatus,
+      ])
     case "location":
       location(id)
     case "events":
       events(id, from: msg["from"] as? Double ?? 0, to: msg["to"] as? Double ?? 0)
     case "calendars":
       calendars(id)
+    case "reminders":
+      reminders(id, to: msg["to"] as? Double ?? 0)
+    case "reminderLists":
+      reminderLists(id)
     default:
       send(["id": id, "ok": false, "error": "unknown command"])
     }
@@ -118,15 +139,44 @@ final class Helper: NSObject, CLLocationManagerDelegate {
     case .denied, .restricted:
       send(["id": id, "ok": false, "status": locationStatus])
     case .notDetermined:
+      // No deadline yet: the permission panel can sit on screen until someone answers it.
       locationWaiters.append(id)
       locationManager.requestWhenInUseAuthorization()
     default:
       locationWaiters.append(id)
-      locationManager.requestLocation()
+      startLocating()
     }
   }
 
+  /// Continuous updates, stopped at the first fix, rather than requestLocation(). A background
+  /// (LSUIElement) agent whose authorization is already settled gets nothing back from the
+  /// one-shot call — neither delegate ever fires and the bridge waits out its whole timeout.
+  func startLocating() {
+    locationManager.startUpdatingLocation()
+    guard locationDeadline == nil else { return } // a request is already running
+    let work = DispatchWorkItem { [weak self] in self?.locationRanOut() }
+    locationDeadline = work
+    DispatchQueue.main.asyncAfter(deadline: .now() + LOCATION_WAIT, execute: work)
+  }
+
+  /// Nothing fresh in time. Weather only needs the coordinates, so the fix CoreLocation already
+  /// holds will do, unnamed if the reverse geocode is what we're still waiting on.
+  func locationRanOut() {
+    locationDeadline = nil
+    guard let loc = locationManager.location else {
+      return flushLocation(["ok": false, "status": "unavailable", "error": "no location fix"])
+    }
+    flushLocation([
+      "ok": true, "status": "authorized",
+      "lat": loc.coordinate.latitude, "lon": loc.coordinate.longitude,
+      "accuracy": loc.horizontalAccuracy, "name": "", "region": "", "country": "",
+    ])
+  }
+
   func flushLocation(_ reply: [String: Any]) {
+    locationDeadline?.cancel()
+    locationDeadline = nil
+    locationManager.stopUpdatingLocation()
     let ids = locationWaiters
     locationWaiters = []
     for id in ids { send(reply.merging(["id": id]) { $1 }) }
@@ -138,12 +188,13 @@ final class Helper: NSObject, CLLocationManagerDelegate {
     switch manager.authorizationStatus {
     case .notDetermined: break
     case .denied, .restricted: flushLocation(["ok": false, "status": locationStatus])
-    default: manager.requestLocation()
+    default: startLocating()
     }
   }
 
   func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
     guard let loc = locations.last, !locationWaiters.isEmpty else { return }
+    locationManager.stopUpdatingLocation() // one fix is enough; the deadline still covers the geocode
     geocoder.reverseGeocodeLocation(loc) { placemarks, _ in
       let p = placemarks?.first
       self.flushLocation([
@@ -157,6 +208,8 @@ final class Helper: NSObject, CLLocationManagerDelegate {
   }
 
   func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+    // While updates run, "location unknown" is temporary: keep waiting for the deadline.
+    if (error as? CLError)?.code == .locationUnknown { return }
     flushLocation(["ok": false, "status": "unavailable", "error": error.localizedDescription])
   }
 
@@ -215,10 +268,77 @@ final class Helper: NSObject, CLLocationManagerDelegate {
       }
     send(["id": id, "ok": true, "status": "authorized", "calendars": list])
   }
+
+  // MARK: Reminders
+
+  /// Incomplete reminders due by `to`, overdue ones included. The predicate takes no lower bound,
+  /// which is what lets something due last week through; asking for a date range at all is also
+  /// what leaves out reminders with no due date, which is what we want on a dashboard.
+  func reminders(_ id: Any, to: Double) {
+    let status = EKEventStore.authorizationStatus(for: .reminder)
+    if status == .notDetermined && !askedForReminders {
+      askedForReminders = true
+      store.requestFullAccessToReminders { _, _ in
+        DispatchQueue.main.async { self.reminders(id, to: to) }
+      }
+      return
+    }
+    guard status == .fullAccess else {
+      send(["id": id, "ok": false, "status": remindersStatus])
+      return
+    }
+    let predicate = store.predicateForIncompleteReminders(
+      withDueDateStarting: nil, ending: Date(timeIntervalSince1970: to / 1000), calendars: nil)
+    store.fetchReminders(matching: predicate) { found in
+      let list = (found ?? [])
+        .compactMap { item -> (EKReminder, Date, Bool)? in
+          guard let parts = item.dueDateComponents, let due = Calendar.current.date(from: parts) else { return nil }
+          // No hour in the components means a whole-day reminder, which reads "All day" rather
+          // than as midnight — the same distinction an all-day event makes.
+          return (item, due, parts.hour != nil)
+        }
+        .sorted { $0.1 < $1.1 }
+        .prefix(80)
+        .map { item, due, hasTime -> [String: Any] in
+          [
+            // Whether it's overdue is left to the device: this list is re-read every few minutes,
+            // and a deadline that passes in between would otherwise go on reading as upcoming.
+            "title": item.title ?? "", "notes": item.notes ?? "",
+            "due": due.timeIntervalSince1970 * 1000, "hasTime": hasTime,
+            // EKReminder priority is 0 for none, 1–4 high, 5 medium, 6–9 low.
+            "priority": item.priority,
+            "list": item.calendar.title, "listId": item.calendar.calendarIdentifier,
+            "color": hex(item.calendar.color),
+          ]
+        }
+      // fetchReminders answers on its own queue; everything else here replies from main.
+      DispatchQueue.main.async {
+        send(["id": id, "ok": true, "status": "authorized", "reminders": Array(list)])
+      }
+    }
+  }
+
+  /// Every reminder list on the Mac, so the settings page can offer them as choices. Smart lists
+  /// (Today, Scheduled, Flagged) aren't calendars and don't appear here.
+  func reminderLists(_ id: Any) {
+    guard EKEventStore.authorizationStatus(for: .reminder) == .fullAccess else {
+      send(["id": id, "ok": false, "status": remindersStatus])
+      return
+    }
+    let list = store.calendars(for: .reminder)
+      .sorted { ($0.source.title, $0.title) < ($1.source.title, $1.title) }
+      .map { cal -> [String: Any] in
+        ["id": cal.calendarIdentifier, "title": cal.title, "color": hex(cal.color), "account": cal.source.title]
+      }
+    send(["id": id, "ok": true, "status": "authorized", "reminderLists": list])
+  }
 }
 
 let helper = Helper()
-send(["event": "ready", "location": helper.locationStatus, "calendar": helper.calendarStatus])
+send([
+  "event": "ready", "location": helper.locationStatus, "calendar": helper.calendarStatus,
+  "reminders": helper.remindersStatus,
+])
 
 Thread {
   while let line = readLine() {
