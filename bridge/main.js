@@ -376,18 +376,57 @@ async function toggleFavorite() {
 }
 
 const FINE_KEY_STEP = 1 / 64; // one Option+Shift volume-key press
+const KEY_STEP = 1 / 16; // one plain volume-key press — and, as it happens, one knob detent
+const KEY_GATHER_MS = 70; // a burst of turning is gathered this long before it goes out
+const MAX_PRESSES = 8; // further than this in one go and tapping it out is slower than setting it
+
+// Pressing the volume keys is what makes macOS show its own volume indicator, but every press is
+// a separate event the Mac applies in turn — so the output follows the *path* the knob took
+// rather than where it ended up. Turning up and back down again was walked out in full, audibly,
+// and the Mac arrived as much as a second behind the knob. Two things keep it close:
+//
+//   - whole detents instead of 64ths. A knob click is 1/16, which is exactly one plain press;
+//     sending it as four Option+Shift presses was four times the events for the same distance.
+//   - gathering a burst before pressing it out, so a spin that doubles back cancels itself
+//     instead of being played out. The first turn of a burst still goes straight out, so a single
+//     click is as immediate as it ever was.
+//
+// A gathered burst big enough that tapping it out would itself be the delay is set directly
+// instead. That skips macOS's indicator, which is the right trade: the knob has its own.
+let keyBacklog = 0;
+let keyTimer = null;
+let lastPressAt = 0;
 
 function changeVolume(delta) {
   if (!Number.isFinite(delta) || delta === 0) return;
   const app = knobApp();
   if (app) return changeAppVolume(app, delta);
   askForKeyAccess();
-  if (config.macVolumeIndicator && volume.state?.keys) {
-    const steps = Math.round(Math.abs(delta) / FINE_KEY_STEP);
-    for (let i = 0; i < steps; i++) volume.pressKey(delta > 0);
-  } else {
-    volume.delta(delta);
-  }
+  if (!(config.macVolumeIndicator && volume.state?.keys)) return volume.delta(delta);
+  keyBacklog += delta;
+  if (keyTimer) return;
+  const since = Date.now() - lastPressAt;
+  if (since >= KEY_GATHER_MS) pressBacklog();
+  else keyTimer = setTimeout(pressBacklog, KEY_GATHER_MS - since);
+}
+
+function pressBacklog() {
+  keyTimer = null;
+  lastPressAt = Date.now();
+  const want = keyBacklog;
+  keyBacklog = 0;
+  if (!want) return;
+  if (Math.round(Math.abs(want) / KEY_STEP) > MAX_PRESSES) return volume.delta(want);
+  const up = want > 0;
+  const size = Math.abs(want);
+  const whole = Math.floor(size / KEY_STEP + 1e-9);
+  for (let i = 0; i < whole; i++) volume.pressKey(up, { fine: false });
+  const fine = Math.round((size - whole * KEY_STEP) / FINE_KEY_STEP);
+  for (let i = 0; i < fine; i++) volume.pressKey(up);
+  // Presses only come in 64ths. Keep whatever wouldn't divide into one: the gathered bursts of a
+  // spin that doubles back rarely land on a 64th, and dropping each remainder cost a whole detent
+  // over the length of one.
+  keyBacklog += want - (up ? 1 : -1) * (whole * KEY_STEP + fine * FINE_KEY_STEP);
 }
 
 // ---- Knob volume: the Mac's output or an app's own ----------------------------------------

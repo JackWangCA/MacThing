@@ -7,7 +7,7 @@ export const state = reactive({
   settings: { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', meetingAlert: 0, usageSource: 'bottlerocket', knobVolume: 'auto', idleMinutes: 0, idleScreen: 'clock', sleepWithMac: true, location: { mode: 'auto' } },
   now: Date.now(), np: { active: false }, npAt: 0, artwork: null,
   weather: { status: 'loading' }, calendar: { status: 'loading' }, reminders: { status: 'loading' }, usage: { status: 'loading' }, chatgptUsage: { status: 'loading' },
-  volume: 0, volumeUnsupported: false, volumeNote: '', volumeIcon: '', showVolume: false,
+  volume: 0, volumeUnsupported: false, volumeNote: '', showVolume: false,
   flash: { icon: 'play', color: '', key: 0 }, flashing: false, toast: '',
   // The back button's usage refresh: '' idle, 'spin' (the ⟳ turns once), 'pending' (••• until the
   // Mac answers), 'failed' (✕ until another try is allowed). usageRefreshWait: 'wait 45s', briefly.
