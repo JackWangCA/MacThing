@@ -50,12 +50,26 @@
     appearance: none; -webkit-appearance: none; background-image: var(--select-arrow);
     background-repeat: no-repeat; background-position: right 12px center; background-size: 12px 12px; }
   @media (prefers-color-scheme: dark) { select[data-key], .rem select { color-scheme: dark; } }
-  .rem { display: flex; align-items: center; gap: 10px; padding: 10px 0; }
+  .rem { padding: 10px 0; }
   .rem + .rem { border-top: 1px solid var(--line); }
+  .rem-main { display: flex; align-items: center; gap: 10px; }
+  .rem-times { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 0 26px; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px 4px 12px; border-radius: 99px;
+    background: var(--seg); font-size: 14px; }
+  .chip button { border: 0; background: none; color: var(--muted); font: inherit; cursor: pointer; padding: 0 4px; }
+  .rem-times input[type=time], .hours input[type=time] { padding: 5px 8px; font: inherit; font-size: 14px; color: var(--text);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 9px; outline-color: var(--accent); }
+  .rem-times .note { margin: 0; }
+  .days { display: inline-flex; gap: 4px; }
+  .days button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: none;
+    color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
+  .days button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .hours { display: inline-flex; align-items: center; gap: 8px; }
+  .row[hidden] { display: none; }
   .rem input[type=checkbox] { accent-color: var(--accent); }
   .rem input[type=text] { flex: 1; min-width: 0; padding: 7px 10px; font: inherit; color: var(--text);
     background: var(--bg); border: 1px solid var(--line); border-radius: 9px; outline-color: var(--accent); }
-  .rem.off input[type=text], .rem.off select { opacity: .45; }
+  .rem.off input[type=text], .rem.off select, .rem.off .rem-times { opacity: .45; }
   .btn { border: 1px solid var(--line); background: var(--seg); color: var(--text); font: inherit; font-size: 14px;
     padding: 6px 12px; border-radius: 9px; cursor: pointer; white-space: nowrap; }
   .btn.quiet { border-color: transparent; background: none; color: var(--muted); }
@@ -191,8 +205,16 @@
 
     <div class="settings-panel" id="reminders" hidden role="region" aria-labelledby="category-title">
       <section>
+        <h3 class="subhead">Active hours</h3>
+        <div class="row"><div><div class="label">Show reminders</div><div class="note">No reminder shows outside these hours</div></div>
+          <span class="seg" id="hoursMode"><button data-v="any">Any time</button><button data-v="set">Set hours</button></span></div>
+        <div class="row" id="daysRow"><span class="label">Days</span><span class="days" id="days"></span></div>
+        <div class="row" id="hoursRow"><span class="label">Hours</span>
+          <span class="hours"><input type="time" id="hoursFrom" step="900" aria-label="From"> to <input type="time" id="hoursTo" step="900" aria-label="To"></span></div>
+      </section>
+      <section>
         <h3 class="subhead">Reminders</h3>
-        <div class="note">A card on the device every so often. Only time at your Mac counts: locked, asleep or away from the keyboard for 5 minutes, the count pauses, and a long enough break starts it over.</div>
+        <div class="note">Every: only time at your Mac counts. Locked, asleep or away from the keyboard for 5 minutes, the count pauses; a break as long as the interval starts it over. At times: shows at each time, or when you’re back if you were away.</div>
         <div id="remList"></div>
         <button type="button" class="btn" id="addReminder">Add reminder</button>
       </section>
@@ -256,41 +278,115 @@
 
   // Task reminders: each row saves the whole list. The text saves when it loses focus.
   const EVERY = [15, 20, 30, 45, 60, 90, 120];
-  const MAX_REMINDERS = 8;
+  const MAX_REMINDERS = 8, MAX_TIMES = 6;
+  const DEFAULT_HOURS = { days: [1, 2, 3, 4, 5], from: 9 * 60, to: 18 * 60 };
   const everyText = (m) => (m % 60 ? `Every ${m} min` : m === 60 ? 'Every hour' : `Every ${m / 60} hours`);
+  const pad = (n) => String(n).padStart(2, '0');
+  const toInput = (m) => `${pad(Math.floor(m / 60) % 24)}:${pad(m % 60)}`; // minutes since midnight → "HH:MM"
+  const fromInput = (v) => (/^\d\d:\d\d$/.test(v) ? Number(v.slice(0, 2)) * 60 + Number(v.slice(3)) : null);
+  function timeText(m) {
+    const h = Math.floor(m / 60), min = pad(m % 60);
+    return state.settings.clock24h ? `${h}:${min}` : `${h % 12 || 12}:${min} ${h < 12 ? 'AM' : 'PM'}`;
+  }
   function saveReminders(list) { return save({ reminders: list }); }
   function renderReminders() {
+    renderHours();
     const list = state.settings.reminders || [];
     const edit = (i, patch) => saveReminders(list.map((r, j) => (j === i ? { ...r, ...patch } : r)));
     $('#remList').replaceChildren(...list.map((r, i) => {
-      const row = document.createElement('div');
-      row.className = 'rem' + (r.on ? '' : ' off');
+      const times = r.repeat === 'times';
+      const wrap = document.createElement('div');
+      wrap.className = 'rem' + (r.on ? '' : ' off');
+      const row = Object.assign(document.createElement('div'), { className: 'rem-main' });
       const on = Object.assign(document.createElement('input'), { type: 'checkbox', checked: r.on, title: 'On' });
       on.addEventListener('change', () => edit(i, { on: on.checked }));
       const text = Object.assign(document.createElement('input'), { type: 'text', value: r.text, maxLength: 40, placeholder: 'Drink water' });
       text.addEventListener('change', () => { if (text.value.trim()) edit(i, { text: text.value.trim() }); else text.value = r.text; });
-      const every = document.createElement('select');
-      every.append(...EVERY.map((m) => Object.assign(document.createElement('option'), { value: m, textContent: everyText(m), selected: m === r.every })));
-      every.addEventListener('change', () => edit(i, { every: Number(every.value) }));
+      // One menu for both kinds: the intervals, then "At set times".
+      const repeat = document.createElement('select');
+      repeat.append(
+        ...EVERY.map((m) => Object.assign(document.createElement('option'), { value: m, textContent: everyText(m), selected: !times && m === r.every })),
+        Object.assign(document.createElement('option'), { value: 'times', textContent: 'At set times', selected: times }),
+      );
+      repeat.addEventListener('change', () => edit(i, repeat.value === 'times'
+        ? { repeat: 'times', times: r.times?.length ? r.times : [15 * 60] }
+        : { repeat: 'every', every: Number(repeat.value) }));
       const test = Object.assign(document.createElement('button'), { type: 'button', className: 'btn quiet', textContent: 'Show now' });
       test.addEventListener('click', () => fetch('/api/reminders/test', {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: r.id }),
       }));
       const remove = Object.assign(document.createElement('button'), { type: 'button', className: 'btn quiet', textContent: 'Remove' });
       remove.addEventListener('click', () => saveReminders(list.filter((_, j) => j !== i)));
-      row.append(on, text, every, test, remove);
-      return row;
+      row.append(on, text, repeat, test, remove);
+      wrap.append(row);
+      if (times) wrap.append(timesRow(r, (t) => edit(i, { times: t })));
+      return wrap;
     }));
     $('#addReminder').disabled = list.length >= MAX_REMINDERS;
+  }
+  // An "At set times" reminder's times, as chips (× removes one), plus a field to add another.
+  function timesRow(r, saveTimes) {
+    const row = Object.assign(document.createElement('div'), { className: 'rem-times' });
+    const list = [...(r.times || [])].sort((a, b) => a - b);
+    const hours = state.settings.activeHours;
+    for (const t of list) {
+      const chip = Object.assign(document.createElement('span'), { className: 'chip', textContent: timeText(t) });
+      const x = Object.assign(document.createElement('button'), { type: 'button', textContent: '×', title: 'Remove this time' });
+      x.addEventListener('click', () => saveTimes(list.filter((v) => v !== t)));
+      chip.append(x);
+      if (hours && (t < hours.from || t >= hours.to)) chip.title = 'Outside active hours: won’t show';
+      chip.style.opacity = chip.title ? '.45' : '';
+      row.append(chip);
+    }
+    if (list.length < MAX_TIMES) {
+      const add = Object.assign(document.createElement('input'), { type: 'time', step: 900, title: 'Add a time' });
+      add.addEventListener('change', () => {
+        const t = fromInput(add.value);
+        if (t !== null && !list.includes(t)) saveTimes([...list, t].sort((a, b) => a - b));
+      });
+      row.append(add);
+    }
+    if (!list.length) row.append(Object.assign(document.createElement('span'), { className: 'note', textContent: 'Add a time' }));
+    return row;
   }
   $('#addReminder').addEventListener('click', async () => {
     const list = state.settings.reminders || [];
     const ideas = ['Drink water', 'Stand up', 'Walk around', 'Look away from the screen'];
     const text = ideas.find((t) => !list.some((r) => r.text === t)) || 'Take a break';
-    await saveReminders([...list, { id: Math.random().toString(36).slice(2, 10), text, every: 45, on: true }]);
+    await saveReminders([...list, { id: Math.random().toString(36).slice(2, 10), text, repeat: 'every', every: 45, times: [], on: true }]);
     const inputs = document.querySelectorAll('#remList input[type=text]');
     inputs[inputs.length - 1]?.select();
   });
+
+  // Active hours: Any time (null) or days plus a from–to time.
+  const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'], DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const WEEK = [1, 2, 3, 4, 5, 6, 0]; // Monday first
+  function renderHours() {
+    const hours = state.settings.activeHours;
+    $('#hoursMode').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === (hours ? 'set' : 'any'))));
+    $('#daysRow').hidden = $('#hoursRow').hidden = !hours;
+    if (!hours) return;
+    $('#days').replaceChildren(...WEEK.map((d) => {
+      const b = Object.assign(document.createElement('button'), { type: 'button', textContent: DAYS[d], title: DAY_NAMES[d] });
+      b.setAttribute('aria-pressed', String(hours.days.includes(d)));
+      b.addEventListener('click', () => save({ activeHours: { ...hours, days: hours.days.includes(d) ? hours.days.filter((x) => x !== d) : [...hours.days, d].sort() } }));
+      return b;
+    }));
+    if (document.activeElement !== $('#hoursFrom')) $('#hoursFrom').value = toInput(hours.from);
+    if (document.activeElement !== $('#hoursTo')) $('#hoursTo').value = toInput(hours.to);
+  }
+  $('#hoursMode').addEventListener('click', (e) => {
+    const v = e.target.dataset?.v;
+    if (v) save({ activeHours: v === 'any' ? null : state.settings.activeHours || DEFAULT_HOURS });
+  });
+  // "To" of 00:00 means midnight, the end of the day.
+  const saveHours = () => {
+    const from = fromInput($('#hoursFrom').value), end = fromInput($('#hoursTo').value), to = end === 0 ? 24 * 60 : end;
+    if (from === null || to === null || from >= to) return renderHours(); // not a valid range: put it back
+    save({ activeHours: { ...state.settings.activeHours, from, to } });
+  };
+  $('#hoursFrom').addEventListener('change', saveHours);
+  $('#hoursTo').addEventListener('change', saveHours);
 
   // Which calendars feed the device. null means every one, so calendars added later come along too.
   function renderCalendars() {
@@ -390,7 +486,7 @@
   showCategory();
   window.addEventListener('hashchange', showCategory);
   load();
-  setInterval(() => { if (document.activeElement !== $('#q') && !$('#remList').contains(document.activeElement)) load(); }, 3000); // reflect changes made on the device
+  setInterval(() => { if (document.activeElement !== $('#q') && !$('#reminders').contains(document.activeElement)) load(); }, 3000); // reflect changes made on the device
   if (location.hash === '#location' || location.hash === '#weather') setTimeout(() => $('#q').focus(), 100);
 </script>
 </body>

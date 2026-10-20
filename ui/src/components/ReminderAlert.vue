@@ -1,8 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { state, CT } from '../state.js';
-// Settings → Reminders (on the Mac): "Drink water" every so often, as a card like the meeting
-// alert's. The Mac decides when one is due and sends it here. First pass:
+// Settings → Reminders (on the Mac): "Drink water" every so often or "Stretch" at 3:00, as a card
+// like the meeting alert's. The Mac decides when one is due and sends it here. First pass:
 // - Any press dismisses it ("Done"); left alone, it goes after SHOW_MS by itself.
 // - A meeting's card comes first: a reminder waits under it and shows once it's dismissed.
 // - Only one card at a time. The same reminder due again replaces itself rather than queuing.
@@ -33,7 +33,9 @@ CT.dismissModal = key => {
   done();
   return true;
 };
+// The pill: "Every 45 min", or the time it was set for ("3:00 PM").
 const every = computed(() => {
+  if (reminder.value.repeat === 'times') return CT.timeText(reminder.value.at);
   const m = reminder.value.every;
   return 'Every ' + (m % 60 ? m + ' min' : m / 60 + (m === 60 ? ' hour' : ' hours'));
 });
