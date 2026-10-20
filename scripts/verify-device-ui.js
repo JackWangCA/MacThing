@@ -40,6 +40,16 @@ async function tick(ms) {
 // month…). Start from a fresh page with the default views, and put yours back afterwards.
 const devScreen = await evaluate('sessionStorage.getItem("ct-dev-screen")');
 await evaluate('sessionStorage.removeItem("ct-dev-screen")');
+// The meeting alert keeps dismissed meetings across reloads, and reads them as the page loads. The
+// last run's fixture meetings would still be dismissed under the fixture clock, so the cards this
+// run expects wouldn't come up: drop those (only those) before the reload.
+await evaluate(`(function () {
+  var key = 'ct-dismissed-meetings', all = {};
+  try { all = JSON.parse(localStorage.getItem(key)) || {}; } catch (e) {}
+  Object.keys(all).forEach(function (k) { if (k.indexOf('fixture|') === 0) delete all[k]; });
+  localStorage.setItem(key, JSON.stringify(all));
+  if ((localStorage.getItem('ct-queued-meeting') || '').indexOf('fixture|') === 0) localStorage.removeItem('ct-queued-meeting');
+})()`);
 await cdp.send('Page.reload', { ignoreCache: true });
 await pause(500);
 try {
