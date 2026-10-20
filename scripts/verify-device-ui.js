@@ -70,9 +70,32 @@ try {
   await pause(450);
   assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "command" && m.action === "playpause")'), true, 'Knob press sends playpause');
   assert.equal(await evaluate('document.getElementById("screen-nowplaying").classList.contains("paused")'), false);
+  await message({ type: 'library', inLibrary: true });
+  await capture('library');
+  assert.match(await evaluate('document.querySelector(".toast").textContent'), /Added to Library/);
+  await message({ type: 'library', inLibrary: false });
+  assert.match(await evaluate('document.querySelector(".toast").textContent'), /Removed from Library/);
   await message({ type: 'favorite', favorited: true });
   await capture('favorite');
   assert.match(await evaluate('document.querySelector(".toast").textContent'), /Added to Favorites/);
+  // A markable track whose marks haven't arrived: the row is already there, holding the title's
+  // room, with nothing drawn in it yet.
+  const markable = { active: true, artist: 'Example artist', title: 'A short title', album: 'Example album', artworkKey: 'fixture-art', duration: 300, elapsed: 60, rate: 0, playing: false, markable: true };
+  await message({ type: 'nowPlaying', np: markable });
+  assert.equal(await evaluate('document.querySelectorAll("#screen-nowplaying .np-marks").length'), 1);
+  assert.equal(await evaluate('getComputedStyle(document.querySelector("#screen-nowplaying .np-marks svg")).visibility'), 'hidden');
+  const waitingSize = await evaluate('getComputedStyle(document.querySelector("#screen-nowplaying .np-title")).fontSize');
+  // The marks under the title: both drawn, the lit one telling you what a press would undo.
+  await message({ type: 'nowPlaying', np: { ...markable, marks: { inLibrary: true, favorited: false } } });
+  await capture('marks');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-nowplaying .np-marks svg").length'), 2);
+  assert.equal(await evaluate('document.querySelectorAll("#screen-nowplaying .np-marks svg.on").length'), 1);
+  assert.equal(await evaluate('getComputedStyle(document.querySelector("#screen-nowplaying .np-marks svg")).opacity'), '1');
+  // The marks arriving must not resize the title — that was the flash when a song changed.
+  assert.equal(await evaluate('getComputedStyle(document.querySelector("#screen-nowplaying .np-title")).fontSize'), waitingSize);
+  // Anything but Apple Music has no marks, and the row goes with them.
+  await message({ type: 'nowPlaying', np: { active: true, artist: 'Example artist', title: 'A short title', album: 'Example album', artworkKey: 'fixture-art', duration: 300, elapsed: 60, rate: 0, playing: false } });
+  assert.equal(await evaluate('document.querySelectorAll("#screen-nowplaying .np-marks").length'), 0);
   await message({ type: 'settings', settings });
   await message({ type: 'nowPlaying', np: { active: false } });
   await capture('idle');
@@ -320,7 +343,14 @@ try {
   await message({ type: 'screen', on: false });
   await capture('asleep');
   assert.equal(await evaluate('document.getElementById("app").classList.contains("asleep")'), true);
+  // Nothing may still be drawing: the backlight going out doesn't black the panel by itself, and
+  // a descendant that sets `visibility: visible` used to escape the asleep rule and stay lit.
+  assert.equal(await evaluate(`Array.prototype.some.call(document.querySelectorAll('#app *'), function (el) {
+    var box = el.getBoundingClientRect();
+    return getComputedStyle(el).visibility === 'visible' && box.width > 1 && box.height > 1;
+  })`), false, 'Nothing renders while asleep');
   await message({ type: 'screen', on: true });
+  assert.equal(await evaluate('getComputedStyle(document.querySelector("#app .screen.active")).visibility'), 'visible', 'and it all comes back');
   await message({ type: 'bye' });
   await capture('offline');
   assert.equal(await evaluate('document.getElementById("app").classList.contains("offline")'), true);

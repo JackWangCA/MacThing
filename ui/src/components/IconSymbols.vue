@@ -16,11 +16,15 @@ import spotify from '@phosphor-icons/core/assets/fill/spotify-logo-fill.svg?raw'
 import openOnMac from '@phosphor-icons/core/assets/bold/sign-out-bold.svg?raw';
 import refresh from '@phosphor-icons/core/assets/bold/arrow-clockwise-bold.svg?raw';
 import x from '@phosphor-icons/core/assets/bold/x-bold.svg?raw';
+import plus from '@phosphor-icons/core/assets/fill/plus-circle-fill.svg?raw';
+import check from '@phosphor-icons/core/assets/fill/check-circle-fill.svg?raw';
+import minus from '@phosphor-icons/core/assets/fill/minus-circle-fill.svg?raw';
 
 const ICONS = {
   'i-play': play, 'i-pause': pause, 'i-next': next, 'i-previous': previous,
   'i-heart': heart, 'i-heart-off': heartOff, 'i-note': note, 'i-timer': timer,
-  'i-speaker': speaker, 'i-muted': muted, 'i-spotify': spotify, 'i-open-on-mac': openOnMac, 'i-refresh': refresh, 'i-x': x
+  'i-speaker': speaker, 'i-muted': muted, 'i-spotify': spotify, 'i-open-on-mac': openOnMac, 'i-refresh': refresh, 'i-x': x,
+  'i-plus': plus, 'i-check': check, 'i-minus': minus
 };
 const inner = svg => svg.replace(/^<svg[^>]*>|<\/svg>\s*$/g, '');
 const symbols = Object.entries(ICONS).map(([id, svg]) => ({ id, body: inner(svg) }));

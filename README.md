@@ -24,7 +24,7 @@ background turned on, the second doesn't._
 | Press knob once / twice / three times | Play-pause / next track / previous track; starts Apple Music if nothing is playing (in Settings: change the selected option) |
 | Fifth top button (settings)           | Settings (press it again to close)                                                                                           |
 | Hold the fifth top button             | Sleep now — screen off until the next button or knob input                                                                   |
-| Back button (under the knob)          | On Now Playing, press once to favorite the playing Apple Music song, twice to unfavorite it (does nothing while it's paused). In Settings, open the settings page on your Mac. On a paused or finished timer, reset it; on a usage view showing “10m ⟳”, check usage again. The screen's lower-right corner says which |
+| Back button (under the knob)          | On Now Playing, press once to put the playing Apple Music song in your library, twice to favorite it; both toggle, and the two marks under the title show where the song stands. In Settings, open the settings page on your Mac. On a paused or finished timer, reset it; on a usage view showing “10m ⟳”, check usage again. The screen's lower-right corner says which |
 
 The four screens:
 
@@ -63,7 +63,7 @@ Nothing is required for the device to work: Now Playing and the clock need no pe
 | Weather                                   | "Location access is off" with the place-picker hint         | allow Location, or pick a city on the Mac page |
 | Clock                                     | works; no event line or meeting timer until Calendar is allowed | allow Calendars for Car Thing Helper           |
 | Clock → Claude usage                      | "Not signed in to Claude" or "Claude sign-in expired"       | run `claude auth login` in Terminal; Always Allow the Keychain prompt |
-| Back button (favorite)                    | toast: "Allow musicctl to control Music"                    | allow Automation for musicctl                  |
+| Back button (library/favorite)            | toast: "Allow musicctl to control Music"                    | allow Automation for musicctl                  |
 | Knob on an output with no software volume | "No volume control on <device>"; under Knob volume: Auto, Spotify or Apple Music playing turns its volume instead, and with nothing playing it says "No music playing" | play from Spotify or Music, or use an output that has volume |
 | Knob on Spotify's or Apple Music's volume | toast: "Allow control of Spotify in Automation"            | allow Automation for node to control the app   |
 | Bridge not running                        | "Waiting for your Mac"                                      | `./macthing start`                             |
@@ -93,7 +93,9 @@ Everything else is a subcommand of the same script; `./macthing` on its own list
 
 Re-run `./macthing device` if the bridge logs `boot web app not pointed at our UI yet`, `no sleep watchdog` or `stock dimmer still running`. The rootfs edit normally survives a reboot, but it has been seen to revert, and a device that's been reflashed or restored will need it again. Nothing breaks meanwhile — the bridge points the device at this UI on every connect — but until you do, the Car Thing shows Spotify's own app before the bridge connects, doesn't sleep on its own when the Mac goes away, and dims whenever a hand covers the light sensor.
 
-The first time you favorite a song with the back button, macOS asks whether **musicctl** may control Music. That's `native/bin/musicctl`, a small helper that sends the favorite and play commands to Apple Music.
+The first time an Apple Music song plays, macOS asks whether **musicctl** may control Music. That's `native/bin/musicctl`, a small helper that reads whether the song is in your library and favorited — the two marks on Now Playing — and sends the library, favorite and play commands. Say no and the marks stay hidden; the back button then says so when you press it.
+
+Removing only ever touches a song streamed from Apple Music. A purchase, an upload or a file you imported looks the same to a script, so the back button leaves all three alone and says "Only Apple Music songs can be removed here".
 
 The first time the knob turns Spotify's or Apple Music's own volume, macOS asks whether **node** (the bridge) may control that app — once for each app. The app has to be running already; the knob never launches it.
 
@@ -148,7 +150,7 @@ A few of them change how the device behaves:
 
 - `buttons`: what each button does (`screen:<name>`, `settings`, or a media command)
 - `knobClicks` and `multiClickMs`: the single, double and triple press actions, and how long a single press waits for more
-- `buttonClicks`: buttons that count presses the same way — by default the back button, once to favorite and twice to unfavorite
+- `buttonClicks`: buttons that count presses the same way — by default the back button, once to toggle the library and twice to toggle the favorite
 - `volumeStep`: volume change per knob click
 - `knobDirection`: `1` matches Spotify's own mapping (turning right raises the volume); `-1` flips it
 - `sleepWithMac` and `screenWakeMs`: the default for the Sleep with Mac setting, and how long a button or knob wake lasts while the Mac's display is off

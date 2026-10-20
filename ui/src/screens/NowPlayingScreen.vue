@@ -11,6 +11,13 @@ const album = computed(() => !np.value.active ? '' : np.value.album || (np.value
 // Nothing playing: the same layout as a track, with placeholder text and cover.
 const IDLE = { eyebrow: 'Artist', title: 'Song Title', subtitle: 'Album' };
 const icon = computed(() => np.value.active && np.value.source ? np.value.source.icon : '');
+// { inLibrary, favorited } for a playing Apple Music song, once the Mac has asked Music; null for
+// anything else. Both marks stay drawn, lit or faint, so the back button's toggles read at a glance.
+const marks = computed(() => np.value.active && np.value.marks || null);
+// The row is drawn, blank, from the moment the Mac says this track can be marked — Music takes a
+// few hundred milliseconds to say how. Holding the height is what stops the title being fitted
+// twice, big then small, every time a song changes.
+const markable = computed(() => Boolean(np.value.active && np.value.markable));
 const fraction = ref(0);
 function updateProgress() { fraction.value = np.value.duration ? elapsed() / np.value.duration : 0; }
 // Measured typography is the only imperative layout here. These inline values
@@ -56,7 +63,9 @@ function fitTitle() {
   const overflow = Math.max(0, last.getBoundingClientRect().bottom - content.getBoundingClientRect().bottom);
   t.style.webkitLineClamp = String(Math.max(1, Math.min(5, Math.floor((t.offsetHeight - overflow) / 36))));
 }
-watch(() => [np.value.active, np.value.artist, np.value.title, album.value, state.current], () => nextTick(fitTitle));
+// markable, not marks: the row's height is what the title is measured against, and that is
+// settled when the track arrives. The marks themselves only light glyphs already on screen.
+watch(() => [np.value.active, np.value.artist, np.value.title, album.value, state.current, markable.value], () => nextTick(fitTitle));
 watch(() => [state.np, state.npAt], updateProgress);
 const screen = CT.screen('nowplaying');
 screen.show = () => { updateProgress(); nextTick(fitTitle); };
@@ -72,6 +81,10 @@ onUnmounted(() => clearInterval(timer));
   <section ref="root" id="screen-nowplaying" class="screen fill flex" :class="{ active: state.current === 'nowplaying', leaving: state.leaving === 'nowplaying', idle: !np.active, paused: np.active && !np.playing, 'no-duration': np.active && !np.duration }">
     <LeftRail ref="rail" variant="media" :eyebrow="np.active ? np.artist : IDLE.eyebrow" :title="np.active ? np.title : IDLE.title" :subtitle="np.active ? album : IDLE.subtitle" :muted-subtitle="!np.album">
       <template #lower>
+        <div v-if="markable" class="np-marks flex items-center gap-12" :class="{ waiting: !marks }">
+          <svg :class="{ on: marks && marks.inLibrary }"><use href="#i-check" /></svg>
+          <svg :class="{ on: marks && marks.favorited }"><use href="#i-heart" /></svg>
+        </div>
         <div class="np-progress flex items-center gap-8 primary"><UiProgress :value="fraction" /><span class="np-duration flex-none regular">{{ np.duration ? durationText(np.duration) : np.active ? '' : '0:00' }}</span></div>
       </template>
     </LeftRail>

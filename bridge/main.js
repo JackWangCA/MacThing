@@ -69,6 +69,7 @@ async function onNowPlaying(snapshot) {
     : 'nothing playing';
   if (summary !== lastLogged) log.info(`[now playing] ${(lastLogged = summary)}`);
 
+  markTrack();
   if (link) pushNowPlaying(link);
   refreshKnobTarget(); // under 'auto', the playing app decides what the knob turns
 
@@ -85,6 +86,44 @@ async function onNowPlaying(snapshot) {
   log.info(`[artwork] ${hi.width}×${hi.height} from the playing tab`);
   if (browserArtKey(current.np) !== key) return; // moved on to another video meanwhile
   current = { ...current, art: hi };
+  if (link) pushNowPlaying(link);
+}
+
+// Whether the playing Apple Music song is in the library and favorited, so Now Playing can show
+// both and the back button's two toggles aren't a state you have to guess. Null for anything else,
+// and until Music has answered for this track.
+/** @type {{inLibrary: boolean, favorited: boolean}|null} */
+let marks = null;
+let marksTrack = ''; // the track `marks` describes ('' when there's nothing to mark)
+let marksRefused = false; // Automation was denied: asking again on every track gets the same no
+
+const markableTrack = (np) =>
+  np.active && np.bundleId === 'com.apple.Music' ? `${np.title}\n${np.artist}\n${np.album}` : '';
+
+/** Called for every snapshot; only a different song asks Music anything. */
+function markTrack() {
+  const track = markableTrack(current.np);
+  if (track === marksTrack) return;
+  marksTrack = track;
+  marks = null; // the push that follows this call carries the new song with no marks yet
+  if (track && !marksRefused) loadMarks(track);
+}
+
+async function loadMarks(track) {
+  const r = await musicctl('status');
+  if (track !== marksTrack) return; // the song moved on while Music was answering
+  if (!r.ok) {
+    if (r.code === MUSICCTL_REFUSED) marksRefused = true;
+    return log.warn('[marks]', r.error);
+  }
+  marks = r.playing ? { inLibrary: r.inLibrary, favorited: r.favorited } : null;
+  if (link) pushNowPlaying(link);
+}
+
+/** Keep the marks in step with a toggle we just made, instead of asking Music all over again. */
+function setMark(field, value) {
+  if (!marksTrack) return;
+  marks = { inLibrary: false, favorited: false, ...marks, [field]: value };
   if (link) pushNowPlaying(link);
 }
 
@@ -116,6 +155,11 @@ function nowPlayingMessage() {
         icon: config.unbadgedApps.includes(np.bundleId) ? null : app?.icon || null,
       },
       artworkKey: art?.key || null,
+      // Whether this track *will* have marks, which the Mac knows at once — asking Music takes a
+      // moment longer. The device holds the row's height from the start on the strength of it,
+      // so the title is sized once instead of shrinking when the answer lands.
+      markable: Boolean(markableTrack(np)) && !marksRefused,
+      marks,
     },
   };
 }
@@ -218,10 +262,11 @@ function openSettingsPage(section) {
 // ---- Input from the device ------------------------------------------------
 
 /** Apple Music actions via native/bin/musicctl (macOS asks once to let "musicctl" control Music). */
-function musicctl(command) {
+function musicctl(command, argument) {
+  const args = argument ? [command, argument] : [command];
   return new Promise((resolve) =>
     // Long timeout: the first run waits on the Automation permission prompt.
-    execFile(path.join(paths.bin, 'musicctl'), [command], { timeout: 60000 }, (err, stdout) => {
+    execFile(path.join(paths.bin, 'musicctl'), args, { timeout: 60000 }, (err, stdout) => {
       try {
         resolve(JSON.parse(stdout));
       } catch {
@@ -233,7 +278,8 @@ function musicctl(command) {
 
 async function runCommand(action) {
   log.info(`[input] ${action}`);
-  if (action === 'favorite' || action === 'unfavorite') return setFavorite(action);
+  if (action === 'library') return toggleLibrary();
+  if (action === 'favorite') return toggleFavorite();
   try {
     if (!current.np.active && (action === 'playpause' || action === 'play')) {
       const r = await musicctl('play'); // nothing playing: start Apple Music
@@ -246,20 +292,53 @@ async function runCommand(action) {
   }
 }
 
-async function setFavorite(command) {
+/** Both of the back button's toggles want an Apple Music song. Returns it, or null having said
+ *  why — `needs` reads out when something else is playing. Paused counts: the marks are on screen
+ *  either way, and a song you've stopped to think about is one you might want to keep. */
+function playingAppleMusic(needs) {
   const { np } = current;
-  if (np.active && !np.playing) return; // paused: the back button does nothing
-  if (np.bundleId !== 'com.apple.Music') {
-    return link?.send({ type: 'toast', text: np.active ? 'Favorites work with Apple Music' : 'Nothing playing' });
+  if (np.active && np.bundleId === 'com.apple.Music') return np;
+  link?.send({ type: 'toast', text: np.active ? needs : 'Nothing playing' });
+  return null;
+}
+
+const MUSICCTL_REFUSED = -1743; // the user said no to "musicctl wants to control Music"
+const MUSICCTL_KEEP = 1001; // musicctl declined to remove a song it didn't recognise as streamed
+
+const musicctlProblem = (r, fallback) =>
+  r.code === MUSICCTL_REFUSED ? 'Allow musicctl to control Music' : r.code === MUSICCTL_KEEP ? r.error : fallback;
+
+async function toggleLibrary() {
+  const np = playingAppleMusic('Your library works with Apple Music');
+  if (!np) return;
+  // Say which way when the marks say where the song stands. A track just duplicated into the
+  // library takes a moment to appear there, so a direction worked out by reading would miss a
+  // second press that soon — reporting another add, and making a duplicate to go with it.
+  const r = await musicctl('library', marks ? (marks.inLibrary ? 'off' : 'on') : null);
+  if (r.ok) {
+    log.info(`[library] ${np.title}: ${r.inLibrary ? 'added' : 'removed'}`);
+    setMark('inLibrary', r.inLibrary);
+    link?.send({ type: 'library', inLibrary: r.inLibrary });
+  } else {
+    log.warn('[library]', r.error);
+    link?.send({ type: 'toast', text: musicctlProblem(r, 'Couldn’t change your library') });
   }
-  const r = await musicctl(command);
+}
+
+async function toggleFavorite() {
+  const np = playingAppleMusic('Favorites work with Apple Music');
+  if (!np) return;
+  // Say which way when the marks say where the song stands: Music keeps answering with the old
+  // value for a second or so after a write, so a direction worked out by reading would miss a
+  // second press that soon and favorite the song twice.
+  const r = await musicctl('favorite', marks ? (marks.favorited ? 'off' : 'on') : null);
   if (r.ok) {
     log.info(`[favorite] ${np.title}: ${r.favorited ? 'added' : 'removed'}`);
+    setMark('favorited', r.favorited);
     link?.send({ type: 'favorite', favorited: r.favorited });
   } else {
     log.warn('[favorite]', r.error);
-    // -1743: the user said no to "musicctl wants to control Music".
-    link?.send({ type: 'toast', text: r.code === -1743 ? 'Allow musicctl to control Music' : 'Couldn’t favorite this song' });
+    link?.send({ type: 'toast', text: musicctlProblem(r, 'Couldn’t favorite this song') });
   }
 }
 
