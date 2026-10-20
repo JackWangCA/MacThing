@@ -243,7 +243,10 @@ try {
   await message({ type: 'settings', settings: { ...settings, meetingAlert: 5 } });
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Example meeting', location: 'Room 4\n1 Example St', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await capture('meeting-alert');
-  assert.match(await evaluate('document.querySelector(".m-card").textContent'), /^\s*Example meeting.*2:38 – 3:08 PM.*Room 4.*In 3 min\s*$/, 'Meeting alert shows the meeting');
+  // The card's text without the back button's part, which is checked on its own.
+  const cardDetails = '(function(){var c=document.querySelector(".m-card").cloneNode(true);c.querySelector(".m-start").remove();return c.textContent})()';
+  assert.match(await evaluate(cardDetails), /^\s*Example meeting.*2:38 – 3:08 PM.*Room 4.*In 3 min\s*$/, 'Meeting alert shows the meeting');
+  assert.equal(await evaluate('document.querySelector(".m-card .m-start").textContent'), 'Queue 30 min timer', 'and offers to queue its timer');
   await tick(now + 180000 + 22 * 60000);
   await pause(400);
   assert.match(await evaluate('document.querySelector(".m-card").textContent'), /22 min ago/, 'The alert stays up through the meeting');
