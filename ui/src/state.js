@@ -102,7 +102,8 @@ CT.on('command', action => {
       np.playing = !np.playing;
       np.rate = np.playing ? 1 : 0;
     }
-    if (state.current !== 'nowplaying' || !np.active) CT.flash(!np.active || np.playing ? 'play' : 'pause');
+    // Pausing on Now Playing needs no flash: the paused badge shows the pause icon and stays.
+    if (state.current !== 'nowplaying' || !np.active || np.playing) CT.flash(!np.active || np.playing ? 'play' : 'pause');
   } else if (action === 'next' || action === 'previous') CT.flash(action);
 });
 CT.on('favorite', msg => {
