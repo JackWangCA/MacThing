@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue';
-import { state, CT, elapsed, durationText, artworkUrl, hasArt, idleCover as cover } from '../state.js';
+import { state, CT, elapsed, durationText, artworkUrl, hasArt, idleCover } from '../state.js';
 import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import UiProgress from '../components/UiProgress.vue';
@@ -10,11 +10,13 @@ const np = computed(() => state.np);
 const album = computed(() => !np.value.active ? '' : np.value.album || (np.value.kind !== 'music' && np.value.source ? np.value.source.name : '') || '');
 // Nothing playing: the perpetual calendar. The rail shows the month, the date and the day, with the
 // time where the progress bar goes, and today's cover takes the album art's place (state.js).
-const parts = computed(() => CT.parts(state.now));
+// Read to the minute, so the screen isn't redrawn every second for text that changes once a minute.
+const minute = computed(() => Math.floor(state.now / 60000));
+const parts = computed(() => CT.parts(minute.value * 60000));
 const IDLE = computed(() => ({ eyebrow: CT.MONTHS[parts.value.month], title: String(parts.value.date), subtitle: CT.DAYS[parts.value.day] }));
 const time = computed(() => CT.clockText(parts.value).time);
-const idleCover = computed(() => cover.value ? cover.value.dataUrl : '');
-const stageArt = computed(() => artworkUrl.value || idleCover.value);
+const idleCoverUrl = computed(() => idleCover.value ? idleCover.value.dataUrl : '');
+const stageArt = computed(() => artworkUrl.value || idleCoverUrl.value);
 const icon = computed(() => np.value.active && np.value.source ? np.value.source.icon : '');
 const fraction = ref(0);
 function updateProgress() { fraction.value = np.value.duration ? elapsed() / np.value.duration : 0; }
@@ -77,16 +79,16 @@ onMounted(() => {
 onUnmounted(() => clearInterval(timer));
 </script>
 <template>
-  <section ref="root" id="screen-nowplaying" class="screen fill flex" :class="{ active: state.current === 'nowplaying', leaving: state.leaving === 'nowplaying', idle: !np.active, 'idle-cover': !!idleCover, paused: np.active && !np.playing, 'no-duration': np.active && !np.duration }">
+  <section ref="root" id="screen-nowplaying" class="screen fill flex" :class="{ active: state.current === 'nowplaying', leaving: state.leaving === 'nowplaying', idle: !np.active, 'idle-cover': !!idleCoverUrl, paused: np.active && !np.playing, 'no-duration': np.active && !np.duration }">
     <LeftRail ref="rail" :variant="np.active ? 'media' : 'date'" :eyebrow="np.active ? np.artist : IDLE.eyebrow" :title="np.active ? np.title : IDLE.title" :subtitle="np.active ? album : IDLE.subtitle" :muted-subtitle="np.active && !np.album">
       <template #lower>
         <div v-if="np.active" class="np-progress flex items-center gap-8 primary"><UiProgress :value="fraction" /><span class="np-duration flex-none regular">{{ np.duration ? durationText(np.duration) : '' }}</span></div>
         <span v-else class="np-time">{{ time }}</span>
       </template>
     </LeftRail>
-    <ScreenStage :class="{ 'bg-panel': hasArt || idleCover }"><!-- behind art: one continuous background, so nothing is left as a square when the art fades -->
+    <ScreenStage :class="{ 'bg-panel': hasArt || idleCoverUrl }"><!-- behind art: one continuous background, so nothing is left as a square when the art fades -->
       <Artwork :url="stageArt" />
-      <div v-if="!hasArt && !idleCover" class="np-placeholder fill flex center"><svg><use href="#i-note" /></svg></div><!-- the cover's stand-in, idle or for a track without art -->
+      <div v-if="!hasArt && !idleCoverUrl" class="np-placeholder fill flex center"><svg><use href="#i-note" /></svg></div><!-- the cover's stand-in, idle or for a track without art -->
       <div class="paused-glyph disc fill flex center" :style="{ color: state.flashing ? state.flash.color : '' }"><svg><use :href="'#i-' + (state.flashing ? state.flash.icon : 'pause')" /></svg></div><!-- a flash here swaps its icon into this badge for a moment, in place of a second disc -->
       <img v-if="icon" class="badge" :src="icon" alt="" />
     </ScreenStage>

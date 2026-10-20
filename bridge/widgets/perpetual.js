@@ -132,8 +132,8 @@ export async function renderCover(day, dir) {
  * dataUrl is the cover as its JPEG (the paper grain makes a PNG of it ten times the size), or the
  * PNG if that fails. With `blur`, blurUrl is the album art background used while nothing plays,
  * already blurred, and tint how strong a tint each theme needs over it.
- * Checks each minute for a new day (a timer set for midnight would fire late after the Mac sleeps
- * through it).
+ * Checks every few seconds for a new day, so the cover changes with the date on the rail (a timer
+ * set for midnight would fire late after the Mac sleeps through it).
  */
 export class PerpetualCover extends EventEmitter {
   constructor(artworkBin, { blur = false } = {}) {
@@ -143,22 +143,30 @@ export class PerpetualCover extends EventEmitter {
     this.state = { status: 'loading' };
     this.dir = null;
     this.seq = 0;
+    this.failing = false; // warn once per run of failures, not on every retry
+    this.drawing = false;
   }
 
   start() {
     this.refresh();
+    let retryAt = 0;
     setInterval(() => {
-      if (this.state.day !== localDay()) this.refresh(); // a new day, or the last try failed
-    }, 60 * 1000);
+      // A new day: draw it now. A failed try: again each minute.
+      if (this.state.day === localDay() || this.drawing || (this.failing && Date.now() < retryAt)) return;
+      retryAt = Date.now() + 60 * 1000;
+      this.refresh();
+    }, 10 * 1000);
   }
 
   async refresh() {
     const day = localDay(), seq = ++this.seq;
+    this.drawing = true;
     try {
       this.dir ??= await fs.mkdtemp(path.join(os.tmpdir(), 'carthing-perpetual-'));
       const png = await renderCover(day, this.dir);
       const encoded = await this.#encode(png, day).catch((err) => log.warn('[perpetual] sending the PNG:', err.message));
       if (seq !== this.seq) return; // a newer try started meanwhile
+      this.failing = false;
       this.#set({
         status: 'ok',
         day,
@@ -166,8 +174,11 @@ export class PerpetualCover extends EventEmitter {
         ...(encoded?.background && { blurUrl: `data:image/jpeg;base64,${encoded.background.toString('base64')}`, tint: encoded.tint }),
       });
     } catch (err) {
-      log.warn('[perpetual] could not draw the cover', err.message);
+      if (!this.failing) log.warn('[perpetual] could not draw the cover (trying again each minute)', err.message);
+      this.failing = true;
       if (this.state.status !== 'ok') this.#set({ status: 'error' });
+    } finally {
+      if (seq === this.seq) this.drawing = false;
     }
   }
 
