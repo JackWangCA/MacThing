@@ -695,11 +695,18 @@ h3 {
   background: transparent;
 }
 
-/* Screen asleep (backlight off): render nothing, in case the backlight can't be switched. */
+/* Screen asleep (backlight off): render nothing. The backlight going out doesn't make the panel
+   black on its own — whatever is drawn still shows faintly — so the page has to go black itself.
+   Every descendant, not just the direct children: `visibility` inherits, but a descendant that
+   declares `visibility: visible` overrides an ancestor's hidden, and three rules here do exactly
+   that (.screen.active, .meeting-alert.on, .offline .offline-screen). Hiding only the children
+   left the whole active screen, album art and all, lit up behind a dark backlight. An id plus a
+   class outranks those two-class selectors; `display: none` would beat them too, but it would
+   also throw away the layout the title and agenda fitting measured. */
 #app.asleep {
   background: var(--black);
 }
-#app.asleep > * {
+#app.asleep * {
   visibility: hidden;
 }
 
@@ -872,6 +879,24 @@ h3 {
 .np-title.break-word {
   word-wrap: break-word;
 }
+/* Apple Music's library and favorite state for the playing song. Both marks are always drawn —
+   faint when off, full strength when on — so the back button's two toggles are something you read
+   rather than remember. The row only exists for Apple Music, and the title is re-fitted around it. */
+.np-marks {
+  height: 30px;
+  color: var(--text);
+}
+.np-marks svg {
+  width: 22px;
+  height: 22px;
+  opacity: 0.25;
+}
+.np-marks svg.on {
+  opacity: 1;
+}
+.np-marks.waiting svg {
+  visibility: hidden;
+} /* the row keeps its height while Music is asked, so the title is never re-fitted */
 .np-progress {
   height: 28px;
 } /* a line tall even with no duration, so the title's room doesn't change */

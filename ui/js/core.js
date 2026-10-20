@@ -15,8 +15,8 @@ export function initializeRuntime(state) {
 
   // Replaced by the bridge's config/settings on connect; these just let the page render before that.
   CT.config = {
-    buttons: { 1: 'screen:nowplaying', 2: 'screen:calendar', 3: 'screen:weather', 4: 'screen:clock', m: 'settings', Escape: 'favorite' },
-    buttonClicks: { Escape: { 1: 'favorite', 2: 'unfavorite' } },
+    buttons: { 1: 'screen:nowplaying', 2: 'screen:calendar', 3: 'screen:weather', 4: 'screen:clock', m: 'settings', Escape: 'library' },
+    buttonClicks: { Escape: { 1: 'library', 2: 'favorite' } },
     knobClicks: { 1: 'playpause', 2: 'next', 3: 'previous' },
     buttonHolds: { m: 'sleep' }, holdMs: 1200, offlineSleepMs: 90000,
     multiClickMs: 350, volumeStep: 1 / 16, knobDirection: 1, debug: false
@@ -327,8 +327,8 @@ export function initializeRuntime(state) {
       return CT.show(name);
     }
     if (action === 'settings') return CT.current === 'settings' ? CT.closeSettings() : CT.show('settings');
-    // Favoriting is for the song on screen, so only Now Playing does it.
-    if ((action === 'favorite' || action === 'unfavorite') && CT.current !== 'nowplaying') return;
+    // These are for the song on screen, so only Now Playing does them.
+    if ((action === 'library' || action === 'favorite') && CT.current !== 'nowplaying') return;
     CT.command(action);
   }
 
@@ -348,7 +348,7 @@ export function initializeRuntime(state) {
   }
 
   // Buttons in config.buttonClicks count quick presses the way the knob does (by default the
-  // back button: one press favorites the song, two unfavorite it).
+  // back button: one press puts the song in your library, two favorite it; both toggle).
   var presses = {}; // key → {count, timer}
   function buttonPress(key, actions) {
     var state = presses[key] || (presses[key] = { count: 0, timer: null });

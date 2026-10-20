@@ -103,3 +103,7 @@ CT.on('favorite', msg => {
   CT.flash(msg.favorited ? 'heart' : 'heart-off');
   CT.toast(msg.favorited ? 'Added to Favorites' : 'Removed from Favorites');
 });
+CT.on('library', msg => {
+  CT.flash(msg.inLibrary ? 'plus' : 'minus');
+  CT.toast(msg.inLibrary ? 'Added to Library' : 'Removed from Library');
+});

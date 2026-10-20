@@ -27,22 +27,23 @@ export const config = {
   // Buttons → action. Keys are what the device reports to the page: top buttons 1–4, the
   // fifth (settings) button at the end of the top row (m) and the back button under the knob
   // (Escape — also closes Settings whatever it's mapped to).
-  // Actions: screen:<nowplaying|calendar|weather|clock> | settings | favorite | unfavorite
-  // (the playing Apple Music song) | previous | next | playpause | null
+  // Actions: screen:<nowplaying|calendar|weather|clock> | settings | library | favorite
+  // (both toggle, on the playing Apple Music song) | previous | next | playpause | null
   buttons: {
     1: 'screen:nowplaying',
     2: 'screen:calendar',
     3: 'screen:weather',
     4: 'screen:clock',
     m: 'settings',
-    Escape: 'favorite',
+    Escape: 'library',
   },
   // Knob press, by number of quick presses. A single press waits multiClickMs to see if more follow.
   knobClicks: { 1: 'playpause', 2: 'next', 3: 'previous' },
-  // Buttons that count presses the same way. On Now Playing the back button favorites the playing
-  // song on one press and unfavorites it on two, so neither is a toggle you have to guess the state
-  // of. A key listed here ignores its `buttons` entry.
-  buttonClicks: { Escape: { 1: 'favorite', 2: 'unfavorite' } },
+  // Buttons that count presses the same way. On Now Playing the back button puts the playing song
+  // in your library on one press and favorites it on two, each press undoing itself. Both states
+  // are drawn under the title, so there's nothing to guess and no deeper press count to get right.
+  // A key listed here ignores its `buttons` entry.
+  buttonClicks: { Escape: { 1: 'library', 2: 'favorite' } },
   multiClickMs: 350,
 
   // Hold a button for holdMs to get a second action out of it; the short press then happens on
