@@ -96,6 +96,16 @@ try {
   // Anything but Apple Music has no marks, and the row goes with them.
   await message({ type: 'nowPlaying', np: { active: true, artist: 'Example artist', title: 'A short title', album: 'Example album', artworkKey: 'fixture-art', duration: 300, elapsed: 60, rate: 0, playing: false } });
   assert.equal(await evaluate('document.querySelectorAll("#screen-nowplaying .np-marks").length'), 0);
+  // Paused, the position must sit still: the Mac recomputing it a few tenths lower is the two
+  // clocks disagreeing, not a seek, and must not step the seconds backwards.
+  const paused = { active: true, artist: 'Example artist', title: 'A short title', album: 'Example album', artworkKey: 'fixture-art', duration: 300, rate: 0, playing: false };
+  const shownTime = () => evaluate('document.querySelector("#screen-nowplaying .np-duration-now").textContent');
+  await message({ type: 'nowPlaying', np: { ...paused, elapsed: 100 } });
+  assert.equal(await shownTime(), '1:40');
+  await message({ type: 'nowPlaying', np: { ...paused, elapsed: 99.2 } });
+  assert.equal(await shownTime(), '1:40', 'a sub-second correction is drift, and is ignored');
+  await message({ type: 'nowPlaying', np: { ...paused, elapsed: 200 } });
+  assert.equal(await shownTime(), '3:20', 'a real seek is still obeyed');
   await message({ type: 'settings', settings });
   await message({ type: 'nowPlaying', np: { active: false } });
   await capture('idle');

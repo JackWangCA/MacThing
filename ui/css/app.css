@@ -900,6 +900,23 @@ h3 {
 .np-progress {
   height: 28px;
 } /* a line tall even with no duration, so the title's room doesn't change */
+/* The elapsed time is given the width of the whole track, so the bar beside it keeps one length
+   while the number counts up. Two things move it otherwise: Inter's figures are proportional, so
+   1:11 measures 15px narrower than 0:00 with the same four characters, and 9:59 → 10:00 adds a
+   character as well. tabular-nums settles the first; the hidden copy of the track's length, which
+   is always the longest the live number can get, settles the second. */
+.np-duration {
+  position: relative;
+  font-variant-numeric: tabular-nums;
+}
+.np-duration-max {
+  visibility: hidden;
+}
+.np-duration-now {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
 .no-duration .np-progress .ui-progress,
 .no-duration .np-duration {
   visibility: hidden;
