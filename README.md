@@ -48,7 +48,7 @@ The backlight is the part that wears out, so "off" means the backlight really is
 
 **Lock:** while your Mac is locked — the lock screen, or switched to another account — the backlight stays off and no button wakes it. It comes back when you log in.
 
-**Usage pace.** Both Claude and ChatGPT show numeric pace for the session and week. An unstarted window shows **0.0x**; a window at or above its allowance shows **🔥🔥🔥**. Percentages and reset times stay visible. Fire artwork is bundled for offline use from [Twemoji v16.0.1](https://github.com/jdecked/twemoji/tree/v16.0.1), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), by Twitter and other contributors.
+**Usage pace.** Both Claude and ChatGPT show numeric pace for the session and week. An unstarted window shows **0.0x**; any pace above zero shows at least **0.1x** so it never reads as unstarted; a window at or above its allowance shows **🔥🔥🔥**. Percentages and reset times stay visible. Fire artwork is bundled for offline use from [Twemoji v16.0.1](https://github.com/jdecked/twemoji/tree/v16.0.1), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), by Twitter and other contributors.
 
 **Settings** covers appearance (dark, light or match the Mac), the album art background, meeting alerts, whose usage the Clock shows (Claude, ChatGPT, both or none) and the weather location. Anything that needs typing or a longer list, or that you set once — a city, °F/°C, 12/24-hour time, and which calendars and how many days the Calendar screen shows — opens a settings page on your Mac at http://127.0.0.1:4747.
 

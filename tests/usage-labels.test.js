@@ -33,6 +33,11 @@ test('numeric labels use the actual K ratio and the elapsed-time floor', () => {
   assert.equal(paceNumber(window(99, .01), SESSION_MS, now), '891x');
   assert.equal(paceNumber(window(97, .99), SESSION_MS, now), '0.3x');
   assert.equal(paceNumber({percent: 0, resetsAt: null}, SESSION_MS, now), '0.0x');
+  assert.equal(paceNumber(window(0, .5), SESSION_MS, now), '0.0x');
+  // Half used with 4.5% of the time left is about 0.047x: any use shows at least 0.1x, not 0.0x.
+  assert.equal(paceNumber(window(50, 1 - 7.5 / 168), SESSION_MS, now), '0.1x');
+  assert.equal(paceNumber(window(0.1, .9), SESSION_MS, now), '0.1x');
+  assert.equal(paceNumber(window(10, .5), SESSION_MS, now), '0.1x');
   assert.equal(paceNumber(window(100, .5), SESSION_MS, now), '🔥🔥🔥');
   assert.equal(paceNumber(window(110, .5), SESSION_MS, now), '🔥🔥🔥');
 });
