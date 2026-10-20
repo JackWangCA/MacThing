@@ -67,6 +67,7 @@ export function initializeRuntime(state) {
   function setConnected(on) {
     if (on !== connected) offlineSince = on ? 0 : performance.now();
     if (on && !connected) opening = true;
+    if (!on) CT.lockedTo = null; // no Mac to say it's still locked; it says again on reconnecting
     connected = on;
     state.offline = !on;
   }
@@ -148,8 +149,33 @@ export function initializeRuntime(state) {
     if (e.animationName === 'fade-in' && e.target.classList.contains('screen') && e.target.classList.contains('active')) {
       state.leaving = '';
       state.screenSwitch = '';
+      thaw();
     }
   });
+
+  // A switch before the last one has finished: the screen still coming in loses its fade-in as
+  // it starts to leave, so it would jump to full strength and then fade out — a ghost of it
+  // flashing up. Instead its content leaves from how far it had faded in (its panels go to full
+  // strength, covering the screen before it, which goes). Undone once it's no longer leaving.
+  var frozenScreen = null, frozenParts = [];
+  function freeze(name) {
+    var el = document.getElementById('screen-' + name);
+    if (!el) return;
+    var style = getComputedStyle(el), shown = parseFloat(style.opacity);
+    if (shown >= 1 && style.transform === 'none') return;
+    frozenScreen = el;
+    if (style.transform !== 'none') el.style.transform = style.transform; // where its slide had got to
+    frozenParts = Array.prototype.slice.call(el.querySelectorAll('.left-rail > *, .screen-stage > *'));
+    for (var i = 0; i < frozenParts.length; i++) {
+      frozenParts[i].style.opacity = String(parseFloat(getComputedStyle(frozenParts[i]).opacity) * shown);
+    }
+  }
+  function thaw() {
+    if (frozenScreen) frozenScreen.style.transform = '';
+    for (var i = 0; i < frozenParts.length; i++) frozenParts[i].style.opacity = '';
+    frozenScreen = null;
+    frozenParts = [];
+  }
 
   // The pages in the order their top buttons run, left to right. Moving between them wipes the
   // new one in from that side; Settings, which has no top button, fades.
@@ -158,11 +184,13 @@ export function initializeRuntime(state) {
   /** Shows a screen. `fade` crossfades even between pages, rather than sliding to the side. */
   CT.show = function (name, fade) {
     var next = CT.screens[name];
-    if (!next) return;
+    if (!next || (CT.lockedTo && name !== CT.lockedTo)) return;
     if (name !== CT.current) {
       var prev = CT.screens[CT.current];
       if (name === 'settings') beforeSettings = CT.current;
       if (prev.hide) prev.hide();
+      thaw();
+      if (state.leaving) freeze(CT.current);
       var from = PAGES.indexOf(CT.current), to = PAGES.indexOf(name);
       state.screenSwitch = fade || from < 0 || to < 0 ? 'fade' : to > from ? 'next' : 'previous';
       state.leaving = CT.current;
@@ -174,17 +202,28 @@ export function initializeRuntime(state) {
   };
   CT.closeSettings = function () { CT.show(beforeSettings); };
 
+  // The While locked setting: with the Mac locked, the bridge can hold the device on one screen.
+  // Nothing moves it off that screen, and the buttons and knob only work the volume and playback.
+  CT.lockedTo = null;
+  CT.on('lock', function (msg) {
+    CT.lockedTo = msg.screen && CT.screens[msg.screen] ? msg.screen : null;
+    if (CT.lockedTo) CT.show(CT.lockedTo, true);
+  });
+
   // Whenever the Mac connects (the page loading, or the bridge coming back), an empty Now Playing
-  // gives way to the Clock. From there, or from the page's first screen, it moves to Now Playing
+  // gives way to the Idle screen (unless When idle is Never). From there, or from the page's first screen, it moves to Now Playing
   // when something starts — until a screen is picked on the device (or restored in dev). It
   // doesn't leave Now Playing while connected: a player can drop out between tracks.
   var autoScreen = true, opening = true; // opening: no Now Playing message yet since connecting
   CT.on('nowPlaying', function (msg) {
     var first = opening;
     opening = false;
-    if (first && !msg.np.active && CT.current === 'nowplaying') {
+    // Settings → When idle governs this: Never keeps the (placeholder) Now Playing up; otherwise
+    // the page opens on the Idle screen (the Clock by default). Settings arrive before Now Playing.
+    var idleTarget = CT.settings.idleScreen || 'clock';
+    if (first && !msg.np.active && CT.current === 'nowplaying' && CT.settings.idleMinutes && CT.screens[idleTarget]) {
       autoScreen = true;
-      return CT.show('clock', true); // under "Waiting for your Mac" as it fades
+      return CT.show(idleTarget, true); // under "Waiting for your Mac" as it fades
     }
     if (autoScreen && msg.np.active) {
       autoScreen = false;
@@ -286,6 +325,7 @@ export function initializeRuntime(state) {
 
   function runButton(action) {
     if (!action) return;
+    if (CT.lockedTo && (action.indexOf('screen:') === 0 || action === 'settings')) return;
     if (action.indexOf('screen:') === 0 || action === 'settings') autoScreen = false;
     if (action.indexOf('screen:') === 0) {
       var name = action.slice(7), screen = CT.screens[name];
@@ -297,6 +337,8 @@ export function initializeRuntime(state) {
       return CT.show(name);
     }
     if (action === 'settings') return CT.current === 'settings' ? CT.closeSettings() : CT.show('settings');
+    // Favoriting is for the song on screen, so only Now Playing does it.
+    if ((action === 'favorite' || action === 'unfavorite') && CT.current !== 'nowplaying') return;
     CT.command(action);
   }
 
@@ -305,7 +347,7 @@ export function initializeRuntime(state) {
   var clickTimer = null;
   function knobPress() {
     var screen = CT.screens[CT.current];
-    if (screen.press && screen.press() !== false) return;
+    if (!CT.lockedTo && screen.press && screen.press() !== false) return;
     clicks++;
     clearTimeout(clickTimer);
     clickTimer = setTimeout(function () {
@@ -332,6 +374,10 @@ export function initializeRuntime(state) {
 
   function runKey(key) {
     if (key === 'Enter') return knobPress();
+    // A screen can take the back button for itself (Settings opens the Mac's settings page on it,
+    // the clock's stale usage refreshes on it).
+    var screen = CT.screens[CT.current];
+    if (key === 'Escape' && !CT.lockedTo && screen && screen.back && screen.back() !== false) return;
     if (key === 'Escape' && CT.current === 'settings') return CT.closeSettings();
     var actions = (CT.config.buttonClicks || {})[key];
     if (actions) return buttonPress(key, actions);
@@ -361,6 +407,7 @@ export function initializeRuntime(state) {
     debugInput('keydown key=' + e.key + ' code=' + e.code + ' → ' + key + (e.repeat ? ' (repeat)' : ''));
     if (!key) return;
     e.preventDefault();
+    if (!e.repeat) emit('input', key); // e.g. the When idle countdown starts over
 
     var press = holds[key];
     if (e.repeat) {
@@ -377,8 +424,9 @@ export function initializeRuntime(state) {
       holds[key] = { start: performance.now(), done: true }; // the wake was the whole press
       return;
     }
-    // An alert over the screen (the meeting alert) takes the whole press to dismiss it.
-    if (CT.dismissModal && CT.dismissModal()) {
+    // An alert over the screen (the meeting alert) takes the whole press to dismiss it (the back
+    // button can do one thing more there: start the meeting's timer).
+    if (CT.dismissModal && CT.dismissModal(key)) {
       holds[key] = { start: performance.now(), done: true };
       return;
     }
@@ -405,17 +453,19 @@ export function initializeRuntime(state) {
     e.preventDefault();
     var d = e.deltaX || e.deltaY;
     debugInput('wheel dx=' + e.deltaX + ' dy=' + e.deltaY);
+    if (d) emit('input', 'wheel');
     if (!d || wakeInstead()) return;
     var steps = (d > 0 ? 1 : -1) * (CT.config.knobDirection || 1);
     var screen = CT.screens[CT.current];
-    if (!screen.turn || screen.turn(steps) === false) onKnobVolume(steps);
+    if (CT.lockedTo || !screen.turn || screen.turn(steps) === false) onKnobVolume(steps);
   }, { passive: false, capture: true });
 
   document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
   // ---- Volume (knob turns anywhere but settings) --------------------------------------
 
-  var vol = null;          // {volume, muted, supported, device} from the Mac
+  var vol = null;          // {volume, muted, supported, device, app?} from the Mac (app: the knob turns that app's volume)
+  var lastTurn = -1e9;     // when the knob last turned
   var localVol = null;     // optimistic value while the knob is turning
   var localUntil = 0;
   var pendingDelta = 0;
@@ -428,13 +478,18 @@ export function initializeRuntime(state) {
     vol = msg.volume;
     if (performance.now() < localUntil) return; // knob in motion: don't fight the optimistic value
     renderVolume();
-    if (prev && (prev.volume !== vol.volume || prev.muted !== vol.muted || prev.device !== vol.device)) showVolume();
+    // Not when the knob switches between the output and an app's volume: nothing was turned.
+    // Except that an app's volume arrives in answer to the first turn (the Mac reads it then).
+    var changed = prev && prev.app === vol.app && (prev.volume !== vol.volume || prev.muted !== vol.muted || prev.device !== vol.device);
+    var answered = prev && vol.app && vol.supported && !prev.supported && performance.now() - lastTurn < 3000;
+    if (changed || answered) showVolume();
   });
 
   function renderVolume(optimistic) {
     if (!vol) return;
     state.volumeUnsupported = !vol.supported;
-    state.volumeNote = vol.supported ? '' : 'No volume control on ' + vol.device;
+    state.volumeNote = vol.supported ? '' : vol.note || 'No volume control on ' + vol.device;
+    state.volumeIcon = !vol.supported ? '' : vol.appId === 'com.spotify.client' ? 'spotify' : vol.appId === 'com.apple.Music' ? 'apple-music' : '';
     var v = optimistic != null ? optimistic : vol.muted ? 0 : vol.volume || 0;
     state.volume = v;
   }
@@ -447,8 +502,14 @@ export function initializeRuntime(state) {
 
   function onKnobVolume(steps) {
     if (!vol) return;
-    if (!vol.supported) return showVolume();
     var now = performance.now();
+    lastTurn = now;
+    if (!vol.supported) {
+      if (!vol.app) return showVolume(); // "No volume control on <device>"
+      // An app's volume the Mac hasn't read yet, or the app isn't running: it reads it for this
+      // turn and answers with the volume (or a toast).
+      return CT.send({ type: 'volume', delta: steps * CT.config.volumeStep });
+    }
     if (now > localUntil) localVol = vol.volume || 0;
     var next = Math.min(1, Math.max(0, localVol + steps * CT.config.volumeStep));
     pendingDelta += next - localVol;

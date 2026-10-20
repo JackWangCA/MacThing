@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Car Thing bridge: macOS Now Playing, volume, weather and calendar ⇄ the Car Thing's screen,
+// Car Thing bridge: macOS Now Playing, volume, weather, calendar and Claude/ChatGPT usage ⇄ the Car Thing's screen,
 // knob and buttons. Also serves the Mac-side settings page.
 //   npm start          run the bridge
 //   npm run dev        …and redeploy the device UI whenever ui/ changes
@@ -7,6 +7,7 @@
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { APP_VOLUME, AppVolume } from './audio/app-volume.js';
 import { Volume } from './audio/volume.js';
 import { config, paths } from './config.js';
 import { listCarThings, listDevices, onUsbBus, restartServer, trackDevices } from './device/adb.js';
@@ -14,7 +15,7 @@ import { DeviceLink } from './device/link.js';
 import { log } from './log.js';
 import { AppInfo, kindOf } from './nowplaying/apps.js';
 import { ArtworkCache } from './nowplaying/artwork.js';
-import { largerBrowserArt } from './nowplaying/browser-art.js';
+import { browserArtKey, largerBrowserArt } from './nowplaying/browser-art.js';
 import { MediaRemoteSource } from './nowplaying/mediaremote.js';
 import { MacAppearance } from './mac/appearance.js';
 import { MacHelper } from './mac/helper.js';
@@ -22,15 +23,24 @@ import { MacPower } from './mac/power.js';
 import { settings } from './settings.js';
 import { startSettingsPage } from './settings-page/server.js';
 import { Calendar } from './widgets/calendar.js';
+import { PerpetualCover } from './widgets/perpetual.js';
+import { ClaudeUsage } from './widgets/usage.js';
+import { CodexUsage } from './widgets/codex-usage.js';
 import { Weather } from './widgets/weather.js';
 
 const source = new MediaRemoteSource(paths.bin);
 const volume = new Volume(paths.bin);
+const appVolume = new AppVolume();
 const apps = new AppInfo(paths.bin);
 const artwork = new ArtworkCache(path.join(paths.bin, 'artwork'), { blur: config.ambientBlurOnMac });
 const helper = new MacHelper(paths.bin);
 const weather = new Weather(helper, settings);
 const calendar = new Calendar(helper, settings);
+const perpetual = new PerpetualCover(path.join(paths.bin, 'artwork'), { blur: config.ambientBlurOnMac });
+// Settings → Usage: only the providers it names are read (none: no Keychain or Codex logs at all).
+const wantsUsage = (provider) => [provider, 'both'].includes(settings.get().usageSource);
+const usage = new ClaudeUsage({ enabled: () => wantsUsage('claude') });
+const chatgptUsage = new CodexUsage({ enabled: () => wantsUsage('chatgpt') });
 const appearance = new MacAppearance();
 const power = new MacPower(paths.bin);
 
@@ -44,7 +54,7 @@ let connecting = false;
 let current = { np: source.snapshot, art: null, app: null };
 let resolveSeq = 0;
 let lastLogged = '';
-const largerArt = new Map(); // MediaRemote artwork key -> art from the playing tab (null: none found)
+const largerArt = new Map(); // source + video + artwork identity -> upgraded art (null: none found)
 
 async function onNowPlaying(snapshot) {
   const seq = ++resolveSeq;
@@ -53,7 +63,7 @@ async function onNowPlaying(snapshot) {
     snapshot.bundleId ? apps.get(snapshot.bundleId) : null,
   ]);
   if (seq !== resolveSeq) return; // superseded by a newer update
-  const key = snapshot.artwork?.key;
+  const key = browserArtKey(snapshot);
   current = { np: snapshot, art: (key && largerArt.get(key)) || art, app };
 
   const summary = snapshot.active
@@ -62,6 +72,7 @@ async function onNowPlaying(snapshot) {
   if (summary !== lastLogged) log.info(`[now playing] ${(lastLogged = summary)}`);
 
   if (link) pushNowPlaying(link);
+  refreshKnobTarget(); // under 'auto', the playing app decides what the knob turns
 
   // Browser video art is often a small thumbnail. Look for a bigger one once per cover.
   if (!art || largerArt.has(key) || Math.min(art.width, art.height) >= 360) return;
@@ -74,7 +85,7 @@ async function onNowPlaying(snapshot) {
   if (Math.min(hi.width, hi.height) < 360) return;
   largerArt.set(key, hi);
   log.info(`[artwork] ${hi.width}×${hi.height} from the playing tab`);
-  if (current.np.artwork?.key !== key) return; // moved on to another cover meanwhile
+  if (browserArtKey(current.np) !== key) return; // moved on to another video meanwhile
   current = { ...current, art: hi };
   if (link) pushNowPlaying(link);
 }
@@ -142,11 +153,16 @@ function pushAll(target) {
   target.send(tickMessage());
   target.send({ type: 'settings', settings: settings.get() });
   target.send({ type: 'appearance', dark: appearance.dark });
-  if (volume.state) target.send({ type: 'volume', volume: volume.state });
+  const vol = volumeMessage();
+  if (vol) target.send({ type: 'volume', volume: vol });
   pushNowPlaying(target);
   target.send({ type: 'weather', weather: weather.state });
   target.send({ type: 'calendar', calendar: calendar.state });
+  target.send({ type: 'perpetual', perpetual: perpetual.state });
+  target.send({ type: 'usage', usage: usage.state });
+  target.send({ type: 'chatgptUsage', usage: chatgptUsage.state });
   target.send({ type: 'screen', on: screenOn !== false }); // the page may have gone dark by itself
+  pushLock(target);
 }
 
 // ---- Screen sleep ---------------------------------------------------------
@@ -156,17 +172,38 @@ let lastDeviceInput = 0;
 let manualSleep = false; // held down the sleep button; any input clears it
 let screenOn = null; // unknown until applied to the current device link
 
-// The Car Thing's screen follows the Mac's display; a button/knob press wakes it for a while.
-// While the Mac is locked it stays off for good: what's on it is the locked-away Mac's business.
+let macIdleMs = 0; // kept up to date while the Sleep setting is a number of minutes
+
+// The Sleep setting. With Mac: the screen follows the Mac's display, and while the Mac is locked it
+// stays off for good (what's on it is the locked-away Mac's business). A number of minutes: off
+// once the Mac has gone that long without input, like a screen saver, or while it sleeps. Either
+// way a button/knob press wakes it for a while. Never: always on, unless the sleep button is held.
 function screenShouldBeOn() {
   if (manualSleep) return false;
-  if (!config.sleepWithMac) return true;
-  if (systemAsleep || power.locked) return false;
-  if (!power.displayAsleep) return true;
-  return Date.now() - lastDeviceInput < config.screenWakeMs;
+  const mode = settings.get().screenSleep;
+  if (mode === 'never') return true;
+  if (mode === 'mac' && power.locked) return false;
+  if (systemAsleep) return false;
+  const idle = mode === 'mac' ? power.displayAsleep : macIdleMs >= mode * 60 * 1000;
+  return !idle || Date.now() - lastDeviceInput < config.screenWakeMs;
+}
+
+// While Locked: the screen the device is held on while the Mac is locked, or null.
+function lockedScreen() {
+  const s = settings.get();
+  return power.locked && s.screenSleep !== 'mac' && s.whenLocked !== 'unlocked' ? s.whenLocked : null;
+}
+let sentLock;
+/** Tells the device which screen it's held on; only on a change unless `target` is a fresh page. */
+function pushLock(target) {
+  const screen = lockedScreen();
+  if (!target && screen === sentLock) return;
+  sentLock = screen;
+  (target || link)?.send({ type: 'lock', screen });
 }
 
 async function applyScreen() {
+  pushLock();
   const on = screenShouldBeOn();
   if (!link || on === screenOn) return;
   screenOn = on;
@@ -180,8 +217,12 @@ async function applyScreen() {
 
 // The Mac says "still here" every few seconds. When it stops — the Mac was shut down, or the
 // cable now only carries power — the device puts itself to sleep. See device/sleepd.sh.
+//
+// Only once a state has been applied to this link: the first beat after a reconnect is what the
+// watchdog hands the screen back with, so it must say what we just set, not what the last link had.
 function heartbeat() {
-  link?.heartbeat(screenOn !== false).catch((err) => log.debug('[heartbeat]', err.message));
+  if (screenOn === null) return;
+  link?.heartbeat(screenOn).catch((err) => log.debug('[heartbeat]', err.message));
 }
 
 async function macStatus() {
@@ -251,6 +292,9 @@ const FINE_KEY_STEP = 1 / 64; // one Option+Shift volume-key press
 
 function changeVolume(delta) {
   if (!Number.isFinite(delta) || delta === 0) return;
+  const app = knobApp();
+  if (app) return changeAppVolume(app, delta);
+  askForKeyAccess();
   if (config.macVolumeIndicator && volume.state?.keys) {
     const steps = Math.round(Math.abs(delta) / FINE_KEY_STEP);
     for (let i = 0; i < steps; i++) volume.pressKey(delta > 0);
@@ -259,15 +303,147 @@ function changeVolume(delta) {
   }
 }
 
+// ---- Knob volume: the Mac's output or an app's own ----------------------------------------
+// settings.knobVolume picks what the knob turns: 'system' (the Mac's output), 'spotify' or
+// 'music' (that app's own volume slider, over AppleScript), or 'auto' — the output, unless it
+// has no volume of its own (an HDMI monitor), then the playing app's if it's Spotify or Music.
+// An app's volume is first read on a knob turn, so macOS only asks for the Automation
+// permission ("node wants to control Spotify") when someone actually uses it.
+
+const KNOB_APPS = { spotify: 'com.spotify.client', music: 'com.apple.Music' };
+
+let appVol = null; // {bundleId, level: 0–100, fractional} once the knob has read that app's volume
+let appVolTouched = 0; // last knob turn: a background read mustn't undo what the knob just did
+let appVolReading = false;
+let appVolError = ''; // last failure logged, so the same one isn't logged on every turn
+let appVolToastAt = 0;
+const APP_VOL_QUIET_MS = 2000;
+
+/** The bundle id whose volume the knob turns, or null for the Mac's output volume. */
+function knobApp() {
+  const mode = settings.get().knobVolume;
+  if (KNOB_APPS[mode]) return KNOB_APPS[mode];
+  if (mode !== 'auto' || !volume.state || volume.state.supported) return null;
+  const { np } = current;
+  return np.active && AppVolume.supports(np.bundleId) ? np.bundleId : null;
+}
+
+/** What the device shows: {volume, muted, supported, device, app?: the app the knob turns}. */
+function volumeMessage() {
+  const v = volume.state;
+  const app = knobApp();
+  if (!app) {
+    // Under 'auto' on an output with no volume (an HDMI monitor), playing Spotify or Music would
+    // give the knob something to turn, so say that rather than blaming the output.
+    if (v && !v.supported && settings.get().knobVolume === 'auto' && !current.np.active) return { ...v, note: 'No music playing' };
+    return v;
+  }
+  const base = { device: v?.device || '', keys: v?.keys };
+  if (appVol?.bundleId === app) return { ...base, volume: appVol.level / 100, muted: false, supported: true, app: APP_VOLUME[app].name, appId: app };
+  // Not read yet, or the app isn't running: the page sends the turn anyway and the read answers it.
+  return { ...base, volume: null, muted: false, supported: false, app: APP_VOLUME[app].name, appId: app };
+}
+
+let lastVolumeSent = '';
+function pushVolume({ force = false } = {}) {
+  const v = volumeMessage();
+  const json = JSON.stringify(v);
+  if (!v || (!force && json === lastVolumeSent)) return;
+  lastVolumeSent = json;
+  link?.send({ type: 'volume', volume: v });
+}
+
+/** Forgets the app's volume when the knob no longer turns that app (setting, source or output changed). */
+function refreshKnobTarget() {
+  if (appVol && knobApp() !== appVol.bundleId) appVol = null;
+  pushVolume();
+}
+
+function appVolFailed(r, bundleId, { toast = false } = {}) {
+  appVol = null;
+  pushVolume();
+  const { name } = APP_VOLUME[bundleId];
+  if (!r.notRunning) {
+    const text = `${r.code || ''} ${r.error || ''}`;
+    if (text !== appVolError) log.warn(`[volume] ${name}'s volume:`, r.error);
+    appVolError = text;
+  }
+  if (!toast || Date.now() - appVolToastAt < 2500) return;
+  appVolToastAt = Date.now();
+  // -1743: the user said no to "node wants to control …" (System Settings → Privacy & Security → Automation).
+  const text = r.notRunning ? `${name} isn’t running`
+    : r.code === -1743 ? `Allow control of ${name} in Automation`
+    : r.timedOut ? `Allow control of ${name} on your Mac`
+    : `Couldn’t change ${name}’s volume`;
+  link?.send({ type: 'toast', text });
+}
+
+async function readAppVolume(bundleId) {
+  appVolReading = true;
+  try {
+    return await appVolume.read(bundleId);
+  } finally {
+    appVolReading = false;
+  }
+}
+
+async function changeAppVolume(bundleId, delta) {
+  appVolTouched = Date.now();
+  if (appVol?.bundleId !== bundleId) {
+    if (appVolReading) return; // the first turn is still reading it (or waiting on the permission prompt)
+    const r = await readAppVolume(bundleId);
+    if (!r.ok) return appVolFailed(r, bundleId, { toast: true });
+    if (knobApp() !== bundleId) return;
+    appVol = { bundleId, level: r.volume };
+    appVolError = '';
+    log.info(`[volume] the knob turns ${APP_VOLUME[bundleId].name}'s volume (${r.volume})`);
+  }
+  appVol.level = Math.min(100, Math.max(0, appVol.level + delta * 100));
+  const r = await appVolume.set(bundleId, appVol.level);
+  appVolTouched = Date.now();
+  if (r && !r.ok) return appVolFailed(r, bundleId, { toast: true });
+  pushVolume();
+}
+
+/** Every few seconds while the knob turns an app: follow its own slider, and notice it quitting. */
+async function syncAppVolume() {
+  refreshKnobTarget();
+  if (!appVol || appVolReading || appVolume.running || Date.now() - appVolTouched < APP_VOL_QUIET_MS) return;
+  const { bundleId } = appVol;
+  const r = await readAppVolume(bundleId);
+  if (Date.now() - appVolTouched < APP_VOL_QUIET_MS || appVolume.running || appVol?.bundleId !== bundleId) return;
+  if (!r.ok) return appVolFailed(r, bundleId);
+  // Keep the knob's fractional level unless the app really moved.
+  if (Math.round(appVol.level) !== r.volume) appVol.level = r.volume;
+  pushVolume();
+}
+
+// Asked on a knob turn rather than at startup: macOS's prompt only stays up briefly, so it
+// should appear while someone is turning the knob and looking, with the device saying why.
+// Its button opens System Settings, where MacThingVolume is already listed, switched off.
+// A helper process keeps the first answer it got, so after asking, a fresh one is started every
+// few seconds until the permission shows up — allowing it then needs no restart.
 let askedForKeyAccess = false;
-function checkKeyAccess(state) {
-  if (!config.macVolumeIndicator || state.keys || askedForKeyAccess) return;
+const KEY_RECHECK_MS = 3000;
+const KEY_RECHECK_FOR_MS = 3 * 60 * 1000;
+function askForKeyAccess() {
+  if (!config.macVolumeIndicator || !volume.state || volume.state.keys || askedForKeyAccess) return;
   askedForKeyAccess = true;
   log.warn(
-    '[volume] to show the macOS volume indicator, allow "volumectl" in System Settings → ' +
-      'Privacy & Security → Accessibility, then restart the bridge. Until then the knob sets the volume silently.',
+    '[volume] to show the macOS volume indicator, allow "MacThingVolume" in System Settings → ' +
+      'Privacy & Security → Accessibility. Until then the knob sets the volume silently.',
   );
   volume.requestKeyAccess();
+  link?.send({ type: 'toast', text: 'Allow MacThingVolume on your Mac' });
+  const until = Date.now() + KEY_RECHECK_FOR_MS;
+  const timer = setInterval(() => {
+    if (volume.state?.keys || Date.now() > until) {
+      clearInterval(timer);
+      if (volume.state?.keys) log.info('[volume] MacThingVolume allowed: the knob shows the macOS volume indicator');
+      return;
+    }
+    volume.recheck();
+  }, KEY_RECHECK_MS);
 }
 
 function onDeviceMessage(msg) {
@@ -291,6 +467,10 @@ function onDeviceMessage(msg) {
       return openSettingsPage(msg.section);
     case 'retryWeather':
       return retryWeather(msg.quiet);
+    case 'refreshUsage':
+      return Promise.allSettled([chatgptUsage.ask(), usage.ask()]).then(() => {
+        if (msg.ack) link?.send({ type: 'usageRefreshed' });
+      });
     case 'log':
       return log.info('[device]', msg.message);
   }
@@ -343,6 +523,7 @@ async function connect(serial) {
   const l = new DeviceLink(serial);
   l.on('ready', () => pushAll(l));
   l.on('message', onDeviceMessage);
+  screenOn = null; // whatever it was belonged to the last link
   l.on('close', () => {
     if (link !== l) return;
     link = null;
@@ -381,12 +562,24 @@ function debounce(fn, ms) {
 log.info('Car Thing bridge starting');
 source.on('change', (s) => onNowPlaying(s).catch((err) => log.warn('[now playing]', err.message)));
 volume.on('change', (v) => {
-  checkKeyAccess(v);
-  link?.send({ type: 'volume', volume: v });
+  if (appVol && knobApp() !== appVol.bundleId) appVol = null;
+  pushVolume({ force: true });
 });
-settings.on('change', (values) => link?.send({ type: 'settings', settings: values }));
+settings.on('change', (values, changed) => {
+  link?.send({ type: 'settings', settings: values });
+  if (changed.includes('knobVolume')) refreshKnobTarget();
+  if (changed.includes('screenSleep') || changed.includes('whenLocked')) refreshIdle();
+});
+settings.on('change', (_, changed) => {
+  if (!changed.includes('usageSource')) return;
+  usage.refresh();
+  chatgptUsage.refresh();
+});
 weather.on('change', (state) => link?.send({ type: 'weather', weather: state }));
 calendar.on('change', (state) => link?.send({ type: 'calendar', calendar: state }));
+perpetual.on('change', (state) => link?.send({ type: 'perpetual', perpetual: state }));
+usage.on('change', (state) => link?.send({ type: 'usage', usage: state }));
+chatgptUsage.on('change', (state) => link?.send({ type: 'chatgptUsage', usage: state }));
 appearance.on('change', (dark) => link?.send({ type: 'appearance', dark }));
 power.on('display', () => applyScreen());
 power.on('lock', (locked) => {
@@ -411,6 +604,9 @@ volume.start();
 helper.start();
 weather.start();
 calendar.start();
+perpetual.start();
+usage.start();
+chatgptUsage.start();
 appearance.start();
 power.start();
 startSettingsPage({ port: config.settingsPort, settings, status: macStatus });
@@ -420,7 +616,13 @@ setInterval(refreshDevices, 30 * 1000); // a stale adb server sends no events; l
 refreshDevices();
 
 setInterval(() => link?.send(tickMessage()), 2000);
-setInterval(() => applyScreen(), 5000); // lets the post-input wake window expire
+// Lets the post-input wake window expire, and reads the Mac's idle time for a timed Sleep setting.
+async function refreshIdle() {
+  if (typeof settings.get().screenSleep === 'number') macIdleMs = (await power.idleMs()) ?? 0;
+  applyScreen();
+}
+setInterval(refreshIdle, 5000);
+setInterval(() => syncAppVolume(), 10 * 1000); // follows the app's own volume slider while the knob turns it
 setInterval(heartbeat, config.heartbeatMs);
 setInterval(() => link?.send(nowPlayingMessage()), 15000); // re-anchor the device's progress clock
 

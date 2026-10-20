@@ -91,6 +91,15 @@
     U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
     U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
+/* Real italic x for pace labels: Chromium 69 does not slant the variable normal face.
+   Google Fonts Merriweather v33, weight 600, text=x subset; license: fonts/OFL-Merriweather.txt. */
+@font-face {
+  font-family: Merriweather;
+  font-style: italic;
+  font-weight: 600;
+  src: url(../fonts/merriweather-latin-600-italic-x.ttf) format("truetype");
+  unicode-range: U+0078;
+}
 /* Merriweather (variable weight) — the song title and the big numbers (Figma 8:46, Widgets). */
 @font-face {
   font-family: Merriweather;
@@ -146,6 +155,7 @@
   --black-a70: rgba(0, 0, 0, 0.7);
 
   --orange-500: #ff8b00;
+  --red-500: #e5484d;
   --blue-500: #2d9cdb;
   --yellow-300: #ffd35c;
   --yellow-600: #d98a00;
@@ -177,6 +187,7 @@
   --orange: var(--orange-500); /* the one accent: clock-screen date, calendar clock and NOW label, meeting pill */
   --hand: var(--white);
   --timer-used: var(--white-a20); /* the timer's spent minutes */
+  --usage-track: var(--white-a30); /* a Claude usage ring's whole allowance */
   --timer-hand: var(--orange-500);
   --timer-hand-ink: var(--black); /* text on the hand colour */
   --today: var(--orange-500); /* today's circle in the month: the timer hand's colour */
@@ -214,6 +225,7 @@
   --bar-track: var(--black-a20);
   --hand: var(--gray-950);
   --timer-used: var(--black-a10);
+  --usage-track: var(--black-a20);
   --c-mark-fill: var(--black-a10);
   --c-mark-edge: var(--black);
   --c-hand: var(--black);
@@ -406,6 +418,13 @@ h3 {
   opacity: 1;
   transition: opacity 0.5s ease-out 0.3s;
 }
+.rail-emoji {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+}
+
 .left-rail-views {
   position: relative;
   flex: 1;
@@ -429,6 +448,30 @@ h3 {
   width: 320px;
   padding: var(--panel-inset-y) var(--panel-inset-x);
   background: var(--panel);
+}
+/* Three fires fit the large pace label and the compact weekly line. */
+.rail-fires {
+  display: inline-flex;
+  font-size: 0.75em;
+  line-height: 1;
+  vertical-align: -0.08em;
+  letter-spacing: 0;
+  word-spacing: 0;
+}
+/* Keep the 32px weekly pace and percentage together in the 272px rail. */
+.usage-week {
+  letter-spacing: -0.02em;
+  word-spacing: -4px;
+  white-space: nowrap;
+}
+/* Leave room for the weekly percentage beside three flames. */
+.usage-week .rail-fires {
+  font-size: 0.625em;
+}
+/* The big label sits close under its eyebrow, with more room below it. */
+.left-rail .left-rail-content > .font-huge {
+  margin-top: 8px;
+  margin-bottom: 12px;
 }
 .screen-stage {
   position: relative;
@@ -660,8 +703,10 @@ h3 {
   visibility: hidden;
 }
 
-/* Meeting alert (Settings → Meeting alerts): a card over a dimmed screen until any press. */
+/* Meeting alert (Settings → Meeting alerts): a sheet up from the bottom of a dimmed screen, so
+   its "Start timer" sits by the back button under the knob, until any press. */
 .meeting-alert {
+  align-items: flex-end;
   background: var(--scrim);
   opacity: 0;
   visibility: hidden;
@@ -684,13 +729,12 @@ h3 {
   --muted: var(--black-a50);
   --line: var(--black-a10);
   color: var(--text);
-  width: 680px; /* 85% of the 800×480 screen's width; as tall as its content */
-  padding: 40px 44px 40px 34px;
-  border-radius: 34px;
+  width: 100%; /* as tall as its content */
+  padding: 40px;
   background: var(--card);
-  box-shadow: 0 20px 60px var(--shadow);
-  transform: scale(0.94);
-  transition: transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
+  box-shadow: 0 -10px 60px var(--shadow);
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
 }
 #app.light .m-card {
   --card: var(--gray-850);
@@ -706,14 +750,17 @@ h3 {
   color: var(--card); /* the pill is the text colour here */
 }
 .meeting-alert.on .m-card {
-  transform: scale(1);
+  transform: none;
 }
 /* The time until the meeting sits apart from the rest as a filled pill below the calendar
    colour bar, with its text lined up with the text above (bar 8 + 26 gap − its own 16
    padding). The title is the serif. */
+.m-foot {
+  margin-top: 28px;
+  align-items: center;
+}
 .m-when {
-  align-self: flex-start;
-  margin: 28px 0 0 18px;
+  margin-left: 18px;
   padding: 6px 16px;
   border-radius: 99px;
   background: var(--orange);
@@ -721,6 +768,20 @@ h3 {
   font-size: 28px;
   line-height: 34px;
   font-weight: 700;
+}
+/* Bottom right, by the back button under the knob that starts it. Any other press cancels. */
+.m-start {
+  margin-left: auto;
+  font-size: 26px;
+  line-height: 34px;
+  font-weight: 700;
+}
+.m-start.cancel {
+  color: var(--red-500); /* un-queuing the meeting's timer */
+}
+.m-start::after {
+  content: '\2192';
+  margin-left: 8px;
 }
 .m-title {
   font-family: Merriweather, Georgia, serif;
@@ -866,19 +927,18 @@ h3 {
 }
 
 /* No cover: a note where the art goes (the stage's own shade keeps the square). Nothing playing:
-   the track's layout with muted placeholder text, an empty bar and no duration. */
+   the perpetual calendar, after pketh's perpetual-calendar: the month, date and day on the rail,
+   the time at its foot, and today's cover (drawn on the Mac) in the art's place, once it's here. */
 .np-placeholder svg {
   width: 160px;
   height: 160px;
   color: var(--line);
 }
-.idle .art-layer {
+.idle:not(.idle-cover) .art-layer {
   visibility: hidden;
 }
-.idle .left-rail-content > p,
-.idle .np-title,
-.idle .np-duration {
-  color: var(--muted);
+.np-time {
+  color: var(--text); /* full strength, not the rail's muted foot */
 }
 
 /* ===== weather ===== */
@@ -1069,17 +1129,18 @@ h3 {
   letter-spacing: -0.02em;
 }
 
+/* Digital face: hours stacked over minutes, filling the stage. */
 .c-digital {
-  align-items: baseline;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  padding-top: 170px;
-  font-size: 150px;
-  line-height: 1;
-  letter-spacing: -0.055em;
-}
-.c-digital-sec {
-  font-size: 44px;
-  letter-spacing: -0.02em;
+  font-family: Merriweather, Georgia, serif;
+  font-weight: 900;
+  font-size: 236px;
+  line-height: 0.86;
+  letter-spacing: -0.04em;
+  font-variant-numeric: lining-nums tabular-nums;
 }
 
 /* ===== timer ===== */
@@ -1113,11 +1174,96 @@ h3 {
   animation: fade-in 1.5s ease-out;
 }
 
-/* Even-width digits keep the countdown from shuffling each second; at 112px they'd run past the
-   rail's inset for 60:00, so the timer's time is set a little smaller. */
+/* Even-width digits keep the countdown from shuffling each second. */
 #screen-clock [data-view="timer"] .font-huge {
-  font-size: 100px;
   font-variant-numeric: tabular-nums;
+}
+/* Usage's level is a word at the big-number size, and the widest ("Severe") runs out of the
+   rail across the edge of the stage, above it, well short of the rings. */
+#screen-clock .left-rail {
+  z-index: 1;
+}
+
+/* ===== Claude usage ===== */
+/* The clock button a third time (ClaudeUsage.vue): two rings across the stage, reaching as far
+   out as the clock's ticks and the timer's dots, the session outside and the week inside. Each
+   ring layers its whole allowance, then the usage, rounded at both ends. The pace (an even share
+   of the time gone) is marked by a dot beside the ring (outside the session, inside the week),
+   in white without a border. Usage past the pace takes the accent. Each ring's initial sits at
+   12 in a disc of the usage's colour, there even at 0%, in the background's colour. The Claude
+   mark sits in the middle, faint. */
+.u-face {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 480px;
+  height: 480px;
+}
+.u-track,
+.u-used,
+.u-over {
+  fill: none;
+  stroke-width: 28;
+}
+.u-track {
+  stroke: var(--usage-track);
+}
+.u-used {
+  stroke: var(--hand);
+}
+.u-over {
+  stroke: var(--orange);
+}
+.u-cap.used {
+  fill: var(--hand);
+}
+.u-cap.over {
+  fill: var(--orange);
+}
+.u-logo {
+  fill: var(--bar-track);
+}
+.usage-resets {
+  white-space: nowrap;
+}
+.back-action {
+  position: absolute;
+  right: 24px;
+  /* Align with the bottom line of the reset footer in the left rail. */
+  bottom: var(--panel-inset-y);
+}
+.back-action-icon {
+  /* Phosphor draws inside 12.5% padding, so this box puts the glyph at cap height, centred on it. */
+  width: 0.95em;
+  height: 0.95em;
+  vertical-align: -0.11em;
+}
+.back-action-icon.is-spinning {
+  transform-origin: 50% 50%;
+  animation: back-action-spin 600ms ease-in-out;
+}
+@keyframes back-action-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .back-action-icon.is-spinning { animation: none; }
+}
+.u-status-logo {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  margin-bottom: 24px;
+}
+.u-label-disc {
+  fill: var(--hand);
+}
+.u-label {
+  font-size: 16px;
+  font-weight: 700;
+  fill: var(--panel);
+}
+.u-pace {
+  fill: var(--white);
 }
 
 /* ===== calendar ===== */
@@ -1229,19 +1375,13 @@ h3 {
 .s-row.sel {
   background: var(--selected);
 }
-.s-row.sel::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 4px;
-  border-radius: 0 2px 2px 0;
-  background: var(--accent);
-}
 .s-row.sel + .s-row::before,
 .s-row.sel::before {
   display: none;
+}
+.s-spacer::before,
+.s-spacer + .s-row::before {
+  display: none; /* the empty slot reads as a gap, not a blank row */
 }
 .s-row.sel .s-value {
   color: var(--text);
@@ -1272,10 +1412,16 @@ h3 {
 }
 .font-huge {
   font-family: Merriweather, Georgia, serif;
-  font-size: 112px;
+  font-size: 104px;
   line-height: 120px;
   font-weight: 600;
   white-space: nowrap;
+}
+/* A unit after a huge title (the timer's "24 min"): the title's serif, small, on its baseline. */
+.lr-unit {
+  margin-left: 12px;
+  font-size: 36px;
+  line-height: 1; /* or its own line box makes the title's line taller */
 }
 .weight-light {
   font-weight: 300;

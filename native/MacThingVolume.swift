@@ -1,4 +1,4 @@
-// volumectl — tiny long-running CoreAudio helper for the Car Thing bridge.
+// MacThingVolume — tiny long-running CoreAudio helper for the Car Thing bridge.
 //
 // Reads commands on stdin, one per line:
 //   get                 emit current state
@@ -25,7 +25,7 @@ import CoreAudio
 import Foundation
 
 // Become our own "responsible process" so macOS attributes the Accessibility grant
-// to volumectl itself rather than to whatever launched it (node, a terminal, Claude…).
+// to MacThingVolume itself rather than to whatever launched it (node, a terminal, Claude…).
 // Re-execs in place (same pid, same stdio) using the private disclaim spawn attribute.
 func disclaimResponsibility() {
   guard getenv("VOLUMECTL_DISCLAIMED") == nil,
@@ -46,7 +46,7 @@ disclaimResponsibility()
 
 setvbuf(stdout, nil, _IOLBF, 0)
 
-let queue = DispatchQueue(label: "volumectl")
+let queue = DispatchQueue(label: "MacThingVolume")
 let systemObject = AudioObjectID(kAudioObjectSystemObject)
 
 var defaultDeviceAddr = AudioObjectPropertyAddress(
@@ -193,7 +193,7 @@ func handle(_ line: String) {
   case "requestaccess":
     _ = CGRequestPostEventAccess()
   default:
-    FileHandle.standardError.write("volumectl: unknown command \(cmd)\n".data(using: .utf8)!)
+    FileHandle.standardError.write("MacThingVolume: unknown command \(cmd)\n".data(using: .utf8)!)
   }
   emit()
 }

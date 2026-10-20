@@ -40,6 +40,16 @@ async function tick(ms) {
 // month…). Start from a fresh page with the default views, and put yours back afterwards.
 const devScreen = await evaluate('sessionStorage.getItem("ct-dev-screen")');
 await evaluate('sessionStorage.removeItem("ct-dev-screen")');
+// The meeting alert keeps dismissed meetings across reloads, and reads them as the page loads. The
+// last run's fixture meetings would still be dismissed under the fixture clock, so the cards this
+// run expects wouldn't come up: drop those (only those) before the reload.
+await evaluate(`(function () {
+  var key = 'ct-dismissed-meetings', all = {};
+  try { all = JSON.parse(localStorage.getItem(key)) || {}; } catch (e) {}
+  Object.keys(all).forEach(function (k) { if (k.indexOf('fixture|') === 0) delete all[k]; });
+  localStorage.setItem(key, JSON.stringify(all));
+  if ((localStorage.getItem('ct-queued-meeting') || '').indexOf('fixture|') === 0) localStorage.removeItem('ct-queued-meeting');
+})()`);
 await cdp.send('Page.reload', { ignoreCache: true });
 await pause(500);
 try {
@@ -74,9 +84,11 @@ try {
   await capture('favorite');
   assert.match(await evaluate('document.querySelector(".toast").textContent'), /Added to Favorites/);
   await message({ type: 'settings', settings });
+  await message({ type: 'perpetual', perpetual: { status: 'ok', day: 20718, dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' } });
   await message({ type: 'nowPlaying', np: { active: false } });
   await capture('idle');
-  assert.equal(await evaluate('document.querySelector(".np-title").textContent'), 'Song Title');
+  assert.match(await evaluate('document.querySelector("#screen-nowplaying .left-rail").textContent'), /September\s*22\s*Tuesday\s*2:35/, 'Nothing playing: the date and time');
+  assert.equal(await evaluate('!!document.querySelector("#screen-nowplaying .np-placeholder")'), false, 'and the perpetual cover in place of the art');
   await message({ type: 'weather', weather: { status: 'noLocation', reason: 'denied' } });
   await evaluate("CT.show('weather')");
   await capture('weather-denied');
@@ -115,10 +127,16 @@ try {
   await evaluate("CT.show('clock')");
   await capture('clock');
   assert.match(await evaluate('document.querySelector("#screen-clock .left-rail").textContent'), /3:35 PM.*Example event 1/);
-  // The clock button on the clock swaps in the timer; the knob sets, runs and resets it.
+  // The clock button on the clock steps to the timer, then the usage Settings → Usage asks for (Claude
+  // by default); the knob sets, runs and resets the timer.
   const press = key => evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {key:'${key}'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'${key}'}))`);
   const rail = () => evaluate('document.querySelector("#screen-clock .left-rail-view.on").textContent');
-  while (await evaluate('!!document.querySelector("#screen-clock .c-view-timer.on")')) await press('4'); // start from the clock
+  const clockView = () => evaluate('document.querySelector("#screen-clock .left-rail-view.on").getAttribute("data-view")');
+  async function toClock() {
+    while (await clockView() !== 'clock') await press('4');
+    await pause(400);
+  }
+  await toClock(); // start from the clock
   await press('4');
   await pause(400); // the clock's text fades out (0.3 s) before the timer's is the only one
   await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
@@ -129,61 +147,173 @@ try {
   await pause(1100);
   assert.match(await rail(), /30 minute timer1[67]:\d\d/, 'Timer counts down');
   await capture('timer');
+  await message({ type: 'usage', usage: { status: 'ok', session: { percent: 42, resetsAt: now + 754000 + 133 * 60000 }, week: { percent: 86, resetsAt: Date.UTC(2026, 8, 24, 9) }, updatedAt: now + 754000 } });
   await press('4');
   await pause(400); // the timer fades out (0.3 s)
-  assert.equal(await evaluate('!!document.querySelector("#screen-clock .c-view-timer.on")'), false, 'The clock button goes back to the clock');
+  assert.equal(await clockView(), 'claude', 'The clock button goes on to Claude usage');
+  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "refreshUsage")'), true, 'Opening usage asks the Mac for fresh numbers');
+  // The session (42% used, 56% of its time gone) is under pace; the week (86%, 75%) is twice it.
+  assert.match(await rail(), /Session: 42% used\s*0\.6x\s*Week: 2\.\dx · 86%/);
+  // In place of the next event: the session resets in 2 h 13 min, the week on Thursday at 9.
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets: Session 2h · Week 2d$/);
+  // The session (42% used, 56% of its time gone) is behind its pace; the week (86%, 75%) is ahead of it.
+  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-over").length'), 1, 'Usage past the pace takes the accent');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 2, 'Both usage windows mark their pace with a dot');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-behind").length'), 0, 'Under-pace usage leaves the track clear');
+  assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .u-label")).map(l => l.textContent).join()'), 'S,W', 'Each ring is named');
+  await capture('usage');
+  await message({ type: 'usage', usage: { status: 'ok', session: { percent: 0, resetsAt: null }, week: { percent: 0, resetsAt: null }, updatedAt: now } });
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets: Session 5h · Week 7d$/);
+  assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .u-pace")).every(d => Number(d.getAttribute("cx")) === 240 && Number(d.getAttribute("cy")) < 240)'), true, 'Unstarted windows mark their pace at 12 o’clock');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 2, 'Unstarted windows keep both pace dots');
+  await capture('usage-unstarted');
+  await message({ type: 'usage', usage: { status: 'ok', session: { percent: 100, resetsAt: now + 3600000 }, week: { percent: 100, resetsAt: now + 86400000 }, updatedAt: now } });
+  assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .left-rail-view.on .rail-fires img")).filter(img => img.complete && img.naturalWidth > 0).length'), 6, 'Session and week each show three bundled fires at the limit');
+  await capture('usage-limit');
+  await message({ type: 'usage', usage: { status: 'expired' } });
+  assert.match(await evaluate('document.querySelector("#screen-clock .stage-message").textContent'), /Claude sign-in expired/);
+  await capture('usage-expired');
+  await message({ type: 'usage', usage: { status: 'rateLimited', retryAt: now + 754000 + 5 * 60000 } });
+  assert.match(await evaluate('document.querySelector("#screen-clock .fade-view.on .stage-message").textContent'), /Claude usage delayed.*Retrying in 5m/);
+  assert.equal(await evaluate('document.querySelector("#screen-clock .fade-view.on .u-status-logo").getAttribute("aria-label")'), 'Claude logo');
+  await capture('usage-rate-limited');
+  // Settings → Usage → Both adds ChatGPT's view after Claude's: Codex's limits the same way, the
+  // session (82%, 80% of it gone) just over pace, the week (10%, 32% gone) under it.
+  await message({ type: 'settings', settings: { ...settings, usageSource: 'both' } });
+  await message({ type: 'chatgptUsage', usage: { status: 'ok', session: { percent: 82, resetsAt: now + 754000 + 60 * 60000 }, week: { percent: 10, resetsAt: Date.UTC(2026, 8, 27, 9) }, updatedAt: now } });
+  await press('4');
+  await pause(400);
+  assert.equal(await clockView(), 'chatgpt', 'With Both, the clock button goes on to ChatGPT usage');
+  assert.equal(await evaluate('document.querySelector("#screen-clock .fade-view.on .u-face").getAttribute("aria-label")'), 'ChatGPT usage');
+  assert.match(await rail(), /Session: 82% used\s*1\.1x\s*Week: 0\.2x · 10%/);
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets: Session 1h · Week 5d$/);
+  await capture('usage-chatgpt');
+  await message({ type: 'chatgptUsage', usage: { status: 'none' } });
+  assert.match(await evaluate('document.querySelector("#screen-clock .fade-view.on .stage-message").textContent'), /Codex isn’t on this Mac/);
+  await message({ type: 'chatgptUsage', usage: { status: 'signedOut' } });
+  assert.match(await evaluate('document.querySelector("#screen-clock .fade-view.on .stage-message").textContent'), /Not signed in to ChatGPT/);
+  await press('4');
+  await pause(400);
+  assert.equal(await clockView(), 'clock', 'and then back to the clock');
+  // Usage → None: the clock button only swaps the clock and the timer.
+  await message({ type: 'settings', settings: { ...settings, usageSource: 'none' } });
+  await press('4');
+  await pause(400);
+  await press('4');
+  await pause(400);
+  assert.equal(await clockView(), 'clock', 'With Usage → None there is no usage view');
+  await message({ type: 'settings', settings });
   await press('4');
   await pause(400);
   await press('Enter'); await press('Enter');
   await pause(100);
   assert.match(await rail(), /30 minute timer30:00/, 'Double press resets');
-  await press('4');
+  await toClock();
   await tick(now);
+  // Past 60 minutes, the knob's meeting stop counts to the next meeting's start, in minutes
+  // (rounded up) until it's started: 9:49 to go reads 10 min.
+  await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 589000, end: now + 2389000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
+  await press('4');
+  await pause(400);
+  for (let i = 0; i < 7; i++) await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
+  await pause(100);
+  assert.match(await rail(), /Next meeting in10\s*min/, 'Past 60 minutes: the next meeting\'s start');
+  await press('Enter'); await press('Enter');
+  await toClock();
   // During a meeting the timer opens set to its end, and runs to it.
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now - 600000, end: now + 1200000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await press('4');
   await pause(400);
-  assert.match(await rail(), /Until Standup ends(20:00|19:5\d)/, 'The timer opens on the meeting\'s end');
-  await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
-  await pause(100);
-  assert.match(await rail(), /5 minute timer5:00/, 'Turning right goes on to the presets');
+  assert.match(await rail(), /Standup20\s*min/, 'The timer opens on the meeting\'s end');
   await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:-53, cancelable:true}))");
+  await pause(100);
+  assert.match(await rail(), /1 hour timer60:00/, 'Turning left goes back to the presets');
+  await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
   await pause(100);
   await press('Enter');
   await tick(now + 600000);
   await pause(1100);
-  assert.match(await rail(), /Until Standup ends9:5\d/, 'The meeting timer counts down to its end');
+  assert.match(await rail(), /Standup9:5\d/, 'The meeting timer counts down to its end');
   await press('Enter'); await press('Enter');
-  await press('4');
-  await pause(400);
+  await toClock();
   await tick(now);
-  // Settings → Meeting timer starts it on its own, without leaving the screen you're on.
+  // With "Event's alert", a meeting with no alert of its own gets the card as it starts, and
+  // nothing but its Start timer brings the timer up.
   await evaluate("CT.show('weather')");
-  await message({ type: 'settings', settings: { ...settings, meetingTimer: true } });
+  await message({ type: 'settings', settings: { ...settings, meetingAlert: 'event' } });
   await tick(now + 5000);
   await pause(1100);
-  assert.equal(await evaluate('CT.current'), 'weather', 'Auto-start stays on the screen you were on');
-  assert.match(await rail(), /Until Standup ends19:5\d/, 'Meeting timer auto-starts');
+  assert.equal(await evaluate('!!document.querySelector(".meeting-alert.on .m-start")'), true, 'An event without its own alert gets the card');
+  assert.equal(await evaluate('CT.current'), 'weather', 'and the timer doesn\'t come up by itself');
+  await press('1');
   await message({ type: 'settings', settings });
   await evaluate("CT.show('clock')");
-  await press('Enter'); await press('Enter');
-  await press('4');
-  await pause(400);
   await tick(now);
-  // Meeting alerts: a card over the screen before a meeting; any press only dismisses it.
+  // Meeting alerts: a sheet over the screen from before a meeting to its end; any press only
+  // dismisses it.
   await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
   await message({ type: 'settings', settings: { ...settings, meetingAlert: 5 } });
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Example meeting', location: 'Room 4\n1 Example St', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await capture('meeting-alert');
-  assert.match(await evaluate('document.querySelector(".m-card").textContent'), /^\s*Example meeting.*2:38 – 3:08 PM.*Room 4.*In 3 min\s*$/, 'Meeting alert shows the meeting');
+  // The card's text without the back button's part, which is checked on its own.
+  const cardDetails = '(function(){var c=document.querySelector(".m-card").cloneNode(true);c.querySelector(".m-start").remove();return c.textContent})()';
+  assert.match(await evaluate(cardDetails), /^\s*Example meeting.*2:38 – 3:08 PM.*Room 4.*In 3 min\s*$/, 'Meeting alert shows the meeting');
+  assert.equal(await evaluate('document.querySelector(".m-card .m-start").textContent'), 'Queue 30 min timer', 'and offers to queue its timer');
+  await tick(now + 180000 + 22 * 60000);
+  await pause(400);
+  assert.match(await evaluate('document.querySelector(".m-card").textContent'), /22 min ago/, 'The alert stays up through the meeting');
+  await tick(now);
   await press('1');
   await pause(400);
   assert.equal(await evaluate('document.querySelector(".meeting-alert").classList.contains("on")'), false, 'A button dismisses the alert');
   assert.equal(await evaluate('CT.current'), 'clock', 'without also acting');
+  await tick(now + 181000);
+  await pause(400);
+  assert.equal(await evaluate('document.querySelector(".meeting-alert").classList.contains("on")'), true, 'Dismissed early, it comes back as the meeting starts');
+  await press('1');
+  await tick(now);
+  // Once the meeting has started, the back button starts its timer and brings it up.
+  await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
+  await evaluate("CT.show('weather')");
+  await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
+  await pause(400);
+  assert.equal(await evaluate('document.querySelector(".m-start").textContent'), 'Queue 30 min timer', 'Before the meeting starts, it offers to queue the timer');
+  await tick(now + 181000);
+  await pause(400);
+  assert.equal(await evaluate('document.querySelector(".m-start").textContent'), 'Start 30 min timer', 'and to start it once it has');
+  await evaluate('window.fixtureSent = []');
+  await press('Escape');
+  await pause(400);
+  assert.equal(await evaluate('document.querySelector(".meeting-alert").classList.contains("on")'), false, 'The back button dismisses the alert');
+  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "command")'), false, 'without favoriting the song');
+  await pause(700);
+  assert.equal(await evaluate('CT.current'), 'clock', 'and brings the meeting\'s timer up');
+  assert.match(await rail(), /Standup29:5\d/, 'and is running');
+  await press('Enter'); await press('Enter');
+  await press('4');
+  await pause(400);
+  await tick(now);
+  // Queued before it starts, the timer starts with the meeting, and the card doesn't come back.
+  await evaluate("CT.show('weather')");
+  await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Review', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
+  await pause(400);
+  await press('Escape');
+  await pause(400);
+  assert.equal(await evaluate('document.querySelector(".meeting-alert.on .m-start").textContent'), 'Cancel timer', 'The back button queues it, and the card stays');
+  await press('1');
+  await tick(now + 181000);
+  await pause(1100);
+  assert.equal(await evaluate('CT.current'), 'clock', 'A queued timer comes up as the meeting starts');
+  assert.match(await rail(), /Review29:5\d/, 'running');
+  assert.equal(await evaluate('document.querySelector(".meeting-alert").classList.contains("on")'), false, 'in place of the card');
+  await press('Enter'); await press('Enter');
+  await press('4');
+  await pause(400);
+  await tick(now);
   await message({ type: 'settings', settings });
   await evaluate("CT.show('settings'); CT.screens.settings.turn(3); CT.screens.settings.press()");
   await pause(100);
-  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "meetingTimer" && m.value === true)'), true);
+  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "screenSleep" && m.value === 30)'), true, 'Settings → Sleep steps With Mac to Mac idle 30 min');
   await capture('settings');
   await message({ type: 'settings', settings: { ...settings, theme: 'light' } });
   await evaluate("CT.show('clock')");

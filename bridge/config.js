@@ -39,9 +39,9 @@ export const config = {
   },
   // Knob press, by number of quick presses. A single press waits multiClickMs to see if more follow.
   knobClicks: { 1: 'playpause', 2: 'next', 3: 'previous' },
-  // Buttons that count presses the same way. The back button favorites the playing song on one
-  // press and unfavorites it on two, so neither is a toggle you have to guess the state of.
-  // A key listed here ignores its `buttons` entry.
+  // Buttons that count presses the same way. On Now Playing the back button favorites the playing
+  // song on one press and unfavorites it on two, so neither is a toggle you have to guess the state
+  // of. A key listed here ignores its `buttons` entry.
   buttonClicks: { Escape: { 1: 'favorite', 2: 'unfavorite' } },
   multiClickMs: 350,
 
@@ -53,16 +53,17 @@ export const config = {
   // Mac-side settings page (weather location etc.), loopback only.
   settingsPort: Number(process.env.CARTHING_SETTINGS_PORT || 4747),
 
+  // What the knob turns (the Mac's output, Spotify, Music, or automatic) is the Knob volume
+  // setting, on the device's Settings screen and the Mac page.
   volumeStep: 1 / 16, // per knob detent — one press of the Mac's volume keys (16 steps)
   // true: turn the knob by pressing the Mac's volume keys so macOS shows its volume indicator.
-  // Needs native/bin/volumectl allowed under Privacy & Security → Accessibility (software
-  // can't press keys without it). false: set the volume directly — silent, no permission.
-  macVolumeIndicator: false,
+  // Needs native/bin/MacThingVolume allowed under Privacy & Security → Accessibility (software
+  // can't press keys without it); until it is, the knob sets the volume silently instead.
+  // false: always set the volume directly — silent, no permission.
+  macVolumeIndicator: true,
   knobDirection: 1, // 1 = turning right raises the volume (same as Spotify's firmware); -1 flips it
 
-  // Turn the Car Thing's screen off whenever the Mac's display sleeps (including when the Mac
-  // itself sleeps). A button or knob input wakes it for screenWakeMs.
-  sleepWithMac: true,
+  // How long a button or knob input wakes the screen once the Sleep setting has turned it off.
   screenWakeMs: 60 * 1000,
 
   // Deep sleep, run by the device itself (device/sleepd.sh, installed by `npm run setup-device`).

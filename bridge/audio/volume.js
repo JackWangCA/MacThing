@@ -5,14 +5,14 @@ import { createInterface } from 'node:readline';
 import { log } from '../log.js';
 
 /**
- * System output volume via the long-running native/bin/volumectl helper (CoreAudio).
+ * System output volume via the long-running native/bin/MacThingVolume helper (CoreAudio).
  * Emits 'change' with {volume: 0..1|null, muted, supported, device} — including changes
  * made on the Mac itself (keyboard volume keys, switching to AirPods, …).
  */
 export class Volume extends EventEmitter {
   constructor(binDir) {
     super();
-    this.bin = path.join(binDir, 'volumectl');
+    this.bin = path.join(binDir, 'MacThingVolume');
     this.state = null;
     this.proc = null;
     this.stopped = false;
@@ -31,8 +31,8 @@ export class Volume extends EventEmitter {
       }
     });
     proc.on('exit', (code) => {
-      this.proc = null;
-      if (this.stopped) return;
+      if (this.proc === proc) this.proc = null;
+      if (this.stopped || proc.rechecking) return;
       log.warn(`[volume] helper exited (${code}); restarting in 2s`);
       setTimeout(() => this.start(), 2000);
     });
@@ -62,6 +62,18 @@ export class Volume extends EventEmitter {
   /** Presses the Mac's volume key (fine = 1/64 step); macOS shows its volume indicator. */
   pressKey(up, { fine = true } = {}) {
     this.#write(`key ${up ? 'up' : 'down'}${fine ? ' fine' : ''}`);
+  }
+
+  /**
+   * Starts a fresh helper so it reads the Accessibility permission again. A process only asks
+   * macOS once and keeps that answer, so switching the permission on isn't seen until then.
+   */
+  recheck() {
+    const old = this.proc;
+    if (!old || this.stopped) return;
+    old.rechecking = true;
+    old.stdin.end();
+    this.start();
   }
 
   /** Shows macOS's one-time prompt for the Accessibility permission pressKey needs. */

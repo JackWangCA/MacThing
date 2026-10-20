@@ -13,7 +13,7 @@ case "${1:-}" in
   install)
     NODE="$(command -v node)" || { echo "node not found on PATH" >&2; exit 1; }
     ADB="$(command -v adb)" || { echo "adb not found on PATH (brew install android-platform-tools)" >&2; exit 1; }
-    [[ -x "$ROOT/native/bin/volumectl" ]] || { echo "Run npm run build first" >&2; exit 1; }
+    [[ -x "$ROOT/native/bin/MacThingVolume" ]] || { echo "Run npm run build first" >&2; exit 1; }
     mkdir -p "${PLIST:h}"
     cat > "$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>

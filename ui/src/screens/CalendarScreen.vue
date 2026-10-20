@@ -68,7 +68,7 @@ function fitClock() {
   const clock = rail.value && rail.value.titleElement;
   if (!clock) return;
   clock.style.fontSize = "";
-  for (let size = 112; clock.scrollWidth > clock.clientWidth && size > 72; ) {
+  for (let size = 104; clock.scrollWidth > clock.clientWidth && size > 72; ) {
     size -= 8;
     clock.style.fontSize = size + "px";
   }
@@ -94,12 +94,14 @@ async function fitEvents() {
     await nextTick();
   }
 }
+// Separate sources, each compared on its own: one getter returning a fresh array would count
+// as a change on every tick and rebuild the agenda each second rather than each minute.
 watch(
-  () => [
-    state.calendar,
-    state.settings,
-    Math.floor(state.now / 60000),
-    state.current,
+  [
+    () => state.calendar,
+    () => state.settings,
+    () => Math.floor(state.now / 60000),
+    () => state.current,
   ],
   () => {
     nextTick(fitClock);

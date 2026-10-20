@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Builds the two native pieces the bridge needs:
-#   native/bin/volumectl                         CoreAudio volume helper (Swift)
+#   native/bin/MacThingVolume                    CoreAudio volume helper, presses the volume keys (Swift)
 #   native/bin/appinfo                           app name + icon lookup by bundle id (Swift)
 #   native/bin/powerwatch                        Mac sleep/wake + display sleep events (Swift)
 #   native/bin/artwork                           covers for the device, and the blurred background (Swift)
@@ -20,33 +20,62 @@ if [[ ! -d "$ADAPTER" ]]; then
   git clone -q --depth 1 --branch "$ADAPTER_TAG" https://github.com/ungive/mediaremote-adapter.git "$ADAPTER"
 fi
 
-echo "• volumectl, appinfo, powerwatch, artwork"
-swiftc -O -o "$OUT/volumectl" "$ROOT/native/volumectl.swift"
+echo "• appinfo, powerwatch, artwork"
 swiftc -O -o "$OUT/appinfo" "$ROOT/native/appinfo.swift"
 swiftc -O -o "$OUT/powerwatch" "$ROOT/native/powerwatch.swift"
 swiftc -O -o "$OUT/artwork" "$ROOT/native/artwork.swift"
 
 # Ad-hoc signed tools that hold a macOS permission lose it whenever the binary changes,
-# so they're only rebuilt when their source changed.
+# so they're only rebuilt when their source changed. That's judged by content, not mtime:
+# a git pull or checkout touches the .swift files without changing them. The hash of each
+# tool's inputs is kept next to it as <name>.srchash.
+src_hash() { cat "$@" | shasum -a 256 | cut -d' ' -f1 }
+
+# needs_build <binary> <stamp> <inputs...>: true when the binary is missing or its inputs changed.
+# A binary built before stamps existed is taken to match its current source, so it keeps its grant.
+needs_build() {
+  local bin="$1" stamp="$2"; shift 2
+  [[ -x "$bin" ]] || return 0
+  if [[ ! -f "$stamp" ]]; then
+    src_hash "$@" > "$stamp"
+    return 1
+  fi
+  [[ "$(<"$stamp")" != "$(src_hash "$@")" ]]
+}
+
+VOLUME="$OUT/MacThingVolume"
+VOLUME_SRC=("$ROOT/native/MacThingVolume.swift")
+if needs_build "$VOLUME" "$VOLUME.srchash" $VOLUME_SRC; then
+  echo "• MacThingVolume (volume) — macOS will ask again before the knob can show the volume pop-up"
+  swiftc -O -o "$VOLUME" $VOLUME_SRC
+  codesign --force --sign - --identifier com.macthing.volume "$VOLUME" 2>/dev/null
+  src_hash $VOLUME_SRC > "$VOLUME.srchash"
+else
+  echo "• MacThingVolume unchanged (keeping its permission)"
+fi
+
 MUSICCTL="$OUT/musicctl"
-if [[ ! -x "$MUSICCTL" || "$ROOT/native/musicctl.swift" -nt "$MUSICCTL" ]]; then
+MUSICCTL_SRC=("$ROOT/native/musicctl.swift")
+if needs_build "$MUSICCTL" "$MUSICCTL.srchash" $MUSICCTL_SRC; then
   echo "• musicctl (Apple Music favorite/play) — macOS will ask again to let it control Music"
-  swiftc -O -o "$MUSICCTL" "$ROOT/native/musicctl.swift"
+  swiftc -O -o "$MUSICCTL" $MUSICCTL_SRC
   codesign --force --sign - --identifier com.carthing.musicctl "$MUSICCTL" 2>/dev/null
+  src_hash $MUSICCTL_SRC > "$MUSICCTL.srchash"
 else
   echo "• musicctl unchanged (keeping its permission)"
 fi
 
 APP="$OUT/CarThingHelper.app"
 HELPER_BIN="$APP/Contents/MacOS/CarThingHelper"
-# Ad-hoc signed: macOS keeps the Location/Calendars grants only while the binary is unchanged,
-# so rebuild it only when its source changed.
-if [[ ! -x "$HELPER_BIN" || "$ROOT/native/helper/main.swift" -nt "$HELPER_BIN" || "$ROOT/native/helper/Info.plist" -nt "$HELPER_BIN" ]]; then
+HELPER_SRC=("$ROOT/native/helper/main.swift" "$ROOT/native/helper/Info.plist")
+# The stamp sits beside the bundle, not in it, so it isn't part of the signature.
+if needs_build "$HELPER_BIN" "$APP.srchash" $HELPER_SRC; then
   echo "• CarThingHelper.app (location + calendar) — macOS will ask for permissions again"
   mkdir -p "$APP/Contents/MacOS"
   cp "$ROOT/native/helper/Info.plist" "$APP/Contents/Info.plist"
   swiftc -O -o "$HELPER_BIN" "$ROOT/native/helper/main.swift"
   codesign --force --sign - --identifier com.carthing.helper "$APP" 2>/dev/null
+  src_hash $HELPER_SRC > "$APP.srchash"
 else
   echo "• CarThingHelper.app unchanged (keeping its permissions)"
 fi

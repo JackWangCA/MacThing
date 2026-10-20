@@ -7,60 +7,50 @@ No reflashing: this runs on the community firmware you already have, replaces th
 device shows, and can be undone with one command. Nothing is installed on the device that a
 `npm run restore-device` doesn't put back.
 
-[Version 1.0.0](https://github.com/srcurran/MacThing/releases) · [Figma artwork and video source](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=327-1567)
+https://github.com/user-attachments/assets/f47f9c9d-7ae7-4c24-92b9-900ebb423bcd
 
-![Now Playing on the Car Thing](docs/1.0.0/device-nowplaying.png)
+![Now Playing on the Car Thing](docs/deviice-now--hug.png)
 
-![Calendar, Weather, Clock, timer, Claude usage and ChatGPT usage on the Car Thing](docs/1.0.0/device-overview.png)
+![Weather, Calendar, Now Playing, Clock and Settings on the Car Thing](docs/device-polvo.png)
 
-_Release artwork uses the current UI at 800×480 with fixture data, rendered locally in Chromium
-and mounted in the Figma device mockups. The 1.0.0 Figma page also contains the video cuts and
-individual screen assets._
-
-## New in 1.0.0
-
-Seven updates since 0.2:
-
-- **Claude and ChatGPT usage:** session and weekly rings, actual percentages, pace labels and reset times.
-- **Meeting alerts with timer controls:** queue a timer before a meeting or start it from the alert once it begins.
-- **Meeting-aware timers:** count down to the current meeting's end or the next one's start, with pause, reset and up to ten minutes of overrun.
-- **More weather detail:** step through the forecast, today's hours and the coming days with the weather button.
-- **Smoother artwork:** a blurred album-art background with contrast-aware tinting and crossfades when tracks change; browser media without a thumbnail uses a generic placeholder.
-- **Consistent circular views:** the clock, timer and usage rings share radial spacing, with outer marks and dots aligned.
-- **Better desk behavior:** open on the Clock when idle, change volume in Mac volume-key steps, wait through brief shadows before dimming, and sleep the display with the Mac.
+_The screens are captured from the Car Thing itself at 800×480 with fixture data
+(`npm run mock-screens`), then mounted in the device mockups. The first shot has the album art
+background turned on, the second doesn't._
 
 | Control                               | Action                                                                                                                       |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Top buttons 1 · 2 · 3 · 4             | Now Playing · Calendar · Weather · Clock                                                                                     |
-| Turn knob                             | Mac output volume (in Settings: move the selection)                                                                          |
+| Turn knob                             | Volume — the Mac's output, Spotify's or Apple Music's, per the Knob → Volume setting (in Settings: move the selection)        |
 | Press knob once / twice / three times | Play-pause / next track / previous track; starts Apple Music if nothing is playing (in Settings: change the selected option) |
-| Fifth top button (settings)           | Settings (press it again, or the back button, to close)                                                                      |
+| Fifth top button (settings)           | Settings (press it again to close)                                                                                           |
 | Hold the fifth top button             | Sleep now — screen off until the next button or knob input                                                                   |
-| Back button (under the knob)          | Press once to favorite the playing Apple Music song, twice to unfavorite it (does nothing while it's paused) |
+| Back button (under the knob)          | On Now Playing, press once to favorite the playing Apple Music song, twice to unfavorite it (does nothing while it's paused). In Settings, open the settings page on your Mac. On a paused or finished timer, reset it; on a usage view showing “10m ⟳”, check usage again. The screen's lower-right corner says which |
 
 The four screens:
 
-- **Now Playing** follows whatever is playing in Control Center's Now Playing: Apple Music, Spotify, Podcasts, YouTube in a browser, and so on. It shows the artist, title, album, progress and artwork, plus a paused state and an app badge for non-Music sources. When nothing is playing it keeps the same layout with placeholder text and a note in place of the cover, and the Car Thing opens on the Clock instead (moving to Now Playing once something starts, until you pick a screen). Optionally the artwork also fills the screen behind everything, blurred and tinted.
+- **Now Playing** follows whatever is playing in Control Center's Now Playing: Apple Music, Spotify, Podcasts, YouTube in a browser, and so on. It shows the artist, title, album, progress and artwork, plus a paused state and an app badge for non-Music sources. When nothing is playing it becomes a perpetual calendar, after [pketh's perpetual-calendar](https://github.com/pketh/perpetual-calendar): the month, date and day with the time below, and a cover of six stencil panels in new colours each day (drawn on the Mac) in place of the album art, and behind everything when the album art background is on. A paused track keeps showing that track. With nothing playing, the Car Thing opens on the Clock instead (moving to Now Playing once something starts, until you pick a screen). Optionally the artwork also fills the screen behind everything, blurred and tinted.
 - **Calendar** shows today's remaining events and, by default, tomorrow's under their own heading. Choose how many days (1–7) and which calendars on the Mac settings page. Press the calendar button again while it's up to see the whole month, with today circled; press it once more to go back to the agenda.
 - **Weather** shows the current conditions, the next five hours and four days. It uses [Open-Meteo](https://open-meteo.com) (free, no account) for your Mac's location or a place you pick. Press the weather button again while it's up to list the next six hours (Today), once more for the next six days (This Week), and a third time to go back to the forecast. If the forecast can't be fetched, the weather button asks again instead; each failed try makes the next wait longer (4 seconds, then 8, 16 and so on), and the screen says how long.
-- **Clock** shows an analog face (plain or with numbers) or a digital one — pick which on the Mac settings page — plus the next event still to come today, or "No events today". Press the clock button again while the clock is up to swap in a timer: turn the knob to pick 5, 10, 15, 30, 45 or 60 minutes, press it to start or pause, and press twice to reset. The screen flashes when the time is up, and the timer then counts on past it (1:23+) until you reset it or leave it. Press the clock button again for Claude usage, and once more to go back to the clock; while the timer is running or paused, the knob still sets the volume.
+- **Clock** shows an analog face (plain or with numbers) or a digital one — pick which on the Mac settings page — plus the next event still to come today, or "No events today". Press the clock button again while the clock is up to swap in a timer: turn the knob to pick 5, 10, 15, 30, 45 or 60 minutes, press it to start or pause, and press twice to reset. Once the timer is paused or finished, the back button resets it too, and the lower-right corner says reset ⟳. The screen flashes when the time is up, and the timer then counts on past it (1:23+) until you reset it or leave it. Press the clock button again for Claude usage, and once more to go back to the clock; while the timer is running or paused, the knob still sets the volume.
   - **Until the meeting ends, or starts.** Past 60 minutes there's one more knob stop: while a timed Calendar event is going on, the time until it ends, labelled with the meeting's name; otherwise the time until the next one today starts ("Next meeting in"); with neither, no stop. Until you start it, it shows the minutes left, rounded up, and doesn't tick: 9:49 to go reads 10 min. During a meeting the timer opens on this stop. Counting to a meeting's end, the dial's full turn is the whole meeting, so it shows how much of it is left. Started, it runs to the meeting's actual time, and follows it if the meeting is moved in Calendar — unless you've paused it. Once the meeting's over it counts on past the end (1:23+) for ten minutes at most, then goes back to the clock. With overlapping meetings it uses the one that ends first; all-day events don't count. With meeting alerts on, the card's **Queue**/**Start** option starts it, as the meeting begins or once it has, and switches to it; nothing else starts it, or switches screens, by itself. It flashes at the meeting's end like any timer.
-  - **Claude usage.** The clock button's third press shows how much of your Claude plan you've used — the same numbers as Claude Code's `/usage` — as two rings the size of the clock: the current five-hour session outside and the week inside. Each ring's faint track is the whole allowance and the white arc is what you've used. The pace — how much of that window's time has gone, where you'd be using it evenly — is marked by a white dot outside the session ring and inside the weekly ring. The dots are solid white with no border; usage past the dot is orange. Each ring is marked with its initial, S or W, in a white circle at 12 o'clock, and the bottom line says how long until each resets (Session 1.5h · Week 5d) in place of the next event. The left side says how worried to be about each: **Good**, **OK**, **Ahead**, **High**, **Severe**, **Max** or **Over**, big for the session and smaller for the week. It compares how fast you've been using the window with how fast you can still afford to — (used ÷ time gone) ÷ (what's left ÷ time left). Early in a window that's mostly your burn rate, so being a little ahead is fine (28% used 22% of the way in is OK) but burning hot isn't (45% at 15% is High). Late in a window there's little left either way, so even a small lead means slowing down (96% at 93% is High). Under 1× is Good (you'd finish the window under its limit even at this rate), 1–1.5× OK, 1.5–3× Ahead, 3–10× High, 10× or more Severe. At 97% used or more it always says Max regardless of pace; at 100% it says Over. It uses the Claude Code command line's sign-in on your Mac (the "Claude Code-credentials" Keychain item; the first time, macOS asks whether `security` may read it, so choose Always Allow), and only ever reads the access token, so it never signs Claude Code out. Signing in to the Claude desktop app doesn't count: if it says "Not signed in to Claude", run `claude auth login` in Terminal. The numbers refresh every five minutes, and when you open the view (at most once a minute). If the sign-in has expired, the screen says so until Claude Code renews it, or run `claude auth login` again.
-  - **ChatGPT, both or neither.** **Usage** in Settings (or on the Mac settings page) picks Claude (the default), ChatGPT, Both (a Claude view and then a ChatGPT one, each a press of the clock button) or None (no usage view, and nothing read on the Mac). The ChatGPT view shows your ChatGPT plan's limits: the five-hour and weekly limits Codex runs under, with the OpenAI mark in the middle. They come from the session logs Codex writes on your Mac (`~/.codex/sessions`) — no sign-in, nothing sent anywhere — so they're as of the last time you used Codex (the app or the command line). A window whose reset has passed since then shows as fresh. With no Codex use in the last month, it says "No ChatGPT usage yet".
+  - **Claude usage.** The clock button's third press shows how much of your Claude plan you've used — the same numbers as Claude Code's `/usage` — as two rings the size of the clock: the current five-hour session outside and the week inside. Each ring's faint track is the whole allowance and the white arc is what you've used. The pace — how much of that window's time has gone, where you'd be using it evenly — is marked by a white dot outside the session ring and inside the weekly ring. The dots are solid white with no border; usage past the dot is orange. Before a window starts, its dot stays at 12 o’clock and its reset line shows the full window (Session 5h or Week 7d); the actual countdown begins when usage starts. Each ring is marked with its initial, S or W, in a white circle at 12 o'clock, and the bottom line says how long until each resets (Session 1.5h · Week 5d) in place of the next event. The left side shows the session's numeric pace (for example, **1.1x**) and the week's pace and, dimmed after it, its percentage on one line (for example, **Week: 0.3x** · 18%). Each pace compares how fast you've used the allowance with how fast you can still afford to use what remains. Below 1x is under pace; above 1x means slowing down to stay within the allowance. The first 10% of the window counts as 10% elapsed so a first message does not appear extreme. At 100% usage or more, the pace is replaced with 🔥🔥🔥. It uses the Claude Code command line's sign-in on your Mac (the "Claude Code-credentials" Keychain item; the first time, macOS asks whether `security` may read it, so choose Always Allow), and only ever reads the access token, so it never signs Claude Code out. Signing in to the Claude desktop app doesn't count: if it says "Not signed in to Claude", run `claude auth login` in Terminal. The numbers refresh every five minutes, and when you open the view (at most once a minute). Claude throttling respects Retry-After and uses a five-minute minimum cooldown, doubling up to one hour after repeated throttling. The cooldown survives bridge restarts. The last successful reading is cached for the current sign-in and shown during a temporary failure; a “10m ⟳” label appears on the right, aligned with the bottom of the reset text block, once the last successful check is at least ten minutes old, and while it's up the back button checks again (at most once a minute); expired windows are discarded. If no reading is available, the screen names Claude and explains whether it is loading, waiting for retry, or needs sign-in. When the access token expires, MacThing quietly initializes the installed Claude Code to let it renew its own login, then retries usage. This sends no model prompt, uses no model tokens, and runs no tools or hooks. Renewal attempts are limited to once every five minutes. If Claude Code is not installed or cannot renew the login, open it and sign in if prompted, or run `claude auth login`.
+  - **ChatGPT, both or neither.** **AI Usage → Show usage** on the Mac settings page picks Claude (the default), ChatGPT, Both (a Claude view and then a ChatGPT one, each a press of the clock button) or None (no usage view, and nothing read on the Mac). The ChatGPT view shows your ChatGPT plan's limits: the five-hour and weekly limits Codex runs under, with the OpenAI mark in the middle. They're live from OpenAI, the same numbers Codex's `/status` shows: the bridge asks the Codex that's installed on your Mac (the ChatGPT app's, or the command line's) every five minutes and whenever the view opens, so Codex keeps its own sign-in and nothing here reads or renews it. If Codex isn't signed in, the view says "Not signed in to ChatGPT"; without Codex installed, "Codex isn’t on this Mac".
 
-<img src="docs/1.0.0/weather-today.png" width="49%" alt="Weather's Today view: the next six hours"> <img src="docs/1.0.0/weather-week.png" width="49%" alt="Weather's This Week view: the next six days">
+<img src="docs/weather-today-polvo.png" width="49%" alt="Weather's Today view: the next six hours"> <img src="docs/weather-week-polvo.png" width="49%" alt="Weather's This Week view: the next six days">
 
 _Weather's Today and This Week views, from the same fixture data (rendered in Chromium rather than captured on the device)._
 
 **Meeting alerts** (off by default; turn them on in Settings): at a timed event's alert, a sheet with its title, start and end time and location comes up over the bottom of whatever screen is up. A video call is named by its service (Zoom, Google Meet, Microsoft Teams, Webex, FaceTime) rather than shown as a link, including when the link is only in the event's URL or notes. "Event's alert" uses the alert set on the event in Calendar (only alerts within an hour of the start; an event without one gets the card as it starts); or pick a fixed 1, 5 or 10 minutes before every event. The back button under the knob works the Clock screen's timer from the card. Before the meeting, the card shows **Queue 30 min timer** (the meeting's length): press back to queue it (the card stays and says **Cancel timer**, in red; press back again to un-queue it), and the timer starts as the meeting does and comes up on the Clock screen, in place of the card. Once the meeting has started, it shows **Start 30 min timer** (the minutes left until it ends): press back to start the timer to the meeting's end (it comes up on the Clock screen). Only one timer can be queued. Only one timer runs at a time, so with two meetings at once each card says which one its timer is for. Any other button or the knob — or the back button before the meeting starts — cancels — that press only dismisses the card. It stays until then, or until the meeting ends, its "In 3 min" turning to "22 min ago" once it's started (a zero-length event's stays five minutes). Dismissed before the meeting starts, it comes back as it does, so every meeting's card is up at its start time. It shows one meeting at a time: when meetings overlap, the one that started last (before any has, the next to start; of two that start together, the one that ends first), and a press dismisses only that one. Turning the knob still sets the volume.
 
-**Sleep:** the Car Thing's screen turns off whenever your Mac's display sleeps, when you hold the settings button, and — this part runs on the device itself — about a minute and a half after the Mac stops talking to it at all: shut down, unplugged from the Mac but still powered, or just the bridge stopped. Press any button or turn the knob to wake it; while the Mac is away it stays lit for 20 seconds, and while the Mac is only asleep, for a minute. That first input only wakes it.
+**Sleep:** the Car Thing's screen turns off whenever your Mac's display sleeps (with the Sleep setting at its default, With Mac; it can instead follow the Mac's idle time, or never sleep), when you hold the settings button, and — this part runs on the device itself — about a minute and a half after the Mac stops talking to it at all: shut down, unplugged from the Mac but still powered, or just the bridge stopped. Press any button or turn the knob to wake it; while the Mac is away it stays lit for 20 seconds, and while the Mac is only asleep, for a minute. That first input only wakes it.
 
 The backlight is the part that wears out, so "off" means the backlight really is off, not a black page — plus the device idles its CPU and the UI stops redrawing. There's no suspend-to-RAM: the Car Thing's kernel can't resume from one, and USB would drop with it, so an idle backlit-off device drawing very little is as deep as this goes.
 
 **Lock:** while your Mac is locked — the lock screen, or switched to another account — the backlight stays off and no button wakes it. It comes back when you log in.
 
-**Settings** covers appearance (dark, light or match the Mac), the album art background, meeting alerts, whose usage the Clock shows (Claude, ChatGPT, both or none) and the weather location. Anything that needs typing or a longer list, or that you set once — a city, °F/°C, 12/24-hour time, and which calendars and how many days the Calendar screen shows — opens a settings page on your Mac at http://127.0.0.1:4747.
+**Usage pace.** Both Claude and ChatGPT show numeric pace for the session and week. An unstarted window shows **0.0x**; any pace above zero shows at least **0.1x** so it never reads as unstarted; a window at or above its allowance shows **🔥🔥🔥**. Percentages and reset times stay visible. Fire artwork is bundled for offline use from [Twemoji v16.0.1](https://github.com/jdecked/twemoji/tree/v16.0.1), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), by Twitter and other contributors.
+
+**Settings** covers appearance (dark, light or match the Mac), the album art background, meeting alerts and Sleep (With Mac, after the Mac has been idle 30 min to 4 hr, or never). Everything else — whose usage the Clock shows, °F/°C, the clock face, 12/24-hour time, the knob volume, what works while the Mac is locked, what shows when no music is playing, the weather location, and which calendars and how many days the Calendar screen shows — is under **More settings on Mac**, which opens a settings page on your Mac at http://127.0.0.1:4747.
 
 ### Before you grant anything
 
@@ -68,13 +58,14 @@ Nothing is required for the device to work: Now Playing and the clock need no pe
 
 | Screen                                    | Without permission                                          | How it's fixed                                 |
 | ----------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------- |
-| Now Playing                               | works; shows a placeholder when nothing is playing          | —                                              |
+| Now Playing                               | works; shows the date when nothing is playing               | —                                              |
 | Calendar                                  | "Calendar access is off", naming the System Settings pane   | allow Calendars for Car Thing Helper           |
 | Weather                                   | "Location access is off" with the place-picker hint         | allow Location, or pick a city on the Mac page |
 | Clock                                     | works; no event line or meeting timer until Calendar is allowed | allow Calendars for Car Thing Helper           |
 | Clock → Claude usage                      | "Not signed in to Claude" or "Claude sign-in expired"       | run `claude auth login` in Terminal; Always Allow the Keychain prompt |
 | Back button (favorite)                    | toast: "Allow musicctl to control Music"                    | allow Automation for musicctl                  |
-| Knob on an output with no software volume | "No volume control on <device>"                             | use an output that has one                     |
+| Knob on an output with no software volume | "No volume control on <device>"; under Knob → Volume: Auto, Spotify or Apple Music playing turns its volume instead, and with nothing playing it says "No music playing" | play from Spotify or Music, or use an output that has volume |
+| Knob on Spotify's or Apple Music's volume | toast: "Allow control of Spotify in Automation"            | allow Automation for node to control the app   |
 | Bridge not running                        | "Waiting for your Mac"                                      | start it, or `npm run install-agent`           |
 
 ## What you need
@@ -100,6 +91,8 @@ That's it. Within a few seconds the Car Thing switches to Now Playing, or to the
 Re-run `npm run setup-device` if the bridge logs `boot web app not pointed at our UI yet`, `no sleep watchdog` or `stock dimmer still running`. The rootfs edit normally survives a reboot, but it has been seen to revert, and a device that's been reflashed or restored will need it again. Nothing breaks meanwhile — the bridge points the device at this UI on every connect — but until you do, the Car Thing shows Spotify's own app before the bridge connects, doesn't sleep on its own when the Mac goes away, and dims whenever a hand covers the light sensor.
 
 The first time you favorite a song with the back button, macOS asks whether **musicctl** may control Music. That's `native/bin/musicctl`, a small helper that sends the favorite and play commands to Apple Music.
+
+The first time the knob turns Spotify's or Apple Music's own volume, macOS asks whether **node** (the bridge) may control that app — once for each app. The app has to be running already; the knob never launches it.
 
 The first time the Weather and Calendar screens load, macOS asks whether **Car Thing Helper** may use your location and your calendars. That's `native/bin/CarThingHelper.app`, a small helper so these permissions don't go to Node or Terminal. If you decline location, pick a place in Settings instead. You can change either answer later in System Settings → Privacy & Security.
 
@@ -140,7 +133,14 @@ npm run setup-device  # only if you set the device up before the sleep watchdog 
 
 ## Customizing
 
-**Everyday settings.** Use the device's Settings screen (fifth top button) or http://127.0.0.1:4747 on the Mac. They're saved in `~/Library/Application Support/carthing-now-playing/settings.json`.
+**Everyday settings.** Use the device's Settings screen (fifth top button) or http://127.0.0.1:4747 on the Mac. The Mac page has a category sidebar for General, AI Usage, Weather and Calendar; selecting a category opens its settings panel. They're saved in `~/Library/Application Support/carthing-now-playing/settings.json`.
+
+A few of them change how the device behaves:
+
+- **Knob → Volume:** *Auto* (the default) turns the Mac's output volume, and when the output has no volume of its own — an HDMI or DisplayPort monitor, which shows "No volume control on <device>" — the playing app's volume instead, if that's Spotify or Apple Music. *Mac output* is the output only; *Spotify* and *Apple Music* always turn that app's own volume slider (the volume pill then shows that app's icon in place of the speaker).
+- **When no music is playing → Show** and **After** (General on the Mac page): once nothing has played for 1–10 minutes while Now Playing is up, the device switches to Weather, the Clock or Calendar. When music starts again it goes back to Now Playing, unless you've moved off that screen yourself. It never leaves another screen you picked, Settings, a meeting alert or a running timer. *Date* (the default) turns it off, so Now Playing stays and shows the date.
+- **Sleep and lock → Sleep:** *With Mac* (the default) turns the screen off while the Mac's display sleeps or the Mac is locked. *Mac idle 30 min* to *Mac idle 4 hr* turn it off once the Mac has gone that long without keyboard or mouse input, like a screen saver (and while the Mac sleeps). *Never* keeps it on. A button or knob press wakes it for a minute. The device's own sleep when the Mac goes away is separate (`deviceSleepSeconds`).
+- **Sleep and lock → When Mac is locked** (with Sleep set to anything but *With Mac*): *Everything works* leaves the device as it is; *Now Playing only*, *Weather only*, *Calendar only* or *Clock only* hold the device on that screen until the Mac unlocks, with the top buttons and Settings off and the knob and back button only working the volume and playback.
 
 **Hardware mapping and behavior.** Edit `bridge/config.js`, then `npm run restart`:
 
@@ -149,12 +149,14 @@ npm run setup-device  # only if you set the device up before the sleep watchdog 
 - `buttonClicks`: buttons that count presses the same way — by default the back button, once to favorite and twice to unfavorite
 - `volumeStep`: volume change per knob click
 - `knobDirection`: `1` matches Spotify's own mapping (turning right raises the volume); `-1` flips it
-- `sleepWithMac` and `screenWakeMs`: follow the Mac's display and lock screen, and how long a button or knob wake lasts while the Mac's display is off
+- `screenWakeMs`: how long a button or knob press wakes the screen once the Sleep setting has turned it off
 - `buttonHolds` and `holdMs`: what a held button does (`sleep` by default on the settings button) and how long the hold is. A button with a hold acts on release, so one press isn't both things
 - `deviceSleepSeconds`, `deviceWakeSeconds`, `devicePowersave`: the device's own sleep once the Mac goes quiet — how long it waits, how long an input wakes it for, and whether it also idles the CPU. Changes reach the device the next time the bridge connects (`npm run restart`)
 - `macVolumeIndicator`: see below
 
-**macOS volume pop-up.** By default the knob sets the volume directly. The Sound menu reflects the change, but macOS doesn't show its volume pop-up. To get the pop-up, set `macVolumeIndicator: true`, restart, and allow `native/bin/volumectl` under **System Settings → Privacy & Security → Accessibility**. The knob then presses the Mac's volume keys. macOS requires that permission for any software that generates keystrokes. A physical keyboard doesn't need it because its keys come from hardware.
+**macOS volume pop-up.** The knob presses the Mac's volume keys, so macOS shows its volume pop-up. That needs `native/bin/MacThingVolume` allowed under **System Settings → Privacy & Security → Accessibility** (on macOS 27, **Device Control and Data Access**); the first time you turn the knob without it, macOS asks and the Car Thing shows "Allow MacThingVolume on your Mac". Apple's prompt can close on its own after a few seconds; its button opens that list, where MacThingVolume is already added: switch it on. macOS only asks once, so if the prompt closes before you get to it, open that list yourself and switch MacThingVolume on. No restart needed either way. macOS requires that permission for any software that generates keystrokes. A physical keyboard doesn't need it because its keys come from hardware. Until it's allowed, the knob sets the volume directly: the Sound menu reflects the change, but there's no pop-up. To keep it that way without the permission, set `macVolumeIndicator: false`.
+
+The permission belongs to that exact build of `MacThingVolume`, so `native/build.sh` only rebuilds it when its source changes. It compares the source's contents with a hash it keeps in `native/bin/MacThingVolume.srchash`, so a `git pull` or branch switch that leaves the file unchanged doesn't rebuild it. If it does rebuild, the switch can still read on while the bridge logs that it needs access: remove `MacThingVolume` from the list with **−**, restart the bridge, and turn the knob to be asked again.
 
 ## Undo
 
@@ -165,7 +167,7 @@ npm run restore-device    # put Spotify's original web app and config back, then
 
 ## Design
 
-The screen designs and release artwork are in the Figma file [MacThing](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=327-1567) — Now Playing and its states, the three widgets, Settings, and light copies of them all. The type scale is by size, so the same numbers turn up everywhere:
+Every screen is drawn in the Figma file [spotify-now-playing-2026](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/spotify-now-playing-2026?node-id=0-1) — Now Playing and its states, the three widgets, Settings, and light copies of them all. The type scale is by size, so the same numbers turn up everywhere:
 
 - 104 / 120 semibold, Merriweather: the big number (weather temperature, clock date, calendar time, the timer, Claude usage's level)
 - 30 regular, Merriweather: the numerals on the Numbers clock face
@@ -184,7 +186,7 @@ Mac                                                         Car Thing (USB)
 bridge/main.js (Node, no npm deps)
  ├─ Now Playing ← /usr/bin/perl + MediaRemoteAdapter        Chromium 69 kiosk
  │               (streams JSON; also sends play/next/…)       file:///…/webapp/index.html
- ├─ Volume     ⇄ native/bin/volumectl (CoreAudio)             → symlink → /var/lib/carthing/ui
+ ├─ Volume     ⇄ native/bin/MacThingVolume (CoreAudio)         → symlink → /var/lib/carthing/ui
  ├─ App badges ← native/bin/appinfo (name + icon)             Vue app (compiled locally)
  ├─ Location, calendar ← native/bin/CarThingHelper.app
  ├─ Sleep/lock  ← native/bin/powerwatch (IOKit + CGSession; holds sleep ≤3 s to kill the backlight)
@@ -285,7 +287,7 @@ this shows. If Control Center is also empty, `npm run build` self-tests the Medi
 - **Non-Latin scripts.** The device has no CJK font, so Japanese, Chinese or Korean titles render as boxes. Adding a Noto Sans CJK subset to `ui/fonts` would fix it.
 - **Volume depends on the output device.** HDMI, S/PDIF and some USB DACs have no software volume. The screen then says "No volume control on …".
 - **Weather data.** Your location leaves the Mac rounded to about 1 km, and only to Open-Meteo. Hourly and daily labels use the forecast place's own timezone.
-- **Rebuilding the helper can reset its permissions.** `CarThingHelper.app` is ad-hoc signed, so after changing and rebuilding `native/helper/` macOS may ask for Location and Calendars again. `npm run build` skips the helper when its source hasn't changed.
+- **Rebuilding the helper can reset its permissions.** `CarThingHelper.app` is ad-hoc signed, so after changing and rebuilding `native/helper/` macOS may ask for Location and Calendars again. `npm run build` skips the helper, `musicctl` and `MacThingVolume` unless their source's contents changed (a `.srchash` file next to each records what it was built from), so pulling or switching branches doesn't reset their permissions.
 - **Single press delay.** A single knob or back-button press waits `multiClickMs` (350 ms) to see whether a second press follows, so play/pause reacts slightly later than it would without double and triple presses.
 - **No real suspend.** Sleep means backlight off, CPU idled and the UI stopped redrawing. Chromium stays loaded so waking is instant, and the device keeps drawing a little current as long as the cable does.
 - **Waking takes up to a second.** While the Mac is away, `sleepd.sh` notices a button or knob event on its next one-second poll rather than instantly.
@@ -298,7 +300,7 @@ bridge/           Mac-side Node app (config.js: buttons, knob, volume…; settin
   widgets/        weather (Open-Meteo) and calendar feeds
   mac/            CarThingHelper wrapper, Mac light/dark detection
   settings-page/  the http://127.0.0.1:4747 page
-  audio/          volumectl wrapper
+  audio/          MacThingVolume wrapper
   device/         adb, minimal CDP client, UI sync, connection lifecycle
 native/           Swift helpers + build script (output in native/bin, git-ignored)
   helper/         CarThingHelper.app source (location + calendar)
@@ -359,12 +361,6 @@ background four ways (current, Mac blur with the usual tint, CSS blur with mirro
 blur) over each cover in a folder, in both themes, over whatever screen is up, and writes an `index.html`
 that lays them side by side.
 
-## Contributing
-
-Outside pull requests are labelled **needs-triage** for maintainer review. Open a focused PR with a description of the change and how you checked it. Device UI changes should include screenshots and note whether they were tested on a Car Thing.
-
-Release artwork and video assets for 1.0.0 are documented in [docs/1.0.0](docs/1.0.0/README.md).
-
 ## Credits
 
 - The Car Thing community — [Thing Labs](https://github.com/thinglabsoss) and
@@ -372,6 +368,7 @@ Release artwork and video assets for 1.0.0 are documented in [docs/1.0.0](docs/1
   possible, and for working out ADB access on the device in the first place.
 - [ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) (BSD-3-Clause), cloned and built by `npm run build`.
 - [Nihal Shetty](https://github.com/nihalshetty-boop), whose [fork](https://github.com/nihalshetty-boop/MacThing) came up with loading larger browser video artwork from the playing tab (`bridge/nowplaying/browser-art.js`).
+- UI icons from [Phosphor](https://phosphoricons.com) by Helena Zhang and Tobias Fried (MIT), bundled into the UI at build time from `@phosphor-icons/core`; the weather icons are drawn in `IconSymbols.vue`.
 - [Inter](https://rsms.me/inter/) by Rasmus Andersson and [Merriweather](https://github.com/EbenSorkin/Merriweather4) by Eben Sorkin (both SIL Open Font License), bundled in `ui/fonts`.
 
 ---
