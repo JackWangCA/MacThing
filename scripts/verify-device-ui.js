@@ -136,15 +136,35 @@ try {
   assert.match(await evaluate('document.querySelector("#screen-calendar").textContent'), /Calendar access is off/);
   await message({ type: 'calendar', calendar: { status: 'ok', events: Array.from({ length: 14 }, (_, i) => ({ start: now + (i + 1) * 3600000, end: now + (i + 2) * 3600000, title: 'Example event ' + (i + 1), location: 'An event location', color: '#ff8b00', allDay: false })) } });
   await capture('calendar-full');
-  assert.equal(await evaluate('(function(){var l=document.querySelector(".k-list");return l.scrollHeight <= l.clientHeight})()'), true, 'Agenda fits stage');
+  assert.equal(await evaluate('(function(){var l=document.querySelector("#screen-calendar .k-list:not(.k-due)");return l.scrollHeight <= l.clientHeight})()'), true, 'Agenda fits stage');
   assert.equal(await evaluate('document.querySelector(".calendar-time").textContent'), '2:35', 'Calendar shows current time');
-  await evaluate("window.dispatchEvent(new KeyboardEvent('keydown', {key:'2'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'2'}))");
+  // Overdue, due later today, and more than fits — the last of those has to be trimmed away.
+  await message({ type: 'reminders', reminders: { status: 'ok', reminders: [
+    { title: 'Renew the parking permit', due: now - 7200000, hasTime: true, priority: 0, list: 'Reminders', listId: 'fixture', color: '#ff375f' },
+    { title: 'Call the garage', due: now + 5400000, hasTime: true, priority: 1, list: 'Reminders', listId: 'fixture', color: '#ff375f' },
+    ...Array.from({ length: 12 }, (_, i) => ({ title: 'Buy item ' + (i + 1), due: now + 86400000, hasTime: false, priority: 0, list: 'Groceries', listId: 'fixture2', color: '#30d158' })),
+  ] } });
+  const calendarButton = () => evaluate("window.dispatchEvent(new KeyboardEvent('keydown', {key:'2'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'2'}))");
+  await calendarButton();
   await capture('calendar-month');
   assert.match(await evaluate('document.querySelector("#screen-calendar .k-month").textContent'), /September.*22.*30/, 'The calendar button shows the month');
   assert.equal(await evaluate('document.querySelector("#screen-calendar .k-today").textContent.trim()'), '22');
-  await evaluate("window.dispatchEvent(new KeyboardEvent('keydown', {key:'2'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'2'}))");
+  await calendarButton();
+  await capture('calendar-reminders');
+  assert.match(await evaluate('document.querySelector("#screen-calendar .k-due").textContent'), /Overdue.*Renew the parking permit/, 'and then what is due');
+  assert.match(await evaluate('document.querySelector("#screen-calendar .k-due .k-time").textContent'), /DUE/, 'an overdue reminder says so instead of its time');
+  assert.match(await evaluate('document.querySelector("#screen-calendar .left-rail").textContent'), /1 overdue/);
+  assert.equal(await evaluate('(function(){var l=document.querySelector("#screen-calendar .k-due");return l.scrollHeight <= l.clientHeight})()'), true, 'Reminders fit stage');
+  await calendarButton();
   await pause(400); // the month fades out (0.3 s) before it leaves the page
   assert.equal(await evaluate('!!document.querySelector("#screen-calendar .k-month")'), false, 'and back to the agenda');
+  // Access refused: the stage says where to turn it on, as the calendar's own message does.
+  await message({ type: 'reminders', reminders: { status: 'denied' } });
+  await calendarButton();
+  await calendarButton();
+  assert.match(await evaluate('document.querySelector("#screen-calendar").textContent'), /Reminders access is off/);
+  await calendarButton();
+  await message({ type: 'reminders', reminders: { status: 'loading' } });
   await evaluate("CT.show('clock')");
   await capture('clock');
   assert.match(await evaluate('document.querySelector("#screen-clock .left-rail").textContent'), /3:35 PM.*Example event 1/);

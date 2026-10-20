@@ -89,4 +89,17 @@ export class MacHelper extends EventEmitter {
   calendars() {
     return this.request('calendars');
   }
+
+  /**
+   * Incomplete reminders due by `to`, overdue ones included and undated ones left out.
+   * @returns {Promise<{ok, status, reminders?: Array<{title, notes, due, hasTime, priority, list, listId, color}>}>}
+   */
+  reminders(to) {
+    return this.request('reminders', { to });
+  }
+
+  /** Every reminder list on the Mac. @returns {Promise<{ok, status, reminderLists?: Array<{id, title, color, account}>}>} */
+  reminderLists() {
+    return this.request('reminderLists');
+  }
 }

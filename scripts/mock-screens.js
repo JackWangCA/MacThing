@@ -50,6 +50,16 @@ const settings = {
   clockFace: 'analog', calendarDays: 2, location: { mode: 'auto' },
 };
 
+const reminders = {
+  status: 'ok',
+  reminders: [
+    { title: 'Renew the parking permit', due: at(0, 9), hasTime: true, priority: 0, list: 'Reminders', listId: 'mock', color: '#ff375f' },
+    { title: 'Call the garage back', due: at(0, 16), hasTime: true, priority: 1, list: 'Reminders', listId: 'mock', color: '#ff375f' },
+    { title: 'Olive oil', due: at(1, 0), hasTime: false, priority: 0, list: 'Groceries', listId: 'mock2', color: '#30d158' },
+    { title: 'Coffee beans', due: at(1, 0), hasTime: false, priority: 0, list: 'Groceries', listId: 'mock2', color: '#30d158' },
+  ],
+};
+
 const calendar = {
   status: 'ok',
   events: [
@@ -106,6 +116,7 @@ const shots = [
   { name: 'nowplaying' },
   { name: 'calendar' },
   { name: 'calendar-month', screen: 'calendar', reselect: 1 },
+  { name: 'calendar-reminders', screen: 'calendar', reselect: 1 },
   { name: 'weather' },
   { name: 'weather-today', screen: 'weather', reselect: 1 },
   { name: 'weather-week', screen: 'weather', reselect: 1 },
@@ -161,6 +172,7 @@ try {
   await send({ type: 'screen', on: true });
   await tick();
   await send({ type: 'calendar', calendar });
+  await send({ type: 'reminders', reminders });
   await send({ type: 'weather', weather });
   await send({ type: 'usage', usage });
 

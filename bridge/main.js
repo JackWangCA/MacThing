@@ -24,6 +24,7 @@ import { MacPower } from './mac/power.js';
 import { settings } from './settings.js';
 import { startSettingsPage } from './settings-page/server.js';
 import { Calendar } from './widgets/calendar.js';
+import { Reminders } from './widgets/reminders.js';
 import { BottlerocketUsage } from './widgets/bottlerocket-usage.js';
 import { CodexUsage } from './widgets/codex-usage.js';
 import { Weather } from './widgets/weather.js';
@@ -47,6 +48,7 @@ const artwork = new ArtworkCache(path.join(paths.bin, 'artwork'), { blur: config
 const helper = new MacHelper(paths.bin);
 const weather = new Weather(helper, settings);
 const calendar = new Calendar(helper, settings);
+const reminders = new Reminders(helper, settings);
 // Settings → Usage: only the providers it names are read (none: no Bottlerocket sign-in or Codex).
 const usageSource = () => settings.get().usageSource;
 const usage = new BottlerocketUsage({ enabled: () => usageSource() === 'bottlerocket' || usageSource() === 'both' });
@@ -212,6 +214,7 @@ function pushAll(target) {
   pushNowPlaying(target);
   target.send({ type: 'weather', weather: weather.state });
   target.send({ type: 'calendar', calendar: calendar.state });
+  target.send({ type: 'reminders', reminders: reminders.state });
   target.send({ type: 'usage', usage: usage.state });
   target.send({ type: 'chatgptUsage', usage: chatgptUsage.state });
   target.send({ type: 'screen', on: screenOn !== false }); // the page may have gone dark by itself
@@ -258,11 +261,15 @@ function heartbeat() {
 
 async function macStatus() {
   const s = await helper.status().catch(() => ({}));
-  // The list is for the settings page's calendar checkboxes; it's empty until access is granted.
-  const cals = await helper.calendars().catch(() => ({}));
+  // The lists are for the settings page's checkboxes; each is empty until access is granted.
+  const [cals, lists] = await Promise.all([
+    helper.calendars().catch(() => ({})),
+    helper.reminderLists().catch(() => ({})),
+  ]);
   return {
     location: { status: s.location || 'unknown', name: weather.auto?.name || null },
     calendar: { status: s.calendar || 'unknown', list: cals.ok ? cals.calendars : [] },
+    reminders: { status: s.reminders || 'unknown', list: lists.ok ? lists.reminderLists : [] },
     // Spend and whether a token is set — never the token itself.
     bottlerocket: await bottlerocketStatus(usage),
   };
@@ -657,6 +664,7 @@ settings.on('change', (_, changed) => {
 });
 weather.on('change', (state) => link?.send({ type: 'weather', weather: state }));
 calendar.on('change', (state) => link?.send({ type: 'calendar', calendar: state }));
+reminders.on('change', (state) => link?.send({ type: 'reminders', reminders: state }));
 usage.on('change', (state) => link?.send({ type: 'usage', usage: state }));
 chatgptUsage.on('change', (state) => link?.send({ type: 'chatgptUsage', usage: state }));
 appearance.on('change', (dark) => link?.send({ type: 'appearance', dark }));
@@ -683,6 +691,7 @@ volume.start();
 helper.start();
 weather.start();
 calendar.start();
+reminders.start();
 usage.start();
 chatgptUsage.start();
 appearance.start();

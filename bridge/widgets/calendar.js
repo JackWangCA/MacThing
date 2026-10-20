@@ -7,7 +7,7 @@ const DAYS_AHEAD = 7;
 /**
  * Upcoming events from the Mac's Calendar app (via CarThingHelper / EventKit), limited to the
  * calendars chosen on the settings page. Refreshes on a timer and whenever the helper reports
- * the calendar database changed.
+ * the EventKit store changed.
  *
  * `state` is { status: 'ok', events: [{title, location, start, end, allDay, calendar, calendarId, color}] }
  * or { status: 'denied' | 'notDetermined' | 'restricted' | 'error' | 'loading' }.
@@ -25,7 +25,7 @@ export class Calendar extends EventEmitter {
   start() {
     this.refresh();
     setInterval(() => this.refresh(), REFRESH_MS);
-    this.helper.on('calendarChanged', () => {
+    this.helper.on('eventKitChanged', () => {
       clearTimeout(this.timer);
       this.timer = setTimeout(() => this.refresh(), 1000);
     });

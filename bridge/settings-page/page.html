@@ -161,6 +161,7 @@
         <div class="row"><div><label class="label" for="meetingAlert">Meeting alerts</label><div class="note">A card before each meeting, with a timer to its end once it starts</div></div>
           <select id="meetingAlert" data-key="meetingAlert" data-type="number"><option value="0">Off</option><option value="event">Event’s alert</option><option value="1">1 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
         <div class="row stack"><div class="label">Calendars</div><div class="note" id="calNote"></div><div id="calList"></div></div>
+        <div class="row stack"><div class="label">Reminder lists</div><div class="note" id="remNote"></div><div id="remList"></div></div>
       </section>
     </div>
   </div>
@@ -206,6 +207,7 @@
         : 'macOS will ask for permission the first time.';
 
     renderCalendars();
+    renderReminderLists();
     renderBottlerocket();
   }
 
@@ -258,7 +260,7 @@
   });
   $('#brToken').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#brSave').click(); });
 
-  // Which calendars feed the device. Written as a reusable picker so another list can use it
+  // Which calendars and which reminder lists feed the device. The two pickers are the same control
   // over different EventKit entities, so they share a renderer. A saved null means every one, so
   // something added later comes along too — which is why "all checked" saves as null below.
   function renderChoices(source, key, noteId, listId, words) {
@@ -306,6 +308,9 @@
       { access: 'Calendar', pane: 'Calendars', one: 'calendar', plural: 'calendars' });
   // Smart lists (Today, Scheduled, Flagged) aren't lists as far as EventKit is concerned, so only
   // real ones are offered here. "What's due today" is what the device's view works out for itself.
+  const renderReminderLists = () =>
+    renderChoices(state.reminders || {}, 'reminderLists', '#remNote', '#remList',
+      { access: 'Reminders', pane: 'Reminders', one: 'list', plural: 'reminder lists' });
 
   function saveChoice(control, value) {
     save({ [control.dataset.key]: value === 'true' ? true : value === 'false' ? false : control.dataset.type === 'number' && value !== '' && !isNaN(value) ? Number(value) : value });

@@ -6,7 +6,7 @@ export const state = reactive({
   current: 'nowplaying', leaving: '', screenSwitch: 'fade', offline: true, asleep: false, light: false,
   settings: { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', meetingAlert: 0, usageSource: 'bottlerocket', knobVolume: 'auto', idleMinutes: 0, idleScreen: 'clock', sleepWithMac: true, location: { mode: 'auto' } },
   now: Date.now(), np: { active: false }, npAt: 0, artwork: null,
-  weather: { status: 'loading' }, calendar: { status: 'loading' }, usage: { status: 'loading' }, chatgptUsage: { status: 'loading' },
+  weather: { status: 'loading' }, calendar: { status: 'loading' }, reminders: { status: 'loading' }, usage: { status: 'loading' }, chatgptUsage: { status: 'loading' },
   volume: 0, volumeUnsupported: false, volumeNote: '', volumeIcon: '', showVolume: false,
   flash: { icon: 'play', color: '', key: 0 }, flashing: false, toast: '',
   // The back button's usage refresh: '' idle, 'spin' (the ⟳ turns once), 'pending' (••• until the
@@ -90,6 +90,7 @@ CT.on('nowPlaying', msg => {
 CT.on('artwork', msg => { state.artwork = msg; });
 CT.on('weather', msg => { state.weather = msg.weather; });
 CT.on('calendar', msg => { state.calendar = msg.calendar; });
+CT.on('reminders', msg => { state.reminders = msg.reminders; });
 CT.on('usage', msg => { state.usage = msg.usage; });
 CT.on('chatgptUsage', msg => { state.chatgptUsage = msg.usage; });
 
@@ -98,6 +99,12 @@ export function elapsed() {
   if (!np.active || np.elapsed == null) return 0;
   const value = np.elapsed + (performance.now() - state.npAt) / 1000 * (np.rate || 0);
   return Math.max(0, np.duration ? Math.min(np.duration, value) : value);
+}
+// A reminder with a time of its own is late the moment that time goes by. A whole-day one has no
+// time, so the Mac sends its due date as midnight — read literally that makes it overdue from
+// 00:00 and it spends the whole day it's due under Overdue. It's late once the day itself is over.
+export function reminderOverdue(reminder, now) {
+  return reminder.hasTime ? reminder.due <= now : CT.dayNumber(reminder.due) < CT.dayNumber(now);
 }
 export function durationText(seconds) {
   const n = Math.max(0, Math.floor(seconds || 0));
