@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { state, hasArt, ambientUrl, ambientPreBlurred, ambientTint } from './state.js';
+import { state, hasArt, idleCover, ambientUrl, ambientPreBlurred, ambientTint } from './state.js';
 import Artwork from './components/Artwork.vue';
 import IconSymbols from './components/IconSymbols.vue';
 import UiProgress from './components/UiProgress.vue';
@@ -12,7 +12,7 @@ import SettingsScreen from './screens/SettingsScreen.vue';
 import MeetingAlert from './components/MeetingAlert.vue';
 // The paused badge on Now Playing shows flashes itself (it swaps its icon), so the flash's own disc stays hidden.
 const pausedBadge = computed(() => state.current === 'nowplaying' && state.np.active && !state.np.playing);
-const ambient = computed(() => !!(state.settings.artBackground && hasArt.value));
+const ambient = computed(() => !!(state.settings.artBackground && (hasArt.value || idleCover.value)));
 const NOTCHED = ['nowplaying', 'calendar', 'weather', 'clock']; // left to right, as the top buttons run
 // Settings has no top button, so the notch stays under the last page's while it fades out.
 const notchAt = ref(Math.max(0, NOTCHED.indexOf(state.current)));

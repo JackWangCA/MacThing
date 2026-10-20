@@ -114,7 +114,7 @@
       <section>
         <h3 class="subhead">When no music is playing</h3>
         <div class="row"><div><div class="label">Show</div><div class="note">Now Playing comes back when music starts</div></div>
-          <span class="seg" data-key="idleScreen" id="idleScreen"><button data-v="weather">Weather</button><button data-v="clock">Clock</button><button data-v="calendar">Calendar</button><button data-v="none">None</button></span></div>
+          <span class="seg" data-key="idleScreen" id="idleScreen"><button data-v="weather">Weather</button><button data-v="clock">Clock</button><button data-v="calendar">Calendar</button><button data-v="none">Date</button></span></div>
         <div class="row" id="idleAfterRow"><label class="label" for="idleMinutes">After</label>
           <select id="idleMinutes" data-key="idleMinutes" data-type="number"><option value="0" hidden>—</option><option value="1">1 min</option><option value="2">2 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
       </section>
@@ -205,7 +205,7 @@
       seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(s[seg.dataset.key]))));
     });
     document.querySelectorAll('select[data-key]').forEach((select) => { select.value = String(s[select.dataset.key]); });
-    // "None" is When idle's Never (idleMinutes 0); Show after is the rest of idleMinutes.
+    // "Date" (value none) is When idle's Never (idleMinutes 0): Now Playing stays, showing the date; Show after is the rest of idleMinutes.
     const idleOff = !s.idleMinutes;
     if (idleOff) $('#idleScreen').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === 'none')));
     $('#idleMinutes').disabled = idleOff;
@@ -276,7 +276,7 @@
 
   function saveChoice(control, value) {
     if (control.dataset.key === 'idleScreen') {
-      // None turns the idle switch off; picking a screen while it's off turns it back on at 5 minutes.
+      // Date (none) turns the idle switch off; picking a screen while it's off turns it back on at 5 minutes.
       return save(value === 'none' ? { idleMinutes: 0 } : { idleScreen: value, ...(state.settings.idleMinutes ? {} : { idleMinutes: 5 }) });
     }
     save({ [control.dataset.key]: value === 'true' ? true : value === 'false' ? false : control.dataset.type === 'number' && value !== '' && !isNaN(value) ? Number(value) : value });
