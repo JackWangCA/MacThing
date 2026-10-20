@@ -66,6 +66,10 @@
   .days button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
   .hours { display: inline-flex; align-items: center; gap: 8px; }
   .row[hidden] { display: none; }
+  .how { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 12px 0 4px; font-size: 13px; }
+  .how dt { font-weight: 600; }
+  .how dd { margin: 0; color: var(--muted); }
+  @media (max-width: 520px) { .how { grid-template-columns: 1fr; } .how dd { margin-bottom: 6px; } }
   .rem input[type=checkbox] { accent-color: var(--accent); }
   .rem input[type=text] { flex: 1; min-width: 0; padding: 7px 10px; font: inherit; color: var(--text);
     background: var(--bg); border: 1px solid var(--line); border-radius: 9px; outline-color: var(--accent); }
@@ -214,7 +218,11 @@
       </section>
       <section>
         <h3 class="subhead">Reminders</h3>
-        <div class="note">Every: only time at your Mac counts. Locked, asleep or away from the keyboard for 5 minutes, the count pauses; a break as long as the interval starts it over. At times: shows at each time, or when you’re back if you were away.</div>
+        <div class="note">A card on the device. Any button dismisses it.</div>
+        <dl class="how">
+          <dt>Every 45 min</dt><dd>45 minutes of time at your Mac, not on the clock. Locked, asleep or away from the keyboard pauses the count; a break that long starts it over.</dd>
+          <dt>At set times</dt><dd>At each time you add, or when you’re back if you were away then.</dd>
+        </dl>
         <div id="remList"></div>
         <button type="button" class="btn" id="addReminder">Add reminder</button>
       </section>
