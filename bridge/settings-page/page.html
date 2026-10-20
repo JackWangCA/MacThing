@@ -56,6 +56,10 @@
   .choice input { margin-top: 3px; accent-color: var(--accent); }
   .note { color: var(--muted); font-size: 13px; margin-top: 2px; }
   .row.stack { display: block; }
+  .subhead { font-size: 18px; font-weight: 600; letter-spacing: -.01em; color: var(--text); margin: 40px 0 4px; }
+  section:first-child > .subhead { margin-top: 0; }
+  .row.off { opacity: .45; }
+  @media (max-width: 520px) { .row { flex-wrap: wrap; } }
   #calList { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); column-gap: 24px; margin-top: 12px; }
   .cal { display: grid; grid-template-columns: 16px 10px minmax(0, 1fr); gap: 10px; align-items: start; min-width: 0; padding: 10px 0; }
   .cal > div { min-width: 0; overflow-wrap: anywhere; }
@@ -81,47 +85,71 @@
   <aside class="settings-sidebar">
     <h1>MacThing</h1>
     <nav class="settings-nav" aria-label="Settings categories">
-      <a href="#display" aria-current="page">Display</a>
+      <a href="#appearance" aria-current="page">Appearance</a>
       <a href="#controls">Controls</a>
-      <a href="#usage">AI Usage</a>
-      <a href="#location">Weather</a>
       <a href="#calendar">Calendar</a>
+      <a href="#weather">Weather</a>
+      <a href="#clock">Clock</a>
+      <a href="#usage">AI usage</a>
     </nav>
   </aside>
   <div class="settings-content">
-    <h2 id="category-title">Display</h2>
+    <h2 id="category-title">Appearance</h2>
     <p class="lede">Changes apply to the device right away.</p>
-    <div class="settings-panel" id="display" role="region" aria-labelledby="category-title">
+    <div class="settings-panel" id="appearance" role="region" aria-labelledby="category-title">
       <section>
+        <h3 class="subhead">Display</h3>
         <div class="row"><span class="label">Appearance</span>
           <span class="seg" data-key="theme"><button data-v="dark">Dark</button><button data-v="light">Light</button><button data-v="auto">Match Mac</button></span></div>
         <div class="row"><span class="label">Album art background</span>
           <span class="seg" data-key="artBackground"><button data-v="false">Off</button><button data-v="true">On</button></span></div>
-        <div class="row"><span class="label">Temperature</span>
-          <span class="seg" data-key="units"><button data-v="F">°F</button><button data-v="C">°C</button></span></div>
-        <div class="row"><span class="label">Time format</span>
-          <span class="seg" data-key="clock24h"><button data-v="false">12-hour</button><button data-v="true">24-hour</button></span></div>
-        <div class="row"><span class="label">Clock face</span>
-          <span class="seg" data-key="clockFace"><button data-v="analog">Analog</button><button data-v="numbers">Numbers</button><button data-v="digital">Digital</button></span></div>
       </section>
-    </div>
-
-    <div class="settings-panel" id="usage" hidden role="region" aria-labelledby="category-title">
       <section>
-        <div class="row"><div><label class="label" for="usageSource">Show usage</label><div class="note">Whose plan the clock's usage view shows (ChatGPT: asks Codex on this Mac)</div></div>
-          <select id="usageSource" data-key="usageSource"><option value="claude">Claude</option><option value="chatgpt">ChatGPT</option><option value="both">Both</option><option value="none">None</option></select></div>
+        <h3 class="subhead">Sleep and lock</h3>
+        <div class="row"><div><label class="label" for="screenSleep">Sleep</label><div class="note">With Mac: when the Mac’s display sleeps or the Mac locks. Idle: no keyboard or mouse on the Mac</div></div>
+          <select id="screenSleep" data-key="screenSleep" data-type="number"><option value="mac">With Mac</option><option value="30">Mac idle 30 min</option><option value="60">Mac idle 1 hr</option><option value="120">Mac idle 2 hr</option><option value="240">Mac idle 4 hr</option><option value="never">Never</option></select></div>
+        <div class="row" id="whenLockedRow"><div><label class="label" for="whenLocked">When Mac is locked</label><div class="note" id="whenLockedNote"></div></div>
+          <select id="whenLocked" data-key="whenLocked"><option value="unlocked">Everything works</option><option value="nowplaying">Now Playing only</option><option value="weather">Weather only</option><option value="calendar">Calendar only</option><option value="clock">Clock only</option></select></div>
+      </section>
+      <section>
+        <h3 class="subhead">When no music is playing</h3>
+        <div class="row"><div><div class="label">Show</div><div class="note">Now Playing comes back when music starts</div></div>
+          <span class="seg" data-key="idleScreen" id="idleScreen"><button data-v="weather">Weather</button><button data-v="clock">Clock</button><button data-v="calendar">Calendar</button><button data-v="none">None</button></span></div>
+        <div class="row" id="idleAfterRow"><label class="label" for="idleMinutes">After</label>
+          <select id="idleMinutes" data-key="idleMinutes" data-type="number"><option value="0" hidden>—</option><option value="1">1 min</option><option value="2">2 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
       </section>
     </div>
 
     <div class="settings-panel" id="controls" hidden role="region" aria-labelledby="category-title">
       <section>
-        <div class="row"><div><div class="label">Knob volume</div><div class="note">What the knob turns.</div></div>
+        <h3 class="subhead">Knob</h3>
+        <div class="row"><div><div class="label">Volume</div><div class="note">What turning the knob controls</div></div>
           <span class="seg" data-key="knobVolume"><button data-v="auto" title="The Mac’s output, or the playing Spotify or Apple Music when the output has no volume">Auto</button><button data-v="system">Mac</button><button data-v="spotify">Spotify</button><button data-v="music">Apple Music</button></span></div>
       </section>
     </div>
 
-    <div class="settings-panel" id="location" hidden role="region" aria-labelledby="category-title">
+    <div class="settings-panel" id="calendar" hidden role="region" aria-labelledby="category-title">
       <section>
+        <h3 class="subhead">Events</h3>
+        <div class="row"><div><label class="label" for="meetingAlert">Meeting alerts</label><div class="note">A card before each meeting, with a timer to its end once it starts</div></div>
+          <select id="meetingAlert" data-key="meetingAlert" data-type="number"><option value="0">Off</option><option value="event">Event’s alert</option><option value="1">1 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
+        <div class="row"><label class="label" for="calendarDays">Days of events</label>
+          <select id="calendarDays" data-key="calendarDays" data-type="number"><option value="1">Today</option><option value="2">2 days</option><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option></select></div>
+      </section>
+      <section>
+        <h3 class="subhead">Calendars</h3>
+        <div class="row stack"><div class="note" id="calNote"></div><div id="calList"></div></div>
+      </section>
+    </div>
+
+    <div class="settings-panel" id="weather" hidden role="region" aria-labelledby="category-title">
+      <section>
+        <h3 class="subhead">Units</h3>
+        <div class="row"><span class="label">Temperature</span>
+          <span class="seg" data-key="units"><button data-v="F">°F</button><button data-v="C">°C</button></span></div>
+      </section>
+      <section>
+        <h3 class="subhead">Location</h3>
         <label class="choice"><input type="radio" name="loc" value="auto">
           <div><div class="label">This Mac's location</div><div class="note" id="autoNote"></div></div></label>
         <label class="choice"><input type="radio" name="loc" value="manual">
@@ -131,13 +159,21 @@
       </section>
     </div>
 
-    <div class="settings-panel" id="calendar" hidden role="region" aria-labelledby="category-title">
+    <div class="settings-panel" id="clock" hidden role="region" aria-labelledby="category-title">
       <section>
-        <div class="row"><label class="label" for="calendarDays">Days of events</label>
-          <select id="calendarDays" data-key="calendarDays" data-type="number"><option value="1">Today</option><option value="2">2 days</option><option value="3">3 days</option><option value="5">5 days</option><option value="7">7 days</option></select></div>
-        <div class="row"><div><label class="label" for="meetingAlert">Meeting alerts</label><div class="note">A card before each meeting, with a timer to its end once it starts</div></div>
-          <select id="meetingAlert" data-key="meetingAlert" data-type="number"><option value="0">Off</option><option value="event">Event’s alert</option><option value="1">1 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
-        <div class="row stack"><div class="label">Calendars</div><div class="note" id="calNote"></div><div id="calList"></div></div>
+        <h3 class="subhead">Clock</h3>
+        <div class="row"><span class="label">Clock face</span>
+          <span class="seg" data-key="clockFace"><button data-v="analog">Analog</button><button data-v="numbers">Numbers</button><button data-v="digital">Digital</button></span></div>
+        <div class="row"><span class="label">Time format</span>
+          <span class="seg" data-key="clock24h"><button data-v="false">12-hour</button><button data-v="true">24-hour</button></span></div>
+      </section>
+    </div>
+
+    <div class="settings-panel" id="usage" hidden role="region" aria-labelledby="category-title">
+      <section>
+        <h3 class="subhead">Usage view</h3>
+        <div class="row"><div><label class="label" for="usageSource">Show usage</label><div class="note">Whose plan the clock's usage view shows (ChatGPT: asks Codex on this Mac)</div></div>
+          <select id="usageSource" data-key="usageSource"><option value="claude">Claude</option><option value="chatgpt">ChatGPT</option><option value="both">Both</option><option value="none">None</option></select></div>
       </section>
     </div>
   </div>
@@ -169,6 +205,17 @@
       seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(s[seg.dataset.key]))));
     });
     document.querySelectorAll('select[data-key]').forEach((select) => { select.value = String(s[select.dataset.key]); });
+    // "None" is When idle's Never (idleMinutes 0); Show after is the rest of idleMinutes.
+    const idleOff = !s.idleMinutes;
+    if (idleOff) $('#idleScreen').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === 'none')));
+    $('#idleMinutes').disabled = idleOff;
+    $('#idleAfterRow').classList.toggle('off', idleOff);
+    const sleepsWhenLocked = s.screenSleep === 'mac';
+    $('#whenLocked').disabled = sleepsWhenLocked;
+    $('#whenLockedRow').classList.toggle('off', sleepsWhenLocked);
+    $('#whenLockedNote').textContent = sleepsWhenLocked
+      ? 'Asleep: Sleep is set to With Mac'
+      : 'Only: that screen, plus volume and playback';
     const manual = s.location.mode === 'manual';
     document.querySelector(`input[name=loc][value=${manual ? 'manual' : 'auto'}]`).checked = true;
     $('#manualNote').textContent = manual ? `Using ${s.location.name}` : 'Search for a city';
@@ -228,6 +275,10 @@
   }
 
   function saveChoice(control, value) {
+    if (control.dataset.key === 'idleScreen') {
+      // None turns the idle switch off; picking a screen while it's off turns it back on at 5 minutes.
+      return save(value === 'none' ? { idleMinutes: 0 } : { idleScreen: value, ...(state.settings.idleMinutes ? {} : { idleMinutes: 5 }) });
+    }
     save({ [control.dataset.key]: value === 'true' ? true : value === 'false' ? false : control.dataset.type === 'number' && value !== '' && !isNaN(value) ? Number(value) : value });
   }
   document.querySelectorAll('select[data-key]').forEach((select) => select.addEventListener('change', () => saveChoice(select, select.value)));
@@ -264,8 +315,11 @@
   // The hash keeps category links from the device, reloads, and browser Back in sync.
   function showCategory() {
     const panels = Array.from(document.querySelectorAll('.settings-panel'));
-    const requested = location.hash.slice(1);
-    const category = panels.some((panel) => panel.id === requested) ? requested : 'display';
+    // Older links' pages, from before settings were split up by what they're for.
+    const MOVED = { general: 'appearance', display: 'appearance', location: 'weather' };
+    const asked = location.hash.slice(1);
+    const requested = MOVED[asked] || asked;
+    const category = panels.some((panel) => panel.id === requested) ? requested : 'appearance';
     panels.forEach((panel) => { panel.hidden = panel.id !== category; });
     document.querySelectorAll('.settings-nav a').forEach((link) => {
       const selected = link.hash === '#' + category;
@@ -277,7 +331,7 @@
   window.addEventListener('hashchange', showCategory);
   load();
   setInterval(() => { if (document.activeElement !== $('#q')) load(); }, 3000); // reflect changes made on the device
-  if (location.hash === '#location') setTimeout(() => $('#q').focus(), 100);
+  if (location.hash === '#location' || location.hash === '#weather') setTimeout(() => $('#q').focus(), 100);
 </script>
 </body>
 </html>

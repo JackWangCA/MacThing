@@ -207,8 +207,7 @@ try {
   await pause(100);
   assert.match(await rail(), /Next meeting in10\s*min/, 'Past 60 minutes: the next meeting\'s start');
   await press('Enter'); await press('Enter');
-  await press('4');
-  await pause(400);
+  await toClock();
   // During a meeting the timer opens set to its end, and runs to it.
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now - 600000, end: now + 1200000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await press('4');
@@ -297,9 +296,9 @@ try {
   await pause(400);
   await tick(now);
   await message({ type: 'settings', settings });
-  await evaluate("CT.show('settings'); CT.screens.settings.turn(2); CT.screens.settings.press()");
+  await evaluate("CT.show('settings'); CT.screens.settings.turn(3); CT.screens.settings.press()");
   await pause(100);
-  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "usageSource" && m.value === "chatgpt")'), true, 'Settings → Usage steps Claude to ChatGPT');
+  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "screenSleep" && m.value === 30)'), true, 'Settings → Sleep steps With Mac to Mac idle 30 min');
   await capture('settings');
   await message({ type: 'settings', settings: { ...settings, theme: 'light' } });
   await evaluate("CT.show('clock')");

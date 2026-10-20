@@ -22,6 +22,15 @@ export const DEFAULTS = {
   // What the knob turns: 'auto' = the Mac's output, or when it has no volume of its own (an HDMI
   // monitor) the playing app's if it's Spotify or Music | 'system' | 'spotify' | 'music'
   knobVolume: 'auto',
+  idleMinutes: 0, // once nothing has played this long on Now Playing, show idleScreen (0 = never)
+  idleScreen: 'clock', // 'clock' | 'calendar' | 'weather'
+  // When the screen turns off: 'mac' = while the Mac's display sleeps or the Mac is locked |
+  // minutes the Mac has been idle (no keyboard or mouse, like a screen saver) | 'never'
+  screenSleep: 'mac',
+  // While the Mac is locked (and screenSleep isn't 'mac', which turns the screen off):
+  // 'unlocked' = everything works | 'nowplaying' | 'weather' | 'calendar' | 'clock' = held on that
+  // screen, with only the knob's volume and media controls
+  whenLocked: 'unlocked',
 };
 
 const VALID = {
@@ -38,6 +47,10 @@ const VALID = {
   meetingAlert: (v) => [0, 'event', 1, 5, 10].includes(v),
   usageSource: (v) => ['claude', 'chatgpt', 'both', 'none'].includes(v),
   knobVolume: (v) => ['auto', 'system', 'spotify', 'music'].includes(v),
+  idleMinutes: (v) => [0, 1, 2, 5, 10].includes(v),
+  idleScreen: (v) => ['clock', 'calendar', 'weather'].includes(v),
+  screenSleep: (v) => ['mac', 30, 60, 120, 240, 'never'].includes(v),
+  whenLocked: (v) => ['unlocked', 'nowplaying', 'weather', 'calendar', 'clock'].includes(v),
 };
 
 class Settings extends EventEmitter {
@@ -49,6 +62,7 @@ class Settings extends EventEmitter {
   #load() {
     try {
       const raw = JSON.parse(fs.readFileSync(FILE, 'utf8'));
+      if (raw.sleepWithMac === false && raw.screenSleep === undefined) raw.screenSleep = 'never'; // the old on/off setting
       return Object.fromEntries(Object.entries(raw).filter(([k, v]) => VALID[k]?.(v)));
     } catch {
       return {};

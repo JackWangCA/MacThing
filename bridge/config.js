@@ -63,9 +63,7 @@ export const config = {
   macVolumeIndicator: true,
   knobDirection: 1, // 1 = turning right raises the volume (same as Spotify's firmware); -1 flips it
 
-  // Turn the Car Thing's screen off whenever the Mac's display sleeps (including when the Mac
-  // itself sleeps). A button or knob input wakes it for screenWakeMs.
-  sleepWithMac: true,
+  // How long a button or knob input wakes the screen once the Sleep setting has turned it off.
   screenWakeMs: 60 * 1000,
 
   // Deep sleep, run by the device itself (device/sleepd.sh, installed by `npm run setup-device`).
