@@ -606,7 +606,9 @@ h3 {
   padding: 0 24px;
 }
 
-/* Centred on the stage. */
+/* Centred on the stage — on Now Playing that puts it over the album art, which is what it is
+   the feedback for. Anywhere else there is no art to sit on and the stage is just the right-hand
+   two thirds of the screen, so the disc looked pushed off to one side. See below. */
 .flash {
   position: absolute;
   left: 320px;
@@ -618,6 +620,12 @@ h3 {
   opacity: 0;
   transform: scale(0.85);
   pointer-events: none;
+}
+/* Off Now Playing, and behind the lock sheet (which covers whichever screen that is), there is
+   no album art under the disc, so it centres on the whole screen instead. */
+#app:not([data-screen='nowplaying']) .flash,
+#app.locked .flash {
+  left: 0;
 }
 .flash.on {
   -webkit-animation: flash 0.7s ease-out;
