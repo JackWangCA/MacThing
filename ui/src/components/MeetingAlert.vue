@@ -60,13 +60,7 @@ const due = computed(() => {
 // even when it overlaps another; before any has started, the next to start. Of meetings that
 // start together, the one that ends first, as the timer's meeting stop picks.
 const pick = (later) => (a, b) => (b.start !== a.start ? (b.start > a.start) === later : b.end < a.end) ? b : a;
-// No card while the Mac is locked: the lock sheet is over the top of it anyway, and a meeting's
-// title is the kind of thing that sheet exists to keep off an unattended screen. Going through
-// `event` rather than the template also takes CT.dismissModal out of the picture, so a press
-// isn't quietly swallowed by a card nobody can see. Cards are keyed on time, not on having been
-// shown, so one that comes due during a lock is still there on the way out if the meeting is.
 const event = computed(() => {
-  if (state.locked && state.settings.lockScreen !== 'off') return null;
   const started = due.value.filter(e => e.start <= state.now);
   if (started.length) return started.reduce(pick(true));
   return due.value.length ? due.value.reduce(pick(false)) : null;

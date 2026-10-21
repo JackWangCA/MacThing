@@ -40,6 +40,16 @@ async function tick(ms) {
 // month…). Start from a fresh page with the default views, and put yours back afterwards.
 const devScreen = await evaluate('sessionStorage.getItem("ct-dev-screen")');
 await evaluate('sessionStorage.removeItem("ct-dev-screen")');
+// The meeting alert keeps dismissed meetings across reloads, and reads them as the page loads. The
+// last run's fixture meetings would still be dismissed under the fixture clock, so the cards this
+// run expects wouldn't come up: drop those (only those) before the reload.
+await evaluate(`(function () {
+  var key = 'ct-dismissed-meetings', all = {};
+  try { all = JSON.parse(localStorage.getItem(key)) || {}; } catch (e) {}
+  Object.keys(all).forEach(function (k) { if (k.indexOf('fixture|') === 0) delete all[k]; });
+  localStorage.setItem(key, JSON.stringify(all));
+  if ((localStorage.getItem('ct-queued-meeting') || '').indexOf('fixture|') === 0) localStorage.removeItem('ct-queued-meeting');
+})()`);
 await cdp.send('Page.reload', { ignoreCache: true });
 await pause(500);
 try {
@@ -107,9 +117,11 @@ try {
   await message({ type: 'nowPlaying', np: { ...paused, elapsed: 200 } });
   assert.equal(await shownTime(), '3:20', 'a real seek is still obeyed');
   await message({ type: 'settings', settings });
+  await message({ type: 'perpetual', perpetual: { status: 'ok', day: 20718, dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' } });
   await message({ type: 'nowPlaying', np: { active: false } });
   await capture('idle');
-  assert.equal(await evaluate('document.querySelector(".np-title").textContent'), 'Song Title');
+  assert.match(await evaluate('document.querySelector("#screen-nowplaying .left-rail").textContent'), /September\s*22\s*Tuesday\s*2:35/, 'Nothing playing: the date and time');
+  assert.equal(await evaluate('!!document.querySelector("#screen-nowplaying .np-placeholder")'), false, 'and the perpetual cover in place of the art');
   await message({ type: 'weather', weather: { status: 'noLocation', reason: 'denied' } });
   await evaluate("CT.show('weather')");
   await capture('weather-denied');
@@ -139,7 +151,7 @@ try {
   assert.equal(await evaluate('(function(){var l=document.querySelector("#screen-calendar .k-list:not(.k-due)");return l.scrollHeight <= l.clientHeight})()'), true, 'Agenda fits stage');
   assert.equal(await evaluate('document.querySelector(".calendar-time").textContent'), '2:35', 'Calendar shows current time');
   // Overdue, due later today, and more than fits — the last of those has to be trimmed away.
-  await message({ type: 'reminders', reminders: { status: 'ok', reminders: [
+  await message({ type: 'dueReminders', dueReminders: { status: 'ok', reminders: [
     { title: 'Renew the parking permit', due: now - 7200000, hasTime: true, priority: 0, list: 'Reminders', listId: 'fixture', color: '#ff375f' },
     { title: 'Call the garage', due: now + 5400000, hasTime: true, priority: 1, list: 'Reminders', listId: 'fixture', color: '#ff375f' },
     ...Array.from({ length: 12 }, (_, i) => ({ title: 'Buy item ' + (i + 1), due: now + 86400000, hasTime: false, priority: 0, list: 'Groceries', listId: 'fixture2', color: '#30d158' })),
@@ -159,12 +171,12 @@ try {
   await pause(400); // the month fades out (0.3 s) before it leaves the page
   assert.equal(await evaluate('!!document.querySelector("#screen-calendar .k-month")'), false, 'and back to the agenda');
   // Access refused: the stage says where to turn it on, as the calendar's own message does.
-  await message({ type: 'reminders', reminders: { status: 'denied' } });
+  await message({ type: 'dueReminders', dueReminders: { status: 'denied' } });
   await calendarButton();
   await calendarButton();
   assert.match(await evaluate('document.querySelector("#screen-calendar").textContent'), /Reminders access is off/);
   await calendarButton();
-  await message({ type: 'reminders', reminders: { status: 'loading' } });
+  await message({ type: 'dueReminders', dueReminders: { status: 'loading' } });
   await evaluate("CT.show('clock')");
   await capture('clock');
   assert.match(await evaluate('document.querySelector("#screen-clock .left-rail").textContent'), /3:35 PM.*Example event 1/);
@@ -260,8 +272,7 @@ try {
   await pause(100);
   assert.match(await rail(), /Next meeting in10\s*min/, 'Past 60 minutes: the next meeting\'s start');
   await press('Enter'); await press('Enter');
-  await press('4');
-  await pause(400);
+  await toClock();
   // During a meeting the timer opens set to its end, and runs to it.
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now - 600000, end: now + 1200000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await press('4');
@@ -297,7 +308,10 @@ try {
   await message({ type: 'settings', settings: { ...settings, meetingAlert: 5 } });
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Example meeting', location: 'Room 4\n1 Example St', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await capture('meeting-alert');
-  assert.match(await evaluate('document.querySelector(".m-card").textContent'), /^\s*Example meeting.*2:38 – 3:08 PM.*Room 4.*In 3 min\s*$/, 'Meeting alert shows the meeting');
+  // The card's text without the back button's part, which is checked on its own.
+  const cardDetails = '(function(){var c=document.querySelector(".m-card").cloneNode(true);c.querySelector(".m-start").remove();return c.textContent})()';
+  assert.match(await evaluate(cardDetails), /^\s*Example meeting.*2:38 – 3:08 PM.*Room 4.*In 3 min\s*$/, 'Meeting alert shows the meeting');
+  assert.equal(await evaluate('document.querySelector(".m-card .m-start").textContent'), 'Queue 30 min timer', 'and offers to queue its timer');
   await tick(now + 180000 + 22 * 60000);
   await pause(400);
   assert.match(await evaluate('document.querySelector(".m-card").textContent'), /22 min ago/, 'The alert stays up through the meeting');
@@ -350,9 +364,9 @@ try {
   await pause(400);
   await tick(now);
   await message({ type: 'settings', settings });
-  await evaluate("CT.show('settings'); CT.screens.settings.turn(2); CT.screens.settings.press()");
+  await evaluate("CT.show('settings'); CT.screens.settings.turn(3); CT.screens.settings.press()");
   await pause(100);
-  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "usageSource" && m.value === "chatgpt")'), true, 'Settings → Usage steps Claude to ChatGPT');
+  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "screenSleep" && m.value === 30)'), true, 'Settings → Sleep steps With Mac to Mac idle 30 min');
   await capture('settings');
   await message({ type: 'settings', settings: { ...settings, theme: 'light' } });
   await evaluate("CT.show('clock')");

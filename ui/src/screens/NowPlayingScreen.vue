@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue';
-import { state, CT, elapsed, durationText, artworkUrl, hasArt } from '../state.js';
+import { state, CT, elapsed, durationText, artworkUrl, hasArt, idleCover } from '../state.js';
 import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import UiProgress from '../components/UiProgress.vue';
@@ -8,8 +8,15 @@ import Artwork from '../components/Artwork.vue';
 const root = ref(null), rail = ref(null);
 const np = computed(() => state.np);
 const album = computed(() => !np.value.active ? '' : np.value.album || (np.value.kind !== 'music' && np.value.source ? np.value.source.name : '') || '');
-// Nothing playing: the same layout as a track, with placeholder text and cover.
-const IDLE = { eyebrow: 'Artist', title: 'Song Title', subtitle: 'Album' };
+// Nothing playing: the perpetual calendar. The rail shows the month, the date and the day, with the
+// time where the progress bar goes, and today's cover takes the album art's place (state.js).
+// Read to the minute, so the screen isn't redrawn every second for text that changes once a minute.
+const minute = computed(() => Math.floor(state.now / 60000));
+const parts = computed(() => CT.parts(minute.value * 60000));
+const IDLE = computed(() => ({ eyebrow: CT.MONTHS[parts.value.month], title: String(parts.value.date), subtitle: CT.DAYS[parts.value.day] }));
+const time = computed(() => CT.clockText(parts.value).time);
+const idleCoverUrl = computed(() => idleCover.value ? idleCover.value.dataUrl : '');
+const stageArt = computed(() => artworkUrl.value || idleCoverUrl.value);
 const icon = computed(() => np.value.active && np.value.source ? np.value.source.icon : '');
 // { inLibrary, favorited } for a playing Apple Music song, once the Mac has asked Music; null for
 // anything else. Both marks stay drawn, lit or faint, so the back button's toggles read at a glance.
@@ -53,6 +60,7 @@ function fitTitle() {
   const content = root.value.querySelector('.left-rail-content');
   t.style.webkitLineClamp = '';
   t.classList.remove('break-word');
+  if (!np.value.active) { t.style.fontSize = ''; t.style.lineHeight = ''; return; } // the date keeps its own size
   // The browser can wrap after a hyphen or en dash, so "Three-Legged" is measured as "Three-"
   // and "Legged" rather than as one word.
   const words = (t.textContent || '').match(/[^\s\-‐–]+[\-‐–]*|[\-‐–]+/g) || [];
@@ -72,9 +80,11 @@ function fitTitle() {
   const overflow = Math.max(0, last.getBoundingClientRect().bottom - content.getBoundingClientRect().bottom);
   t.style.webkitLineClamp = String(Math.max(1, Math.min(5, Math.floor((t.offsetHeight - overflow) / 36))));
 }
+// Separate sources, so the title is only measured again when one of them changes, not whenever a
+// Now Playing message (every 15s, and with each play/pause) replaces state.np.
 // markable, not marks: the row's height is what the title is measured against, and that is
 // settled when the track arrives. The marks themselves only light glyphs already on screen.
-watch(() => [np.value.active, np.value.artist, np.value.title, album.value, state.current, markable.value], () => nextTick(fitTitle));
+watch([() => np.value.active, () => np.value.artist, () => np.value.title, album, () => state.current, markable], () => nextTick(fitTitle));
 watch(() => [state.np, state.npAt], updateProgress);
 const screen = CT.screen('nowplaying');
 screen.show = () => { updateProgress(); nextTick(fitTitle); };
@@ -87,19 +97,20 @@ onMounted(() => {
 onUnmounted(() => clearInterval(timer));
 </script>
 <template>
-  <section ref="root" id="screen-nowplaying" class="screen fill flex" :class="{ active: state.current === 'nowplaying', leaving: state.leaving === 'nowplaying', idle: !np.active, paused: np.active && !np.playing, 'no-duration': np.active && !np.duration }">
-    <LeftRail ref="rail" variant="media" :eyebrow="np.active ? np.artist : IDLE.eyebrow" :title="np.active ? np.title : IDLE.title" :subtitle="np.active ? album : IDLE.subtitle" :muted-subtitle="!np.album">
+  <section ref="root" id="screen-nowplaying" class="screen fill flex" :class="{ active: state.current === 'nowplaying', leaving: state.leaving === 'nowplaying', idle: !np.active, 'idle-cover': !!idleCoverUrl, paused: np.active && !np.playing, 'no-duration': np.active && !np.duration }">
+    <LeftRail ref="rail" :variant="np.active ? 'media' : 'date'" :eyebrow="np.active ? np.artist : IDLE.eyebrow" :title="np.active ? np.title : IDLE.title" :subtitle="np.active ? album : IDLE.subtitle" :muted-subtitle="np.active && !np.album">
       <template #lower>
         <div v-if="markable" class="np-marks flex items-center gap-12" :class="{ waiting: !marks }">
           <svg :class="{ on: marks && marks.inLibrary }"><use href="#i-check" /></svg>
           <svg :class="{ on: marks && marks.favorited }"><use href="#i-heart" /></svg>
         </div>
-        <div class="np-progress flex items-center gap-8 primary"><UiProgress :value="fraction" /><span class="np-duration flex-none regular"><span class="np-duration-max">{{ timeMax }}</span><span class="np-duration-now">{{ timeNow }}</span></span></div>
+        <div v-if="np.active" class="np-progress flex items-center gap-8 primary"><UiProgress :value="fraction" /><span class="np-duration flex-none regular"><span class="np-duration-max">{{ timeMax }}</span><span class="np-duration-now">{{ timeNow }}</span></span></div>
+        <span v-else class="np-time">{{ time }}</span>
       </template>
     </LeftRail>
-    <ScreenStage :class="{ 'bg-panel': hasArt }"><!-- behind art: one continuous background, so nothing is left as a square when the art fades -->
-      <Artwork :url="artworkUrl" />
-      <div v-if="!hasArt" class="np-placeholder fill flex center"><svg><use href="#i-note" /></svg></div><!-- the cover's stand-in, idle or for a track without art -->
+    <ScreenStage :class="{ 'bg-panel': hasArt || idleCoverUrl }"><!-- behind art: one continuous background, so nothing is left as a square when the art fades -->
+      <Artwork :url="stageArt" />
+      <div v-if="!hasArt && !idleCoverUrl" class="np-placeholder fill flex center"><svg><use href="#i-note" /></svg></div><!-- the cover's stand-in, idle or for a track without art -->
       <div class="paused-glyph disc fill flex center" :style="{ color: state.flashing ? state.flash.color : '' }"><svg><use :href="'#i-' + (state.flashing ? state.flash.icon : 'pause')" /></svg></div><!-- a flash here swaps its icon into this badge for a moment, in place of a second disc -->
       <img v-if="icon" class="badge" :src="icon" alt="" />
     </ScreenStage>

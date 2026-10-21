@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import path from 'node:path';
 import { createInterface } from 'node:readline';
@@ -47,6 +47,16 @@ export class MacPower extends EventEmitter {
       log.warn(`[power] powerwatch exited (${code}); restarting in 2s`);
       setTimeout(() => this.start(), 2000);
     });
+  }
+
+  /** Milliseconds since the last keyboard, mouse or trackpad input on the Mac (null if unknown). */
+  idleMs() {
+    return new Promise((resolve) =>
+      execFile('/usr/sbin/ioreg', ['-c', 'IOHIDSystem', '-d', '4', '-k', 'HIDIdleTime'], { timeout: 5000 }, (err, out) => {
+        const ns = !err && /"HIDIdleTime" = (\d+)/.exec(out);
+        resolve(ns ? Number(ns[1]) / 1e6 : null);
+      }),
+    );
   }
 
   ack() {

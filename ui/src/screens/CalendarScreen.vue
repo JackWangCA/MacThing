@@ -46,9 +46,9 @@ const sections = computed(() => {
 // something is overdue is decided here against the live clock, not when the Mac last read the
 // list, so a deadline passing moves it without waiting for the next refresh.
 const dueSections = computed(() => {
-  if (state.reminders.status !== "ok") return [];
+  if (state.dueReminders.status !== "ok") return [];
   const today = CT.dayNumber(state.now);
-  const due = state.reminders.reminders;
+  const due = state.dueReminders.reminders;
   return [
     { label: "Overdue", items: due.filter((r) => reminderOverdue(r, state.now)) },
     ...Array.from({ length: days.value }, (_, i) => ({
@@ -61,8 +61,8 @@ const dueSections = computed(() => {
 });
 // The rail's line under the reminders: what's late, else what's still to come today.
 const dueLine = computed(() => {
-  if (state.reminders.status !== "ok") return "";
-  const due = state.reminders.reminders;
+  if (state.dueReminders.status !== "ok") return "";
+  const due = state.dueReminders.reminders;
   const late = due.filter((r) => reminderOverdue(r, state.now)).length;
   const today = due.filter(
     (r) => !reminderOverdue(r, state.now) && CT.dayNumber(r.due) === CT.dayNumber(state.now),
@@ -92,7 +92,7 @@ const message = computed(() => {
   return {};
 });
 const dueMessage = computed(() => {
-  const status = state.reminders.status;
+  const status = state.dueReminders.status;
   if (["denied", "restricted", "writeOnly"].includes(status))
     return {
       title: "Reminders access is off",
@@ -155,14 +155,16 @@ function fitLists() {
 // what's due in Reminders, then back to the agenda.
 const VIEWS = ["agenda", "month", "reminders"];
 const view = ref("agenda");
+// Separate sources, each compared on its own: one getter returning a fresh array would count
+// as a change on every tick and rebuild the agenda each second rather than each minute.
 watch(
-  () => [
-    state.calendar,
-    state.reminders,
-    state.settings,
-    Math.floor(state.now / 60000),
-    state.current,
-    view.value,
+  [
+    () => state.calendar,
+    () => state.dueReminders,
+    () => state.settings,
+    () => Math.floor(state.now / 60000),
+    () => state.current,
+    () => view.value,
   ],
   () => {
     nextTick(fitClock);

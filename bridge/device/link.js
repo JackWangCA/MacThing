@@ -7,6 +7,7 @@ import { isBootInstalled, syncDaemon, syncUi } from './deploy.js';
 
 const BINDING = '__carthingSend'; // page → Mac (Runtime.addBinding)
 const CONSOLE_MARK = '⁣carthing '; // fallback channel if bindings are unavailable
+const READY_COALESCE_MS = 2000; // hellos this soon after the last full state don't get another
 
 /** What device/sleepd.sh reads out of /var/lib/carthing/sleep.conf. */
 const sleepConf = () => ({
@@ -40,6 +41,9 @@ export class DeviceLink extends EventEmitter {
     this.closed = false;
     this.sleepd = false; // is the device-side sleep watchdog installed?
     this.beat = 0;
+    this.live = false; // past Runtime.enable: console messages from here on are new, not replayed
+    this.open = false; // connect() finished: the page can take messages
+    this.lastReady = -Infinity;
   }
 
   async connect() {
@@ -84,8 +88,11 @@ export class DeviceLink extends EventEmitter {
     cdp.on('Runtime.bindingCalled', (p) => p.name === BINDING && this.#onPayload(p.payload));
     cdp.on('Runtime.consoleAPICalled', (p) => {
       const text = p.args.map((a) => (a.value !== undefined ? a.value : a.description)).join(' ');
-      if (text.startsWith(CONSOLE_MARK)) this.#onPayload(text.slice(CONSOLE_MARK.length));
-      else log.debug('[device console]', text);
+      if (!text.startsWith(CONSOLE_MARK)) return log.debug('[device console]', text);
+      // Runtime.enable replays everything the page has logged since it loaded, before it answers.
+      // A page left without the Mac logs a hello every second, and answering each replayed one
+      // with the full state buried the device in thousands of updates it could never catch up on.
+      if (this.live) this.#onPayload(text.slice(CONSOLE_MARK.length));
     });
     cdp.on('Runtime.exceptionThrown', (p) => {
       const d = p.exceptionDetails;
@@ -94,8 +101,10 @@ export class DeviceLink extends EventEmitter {
     cdp.on('close', () => this.close());
 
     await cdp.send('Runtime.enable');
+    this.live = true;
     await cdp.send('Page.enable');
     await cdp.send('Runtime.addBinding', { name: BINDING }).catch((e) => log.warn('[device] addBinding failed, using console channel', e.message));
+    this.open = true;
 
     if (target.url !== this.pageUrl) {
       log.info(`[device] opening UI (was ${target.url})`);
@@ -105,7 +114,7 @@ export class DeviceLink extends EventEmitter {
       await this.reload();
     } else {
       await this.#markBooted();
-      this.emit('ready'); // our UI is already up; it just needs state
+      this.#ready(); // our UI is already up; it just needs state
     }
   }
 
@@ -136,13 +145,23 @@ export class DeviceLink extends EventEmitter {
     }
     if (msg.type === 'hello') {
       this.#markBooted();
-      this.emit('ready');
+      this.#ready();
     }
     this.emit('message', msg);
   }
 
+  /** The page wants full state. It says hello every second until it has some, and a slow page can
+   *  send several before the first answer lands, so one answer covers the hellos after it for a bit. */
+  #ready() {
+    if (!this.open || Date.now() - this.lastReady < READY_COALESCE_MS) return;
+    this.lastReady = Date.now();
+    this.emit('ready');
+  }
+
   send(msg) {
-    if (!this.cdp || this.closed) return;
+    // Not until connect() has finished: a page that can't get through Runtime.enable in time
+    // shouldn't also be handed a backlog of ticks and updates that a retry will send again anyway.
+    if (!this.cdp || this.closed || !this.open) return;
     const expression = `window.__carthingReceive && window.__carthingReceive(${JSON.stringify(msg)})`;
     this.cdp.send('Runtime.evaluate', { expression }).catch((e) => log.debug('[device] send failed', e.message));
   }

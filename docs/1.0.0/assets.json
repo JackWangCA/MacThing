@@ -1,0 +1,258 @@
+{
+  "version": "1.0.0",
+  "capturedWith": "npm run mock-screens (scripts/mock-screens.js) on the Car Thing, 800×480",
+  "figma": {
+    "fileKey": "Xw7pn5j4QZ8Ns237keo3ev",
+    "pageId": "327:1567",
+    "fullCut": "327:1643",
+    "shortCut": "327:1691",
+    "newScreens": "328:1567",
+    "newAlbums": "329:1567",
+    "deviceOverview": "333:1567",
+    "deviceNowPlaying": "327:1568",
+    "newScreensCut": "398:1539"
+  },
+  "albums": [
+    {
+      "artist": "Cate Le Bon",
+      "album": "Pompeii",
+      "file": "artwork/pompeii.jpg",
+      "background": "artwork/backgrounds/catelebon.jpg",
+      "screens": [
+        "nowplaying",
+        "meeting-alert"
+      ]
+    },
+    {
+      "artist": "Björk",
+      "album": "Post",
+      "source": "https://en.wikipedia.org/wiki/Post_(Bj%C3%B6rk_album)",
+      "file": "artwork/post.png",
+      "background": "artwork/backgrounds/post.jpg",
+      "screens": [
+        "claude",
+        "nowplaying-post"
+      ]
+    },
+    {
+      "artist": "Do Make Say Think",
+      "album": "Goodbye Enemy Airship the Landlord Is Dead",
+      "source": "https://en.wikipedia.org/wiki/Goodbye_Enemy_Airship_the_Landlord_Is_Dead",
+      "file": "artwork/goodbye-enemy-airship.jpg",
+      "background": "artwork/backgrounds/goodbye.jpg",
+      "screens": [
+        "chatgpt",
+        "nowplaying-goodbye"
+      ]
+    },
+    {
+      "artist": "Ovlov",
+      "album": "Am",
+      "source": "https://ovlov.bandcamp.com/album/am-2",
+      "file": "artwork/ovlov-am.jpg",
+      "background": "artwork/backgrounds/ovlov.jpg",
+      "screens": [
+        "meeting-timer",
+        "nowplaying-ovlov"
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "file": "artwork/backgrounds/artblakey.jpg",
+      "sha256": "71bd4f821feecbb9278318884c4b440504da2131d9ddb8e54fca6a860852d700"
+    },
+    {
+      "file": "artwork/backgrounds/basic.jpg",
+      "sha256": "ed2180cabf7bd3135098f34a094da6c2c4790d6f2c20028e5dfd8b337e97023d"
+    },
+    {
+      "file": "artwork/backgrounds/catelebon.jpg",
+      "sha256": "3d146b94db3b4008f651314f18d49ef9bc9d523b8c97fd1ae57f47b182635df5"
+    },
+    {
+      "file": "artwork/backgrounds/deafheaven.jpg",
+      "sha256": "a6e39430871ae8a6495e66446b819afbd298c6155b19301e30dba578b5169bd5"
+    },
+    {
+      "file": "artwork/backgrounds/getupkids.jpg",
+      "sha256": "44c4c2e0e674c5d5f4df25a503af520352bd2046f23674a3214eb3422525ac2c"
+    },
+    {
+      "file": "artwork/backgrounds/goodbye.jpg",
+      "sha256": "2a098e4f4bbffd35ad5d622d7944db46f027de7599469e87639aa698af4f4965"
+    },
+    {
+      "file": "artwork/backgrounds/horselords.jpg",
+      "sha256": "78ad55ecc214a973ef02fd2b2ebc7fd1a284d13037f5d54ac0a7efc62cfc28e4"
+    },
+    {
+      "file": "artwork/backgrounds/hug.jpg",
+      "sha256": "901a9a878c5149f8358bfbf2c0e4726e9a25ecaeeba3812d401797fd0671e1c9"
+    },
+    {
+      "file": "artwork/backgrounds/ovlov.jpg",
+      "sha256": "823f8be8db6a76958bf62f5c355aeebb09ac078d4cd163cf56957b563e4a118d"
+    },
+    {
+      "file": "artwork/backgrounds/perpetual.jpg",
+      "sha256": "9b1ac7d8e832b27e6cb5f4a5c72241749d65f3de85827ab71bd349dec11781f6"
+    },
+    {
+      "file": "artwork/backgrounds/post.jpg",
+      "sha256": "510b6d95aefbbdf92dcd4aa8d757b8e84fafadb7e2e0a1f884bf48a3fba09a0d"
+    },
+    {
+      "file": "artwork/backgrounds/ribbons.jpg",
+      "sha256": "e0c52dbfa91fd3a94adc857487f0fcf8cf1491fc591d9e61d09f335289fd536e"
+    },
+    {
+      "file": "artwork/backgrounds/sanddollar.jpg",
+      "sha256": "4e5bcf3f6dc95185f57a6027d38578059e0d0f355ec635d299b8d0bc15374385"
+    },
+    {
+      "file": "artwork/backgrounds/tomrogerson.jpg",
+      "sha256": "fa9c11907672cb5e29fc19aef49f004f3463888e0a7c8b9a0fc82b091a38fe18"
+    },
+    {
+      "file": "artwork/goodbye-enemy-airship.jpg",
+      "sha256": "af745dc6bec08d7116aa814ce77613719cce970667473d2934607065a20f5c98"
+    },
+    {
+      "file": "artwork/ovlov-am.jpg",
+      "sha256": "a27a79d8ebb752c62a018643824c5b8f957747c1e748ef0840fde2cce7f8bc12"
+    },
+    {
+      "file": "artwork/pompeii.jpg",
+      "sha256": "8df0602779ceb36d480acf10797615f94e67d12b2efef917ab974b45a8129a05"
+    },
+    {
+      "file": "artwork/post.png",
+      "sha256": "d872bbd91867dc85a2ec59d7691ad3ed1a478afe4973e5e2f1c22506c2037b9c"
+    },
+    {
+      "file": "calendar-month.png",
+      "figmaNode": "327:1624",
+      "sha256": "500656f9f4fd3f33d37a6a38f5c0ccdbcb7cde474d3e22b532da94634749628e"
+    },
+    {
+      "file": "calendar.png",
+      "figmaNode": "327:1623",
+      "sha256": "64d0c3a77893f8bebe29aa5c4c48ab0fd27b433e5d4a2d20d7fa7fd6828bc64d"
+    },
+    {
+      "file": "chatgpt.png",
+      "figmaNode": "328:1575",
+      "sha256": "8d5feeb37ae84446a1f8ac067390134a4d2ecb58bd44714a5514610663d2506f"
+    },
+    {
+      "file": "claude.png",
+      "figmaNode": "328:1572",
+      "sha256": "522702fba501f173ba78ac0978cf9ea276d4bb0ea30f4c83cf777e43cc63a308"
+    },
+    {
+      "file": "clock-digital.png",
+      "sha256": "ed050da7213b35d6e86a3fb77c9f5a3a95f5b3dfb99fc50484524aa4c6467e3a"
+    },
+    {
+      "file": "clock.png",
+      "figmaNode": "327:1625",
+      "sha256": "dc34282ffc092c2398c6758eb540bbb98398c789cd43f493496f0618a9dbe126"
+    },
+    {
+      "file": "device-nowplaying.png",
+      "figmaNode": "327:1568",
+      "sha256": "943244f436fc64755b7148be81c79b044d4b9c5362a11ddf0f1256194895832b"
+    },
+    {
+      "file": "device-overview.png",
+      "figmaNode": "333:1567",
+      "sha256": "10b9cb2eb0928b025cea315847927f6bd280667940de4293b8b52a354f2756fa"
+    },
+    {
+      "file": "meeting-alert.png",
+      "figmaNode": "327:1633",
+      "sha256": "4876abf42615f97e8645231dab06f5ebbd2e8b6f2645fcf31d5c06e06f46dc7a"
+    },
+    {
+      "file": "meeting-timer.png",
+      "figmaNode": "328:1579",
+      "sha256": "7b1012350790ea09acb452075506c13b904d798f1e12ba80a18ca23bd01cdca9"
+    },
+    {
+      "file": "nowplaying-empty.png",
+      "figmaNode": "328:1582",
+      "sha256": "3bd619120a9109a066eab0d83c845cd04aa301f6b9817881e264fd7a3fb38d6d"
+    },
+    {
+      "file": "nowplaying-goodbye.png",
+      "figmaNode": "329:1577",
+      "sha256": "7a3318b2440fdcbbec218564dcf14396d2bba01941cadcf12052b27db0659e09"
+    },
+    {
+      "file": "nowplaying-ovlov.png",
+      "figmaNode": "329:1582",
+      "sha256": "3f4230dfa0974e8d30da9a12c27acf0b597ac5f8ded93c1a6528bdc20cd9059b"
+    },
+    {
+      "file": "nowplaying-post.png",
+      "figmaNode": "329:1572",
+      "sha256": "6b30b6ea52ddffe1190a28bec42ecc9f419993d57fcf18eb5901fa4a16ec5288"
+    },
+    {
+      "file": "nowplaying.png",
+      "figmaNode": "327:1628",
+      "sha256": "0cf056056be2021fdcfdb6e35b49aca8b58ed56f0f83ba35dfbf1482d6c305d0"
+    },
+    {
+      "file": "settings.png",
+      "figmaNode": "327:1629",
+      "sha256": "3e04cc99df323acb272d54599f2576ddc1b4ff00d5e55ca58032d7dad5d33deb"
+    },
+    {
+      "file": "timer-countdown-32-19.png",
+      "figmaNode": "327:1601",
+      "sha256": "94172516c6de376a651e4d64cf2a64bafaa8a0948d2b4b13dca48b58e1ef08a5"
+    },
+    {
+      "file": "timer-countdown-32-20.png",
+      "figmaNode": "327:1600",
+      "sha256": "fa8c8954a98bfd41be52d3e68c3873b0575d1c5378f92e35034a893058498dde"
+    },
+    {
+      "file": "timer-countdown-32-21.png",
+      "figmaNode": "327:1599",
+      "sha256": "982b8b293dc9661913db5954bb624f95d32969bba3b04351135f7cf33d063eb2"
+    },
+    {
+      "file": "timer-countdown-32-22.png",
+      "figmaNode": "327:1598",
+      "sha256": "5c6f97a37100195b7775fe80a12e0007cbb4e37d453512bc0378b22d8bdddd47"
+    },
+    {
+      "file": "timer-running.png",
+      "figmaNode": "327:1627",
+      "sha256": "94172516c6de376a651e4d64cf2a64bafaa8a0948d2b4b13dca48b58e1ef08a5"
+    },
+    {
+      "file": "timer.png",
+      "figmaNode": "327:1626",
+      "sha256": "fd58f6853dcb667f59a9ddbce68291fd0431138d50a134096e95ae5f3d3a3c1c"
+    },
+    {
+      "file": "weather-today.png",
+      "figmaNode": "327:1631",
+      "sha256": "095fbc64c0297f4ba54203078e700737693cf4cdaa0d64686ad33dee6f81497f"
+    },
+    {
+      "file": "weather-week.png",
+      "figmaNode": "327:1632",
+      "sha256": "eda9fa6c4240d89c3935b8a176718877f7ad2efdfd83aa56b9e94f059c2de5bf"
+    },
+    {
+      "file": "weather.png",
+      "figmaNode": "327:1630",
+      "sha256": "09311d2efebb09bd3b219d8f496dfdc8f2fa0c68a3c467305d35a7366f8c1f10"
+    }
+  ]
+}

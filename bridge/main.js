@@ -21,11 +21,12 @@ import { MediaRemoteSource } from './nowplaying/mediaremote.js';
 import { MacAppearance } from './mac/appearance.js';
 import { MacHelper } from './mac/helper.js';
 import { MacPower } from './mac/power.js';
-import { screenShouldBeOn as policy } from './screen-policy.js';
+import { Reminders, AWAY_MS } from './widgets/reminders.js';
 import { settings } from './settings.js';
 import { startSettingsPage } from './settings-page/server.js';
 import { Calendar } from './widgets/calendar.js';
-import { Reminders } from './widgets/reminders.js';
+import { DueReminders } from './widgets/due-reminders.js';
+import { PerpetualCover } from './widgets/perpetual.js';
 import { BottlerocketUsage } from './widgets/bottlerocket-usage.js';
 import { CodexUsage } from './widgets/codex-usage.js';
 import { Weather } from './widgets/weather.js';
@@ -49,13 +50,20 @@ const artwork = new ArtworkCache(path.join(paths.bin, 'artwork'), { blur: config
 const helper = new MacHelper(paths.bin);
 const weather = new Weather(helper, settings);
 const calendar = new Calendar(helper, settings);
-const reminders = new Reminders(helper, settings);
+const dueReminders = new DueReminders(helper, settings);
+const perpetual = new PerpetualCover(path.join(paths.bin, 'artwork'), { blur: config.ambientBlurOnMac });
 // Settings → Usage: only the providers it names are read (none: no Bottlerocket sign-in or Codex).
-const usageSource = () => settings.get().usageSource;
-const usage = new BottlerocketUsage({ enabled: () => usageSource() === 'bottlerocket' || usageSource() === 'both' });
-const chatgptUsage = new CodexUsage({ enabled: () => usageSource() === 'chatgpt' || usageSource() === 'both' });
+const wantsUsage = (provider) => [provider, 'both'].includes(settings.get().usageSource);
+const usage = new BottlerocketUsage({ enabled: () => wantsUsage('bottlerocket') });
+const chatgptUsage = new CodexUsage({ enabled: () => wantsUsage('chatgpt') });
 const appearance = new MacAppearance();
 const power = new MacPower(paths.bin);
+// You're at the Mac: awake, unlocked, display on, and some input in the last few minutes.
+const reminders = new Reminders({
+  settings,
+  presence: async () =>
+    !systemAsleep && !power.locked && !power.displayAsleep && ((await power.idleMs()) ?? 0) < AWAY_MS,
+});
 
 /** @type {DeviceLink|null} */
 let link = null;
@@ -215,11 +223,12 @@ function pushAll(target) {
   pushNowPlaying(target);
   target.send({ type: 'weather', weather: weather.state });
   target.send({ type: 'calendar', calendar: calendar.state });
-  target.send({ type: 'reminders', reminders: reminders.state });
+  target.send({ type: 'dueReminders', dueReminders: dueReminders.state });
+  target.send({ type: 'perpetual', perpetual: perpetual.state });
   target.send({ type: 'usage', usage: usage.state });
   target.send({ type: 'chatgptUsage', usage: chatgptUsage.state });
   target.send({ type: 'screen', on: screenOn !== false }); // the page may have gone dark by itself
-  target.send({ type: 'locked', locked: power.locked });
+  pushLock(target);
 }
 
 // ---- Screen sleep ---------------------------------------------------------
@@ -229,25 +238,38 @@ let lastDeviceInput = 0;
 let manualSleep = false; // held down the sleep button; any input clears it
 let screenOn = null; // unknown until applied to the current device link
 
-// The Car Thing's screen follows the Mac's display; a button/knob press wakes it for a while.
-// A locked Mac is its own case, set by Settings → When Mac is locked: it stays lit and shows the
-// lock sheet (LockScreen.vue) rather than going dark as it does for a sleeping display. The order
-// these rules are applied in matters and is spelled out, with tests, in screen-policy.js.
+let macIdleMs = 0; // kept up to date while the Sleep setting is a number of minutes
+
+// The Sleep setting. With Mac: the screen follows the Mac's display, and while the Mac is locked it
+// stays off for good (what's on it is the locked-away Mac's business). A number of minutes: off
+// once the Mac has gone that long without input, like a screen saver, or while it sleeps. Either
+// way a button/knob press wakes it for a while. Never: always on, unless the sleep button is held.
 function screenShouldBeOn() {
-  const { sleepWithMac, lockScreen } = settings.get();
-  return policy({
-    manualSleep,
-    sleepWithMac,
-    lockScreen,
-    systemAsleep,
-    locked: power.locked,
-    displayAsleep: power.displayAsleep,
-    sinceInput: Date.now() - lastDeviceInput,
-    wakeMs: config.screenWakeMs,
-  });
+  if (manualSleep) return false;
+  const mode = settings.get().screenSleep;
+  if (mode === 'never') return true;
+  if (mode === 'mac' && power.locked) return false;
+  if (systemAsleep) return false;
+  const idle = mode === 'mac' ? power.displayAsleep : macIdleMs >= mode * 60 * 1000;
+  return !idle || Date.now() - lastDeviceInput < config.screenWakeMs;
+}
+
+// While Locked: the screen the device is held on while the Mac is locked, or null.
+function lockedScreen() {
+  const s = settings.get();
+  return power.locked && s.screenSleep !== 'mac' && s.whenLocked !== 'unlocked' ? s.whenLocked : null;
+}
+let sentLock;
+/** Tells the device which screen it's held on; only on a change unless `target` is a fresh page. */
+function pushLock(target) {
+  const screen = lockedScreen();
+  if (!target && screen === sentLock) return;
+  sentLock = screen;
+  (target || link)?.send({ type: 'lock', screen });
 }
 
 async function applyScreen() {
+  pushLock();
   const on = screenShouldBeOn();
   if (!link || on === screenOn) return;
   screenOn = on;
@@ -279,7 +301,7 @@ async function macStatus() {
   return {
     location: { status: s.location || 'unknown', name: weather.auto?.name || null },
     calendar: { status: s.calendar || 'unknown', list: cals.ok ? cals.calendars : [] },
-    reminders: { status: s.reminders || 'unknown', list: lists.ok ? lists.reminderLists : [] },
+    dueReminders: { status: s.reminders || 'unknown', list: lists.ok ? lists.reminderLists : [] },
     // Spend and whether a token is set — never the token itself.
     bottlerocket: await bottlerocketStatus(usage),
   };
@@ -385,27 +407,28 @@ async function toggleFavorite() {
   }
 }
 
-const FINE_KEY_STEP = 1 / 64; // one Option+Shift volume-key press
-const KEY_STEP = 1 / 16; // one plain volume-key press — and, as it happens, one knob detent
-const KEY_GATHER_MS = 70; // a burst of turning is gathered this long before it goes out
-const MAX_PRESSES = 8; // further than this in one go and tapping it out is slower than setting it
+// Pressing the volume keys is what makes macOS show its volume indicator, but macOS applies
+// presses one at a time, about 100ms apart however fast they arrive. Every press sent is time
+// the Mac spends behind the knob, and a spin that goes up and back down was played out both ways.
+// So the presses are kept few:
+//
+//   - A plain press is 1/16, the same as a knob detent, so a detent is one press. (Option+Shift
+//     presses are 1/64: four per detent, four times the wait.)
+//   - Only one press is out at a time. Knob turns add up in keyBacklog while the Mac applies it,
+//     and when the Mac reports the new volume the next press goes out toward the total. Turning up
+//     and back down cancels in the backlog and is never pressed at all.
+//   - A backlog more than MAX_PRESSES away is set directly. That skips macOS's indicator for that
+//     change, but the Car Thing draws its own bar.
+//
+// Based on JackWangCA's fork (github.com/JackWangCA/MacThing), which found the four-presses-per-
+// detent cost and netted out bursts.
+const KEY_STEP = 1 / 16; // one plain volume-key press
+const FINE_KEY_STEP = 1 / 64; // one Option+Shift press, only for remainders smaller than a detent
+const MAX_PRESSES = 3;
+const PRESS_TIMEOUT_MS = 300; // stop waiting for the Mac's report after this
 
-// Pressing the volume keys is what makes macOS show its own volume indicator, but every press is
-// a separate event the Mac applies in turn — so the output follows the *path* the knob took
-// rather than where it ended up. Turning up and back down again was walked out in full, audibly,
-// and the Mac arrived as much as a second behind the knob. Two things keep it close:
-//
-//   - whole detents instead of 64ths. A knob click is 1/16, which is exactly one plain press;
-//     sending it as four Option+Shift presses was four times the events for the same distance.
-//   - gathering a burst before pressing it out, so a spin that doubles back cancels itself
-//     instead of being played out. The first turn of a burst still goes straight out, so a single
-//     click is as immediate as it ever was.
-//
-// A gathered burst big enough that tapping it out would itself be the delay is set directly
-// instead. That skips macOS's indicator, which is the right trade: the knob has its own.
 let keyBacklog = 0;
-let keyTimer = null;
-let lastPressAt = 0;
+let pressInFlight = null; // timer while a press is out and the Mac hasn't reported it yet
 
 function changeVolume(delta) {
   if (!Number.isFinite(delta) || delta === 0) return;
@@ -414,29 +437,33 @@ function changeVolume(delta) {
   askForKeyAccess();
   if (!(config.macVolumeIndicator && volume.state?.keys)) return volume.delta(delta);
   keyBacklog += delta;
-  if (keyTimer) return;
-  const since = Date.now() - lastPressAt;
-  if (since >= KEY_GATHER_MS) pressBacklog();
-  else keyTimer = setTimeout(pressBacklog, KEY_GATHER_MS - since);
+  pressNext();
 }
 
-function pressBacklog() {
-  keyTimer = null;
-  lastPressAt = Date.now();
-  const want = keyBacklog;
-  keyBacklog = 0;
-  if (!want) return;
-  if (Math.round(Math.abs(want) / KEY_STEP) > MAX_PRESSES) return volume.delta(want);
-  const up = want > 0;
-  const size = Math.abs(want);
-  const whole = Math.floor(size / KEY_STEP + 1e-9);
-  for (let i = 0; i < whole; i++) volume.pressKey(up, { fine: false });
-  const fine = Math.round((size - whole * KEY_STEP) / FINE_KEY_STEP);
-  for (let i = 0; i < fine; i++) volume.pressKey(up);
-  // Presses only come in 64ths. Keep whatever wouldn't divide into one: the gathered bursts of a
-  // spin that doubles back rarely land on a 64th, and dropping each remainder cost a whole detent
-  // over the length of one.
-  keyBacklog += want - (up ? 1 : -1) * (whole * KEY_STEP + fine * FINE_KEY_STEP);
+/** The Mac reported a volume: the press it was applying is done. */
+function pressLanded() {
+  if (!pressInFlight) return;
+  clearTimeout(pressInFlight);
+  pressInFlight = null;
+  pressNext();
+}
+
+function pressNext() {
+  if (pressInFlight) return;
+  const size = Math.abs(keyBacklog);
+  if (size < FINE_KEY_STEP / 2) return (keyBacklog = 0);
+  const up = keyBacklog > 0;
+  if (size > MAX_PRESSES * KEY_STEP + 1e-9) {
+    volume.delta(keyBacklog);
+    keyBacklog = 0;
+  } else {
+    // The page's deltas are clamped at 0 and 1, so they don't always land on a detent; a bit
+    // under a detent goes out as Option+Shift presses.
+    const step = size >= KEY_STEP - 1e-9 ? KEY_STEP : FINE_KEY_STEP;
+    volume.pressKey(up, { fine: step === FINE_KEY_STEP });
+    keyBacklog -= up ? step : -step;
+  }
+  pressInFlight = setTimeout(pressLanded, PRESS_TIMEOUT_MS);
 }
 
 // ---- Knob volume: the Mac's output or an app's own ----------------------------------------
@@ -698,13 +725,14 @@ function debounce(fn, ms) {
 log.info('Car Thing bridge starting');
 source.on('change', (s) => onNowPlaying(s).catch((err) => log.warn('[now playing]', err.message)));
 volume.on('change', (v) => {
+  pressLanded();
   if (appVol && knobApp() !== appVol.bundleId) appVol = null;
   pushVolume({ force: true });
 });
 settings.on('change', (values, changed) => {
   link?.send({ type: 'settings', settings: values });
   if (changed.includes('knobVolume')) refreshKnobTarget();
-  if (changed.includes('sleepWithMac') || changed.includes('lockScreen')) applyScreen();
+  if (changed.includes('screenSleep') || changed.includes('whenLocked')) refreshIdle();
 });
 settings.on('change', (_, changed) => {
   if (!changed.includes('usageSource')) return;
@@ -713,10 +741,15 @@ settings.on('change', (_, changed) => {
 });
 weather.on('change', (state) => link?.send({ type: 'weather', weather: state }));
 calendar.on('change', (state) => link?.send({ type: 'calendar', calendar: state }));
-reminders.on('change', (state) => link?.send({ type: 'reminders', reminders: state }));
+dueReminders.on('change', (state) => link?.send({ type: 'dueReminders', dueReminders: state }));
+perpetual.on('change', (state) => link?.send({ type: 'perpetual', perpetual: state }));
 usage.on('change', (state) => link?.send({ type: 'usage', usage: state }));
 chatgptUsage.on('change', (state) => link?.send({ type: 'chatgptUsage', usage: state }));
 appearance.on('change', (dark) => link?.send({ type: 'appearance', dark }));
+reminders.on('due', (reminder) => {
+  log.info(`[reminders] ${reminder.text}`);
+  link?.send({ type: 'reminder', reminder });
+});
 power.on('display', () => applyScreen());
 power.on('lock', (locked) => {
   log.info(`[screen] Mac ${locked ? 'locked' : 'unlocked'}`);
@@ -743,15 +776,19 @@ volume.start();
 helper.start();
 weather.start();
 calendar.start();
-reminders.start();
+dueReminders.start();
+perpetual.start();
 usage.start();
 chatgptUsage.start();
 appearance.start();
 power.start();
+reminders.start();
 startSettingsPage({
   port: config.settingsPort,
   settings,
   status: macStatus,
+  reminders,
+  dev: process.argv.includes('--watch'),
   setBottlerocketToken: (token) => usage.setToken(token),
 });
 
@@ -760,7 +797,12 @@ setInterval(refreshDevices, 30 * 1000); // a stale adb server sends no events; l
 refreshDevices();
 
 setInterval(() => link?.send(tickMessage()), 2000);
-setInterval(() => applyScreen(), 5000); // lets the post-input wake window expire
+// Lets the post-input wake window expire, and reads the Mac's idle time for a timed Sleep setting.
+async function refreshIdle() {
+  if (typeof settings.get().screenSleep === 'number') macIdleMs = (await power.idleMs()) ?? 0;
+  applyScreen();
+}
+setInterval(refreshIdle, 5000);
 setInterval(() => syncAppVolume(), 10 * 1000); // follows the app's own volume slider while the knob turns it
 setInterval(heartbeat, config.heartbeatMs);
 setInterval(() => link?.send(nowPlayingMessage()), 15000); // re-anchor the device's progress clock
@@ -804,6 +846,7 @@ async function shutdown() {
   volume.stop();
   helper.stop();
   power.stop();
+  reminders.stop();
   setTimeout(() => process.exit(0), 300);
 }
 process.on('SIGINT', shutdown);

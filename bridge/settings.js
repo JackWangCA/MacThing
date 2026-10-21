@@ -2,8 +2,8 @@ import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { config } from './config.js';
 import { log } from './log.js';
+import { DAY_MINUTES, EVERY_MINUTES, MAX_REMINDERS, MAX_TEXT, MAX_TIMES } from './widgets/reminders.js';
 
 // User-changeable settings (from the device's settings screen or the Mac settings page),
 // persisted outside the repo. Developer-level options live in config.js instead.
@@ -26,16 +26,18 @@ export const DEFAULTS = {
   knobVolume: 'auto',
   idleMinutes: 0, // once nothing has played this long on Now Playing, show idleScreen (0 = never)
   idleScreen: 'clock', // 'clock' | 'calendar' | 'weather'
-  sleepWithMac: config.sleepWithMac, // screen off while the Mac's display sleeps or the Mac is locked
-  // What the device shows while the Mac is locked: 'off' = nothing, the screen goes dark as it
-  // does for a sleeping display | 'clock' = the time and date behind a padlock | 'playing' = that
-  // plus the track. Unlike a sleeping display, a lock keeps the screen lit: the point is to leave
-  // something readable on the desk. A Mac that actually sleeps still takes the device dark with it.
-  lockScreen: 'clock',
-  // The lock sheet's clock face. 'match' follows clockFace above, which is what it did before
-  // there was a choice; the rest override it, so the lock sheet can be a plain digital readout
-  // while the Clock screen keeps its analog face, or the other way round.
-  lockFace: 'match', // 'match' | 'analog' | 'numbers' | 'digital'
+  // When the screen turns off: 'mac' = while the Mac's display sleeps or the Mac is locked |
+  // minutes the Mac has been idle (no keyboard or mouse, like a screen saver) | 'never'
+  screenSleep: 'mac',
+  // While the Mac is locked (and screenSleep isn't 'mac', which turns the screen off):
+  // 'unlocked' = everything works | 'nowplaying' | 'weather' | 'calendar' | 'clock' = held on that
+  // screen, with only the knob's volume and media controls
+  whenLocked: 'unlocked',
+  // Task reminders: [{ id, text, on, repeat: 'every' | 'times', every (minutes at the Mac),
+  // times (minutes since midnight) }]. See widgets/reminders.js.
+  reminders: [],
+  // When reminders may show: { days (0 = Sunday), from, to (minutes since midnight) }, or null = any time.
+  activeHours: { days: [1, 2, 3, 4, 5], from: 9 * 60, to: 18 * 60 },
 };
 
 const VALID = {
@@ -55,9 +57,34 @@ const VALID = {
   knobVolume: (v) => ['auto', 'system', 'spotify', 'music'].includes(v),
   idleMinutes: (v) => [0, 1, 2, 5, 10].includes(v),
   idleScreen: (v) => ['clock', 'calendar', 'weather'].includes(v),
-  sleepWithMac: (v) => typeof v === 'boolean',
-  lockScreen: (v) => ['off', 'clock', 'playing'].includes(v),
-  lockFace: (v) => ['match', 'analog', 'numbers', 'digital'].includes(v),
+  screenSleep: (v) => ['mac', 30, 60, 120, 240, 'never'].includes(v),
+  whenLocked: (v) => ['unlocked', 'nowplaying', 'weather', 'calendar', 'clock'].includes(v),
+  reminders: (v) =>
+    Array.isArray(v) &&
+    v.length <= MAX_REMINDERS &&
+    v.every(
+      (r) =>
+        typeof r?.id === 'string' &&
+        typeof r.text === 'string' &&
+        r.text.trim().length > 0 &&
+        r.text.length <= MAX_TEXT &&
+        EVERY_MINUTES.includes(r.every) &&
+        [undefined, 'every', 'times'].includes(r.repeat) &&
+        (r.times === undefined ||
+          (Array.isArray(r.times) &&
+            r.times.length <= MAX_TIMES &&
+            r.times.every((t) => Number.isInteger(t) && t >= 0 && t < DAY_MINUTES))) &&
+        typeof r.on === 'boolean',
+    ),
+  activeHours: (v) =>
+    v === null ||
+    (Array.isArray(v?.days) &&
+      v.days.every((d) => Number.isInteger(d) && d >= 0 && d <= 6) &&
+      Number.isInteger(v.from) &&
+      Number.isInteger(v.to) &&
+      v.from >= 0 &&
+      v.from < v.to &&
+      v.to <= DAY_MINUTES),
 };
 
 class Settings extends EventEmitter {
@@ -71,6 +98,7 @@ class Settings extends EventEmitter {
       const raw = JSON.parse(fs.readFileSync(FILE, 'utf8'));
       // Older builds stored Claude as the usage view. That view is Bottlerocket now.
       if (raw.usageSource === 'claude') raw.usageSource = 'bottlerocket';
+      if (raw.sleepWithMac === false && raw.screenSleep === undefined) raw.screenSleep = 'never'; // the old on/off setting
       return Object.fromEntries(Object.entries(raw).filter(([k, v]) => VALID[k]?.(v)));
     } catch {
       return {};

@@ -67,6 +67,7 @@ export function initializeRuntime(state) {
   function setConnected(on) {
     if (on !== connected) offlineSince = on ? 0 : performance.now();
     if (on && !connected) opening = true;
+    if (!on) CT.lockedTo = null; // no Mac to say it's still locked; it says again on reconnecting
     connected = on;
     state.offline = !on;
   }
@@ -183,7 +184,7 @@ export function initializeRuntime(state) {
   /** Shows a screen. `fade` crossfades even between pages, rather than sliding to the side. */
   CT.show = function (name, fade) {
     var next = CT.screens[name];
-    if (!next) return;
+    if (!next || (CT.lockedTo && name !== CT.lockedTo)) return;
     if (name !== CT.current) {
       var prev = CT.screens[CT.current];
       if (name === 'settings') beforeSettings = CT.current;
@@ -200,6 +201,14 @@ export function initializeRuntime(state) {
     }
   };
   CT.closeSettings = function () { CT.show(beforeSettings); };
+
+  // The While locked setting: with the Mac locked, the bridge can hold the device on one screen.
+  // Nothing moves it off that screen, and the buttons and knob only work the volume and playback.
+  CT.lockedTo = null;
+  CT.on('lock', function (msg) {
+    CT.lockedTo = msg.screen && CT.screens[msg.screen] ? msg.screen : null;
+    if (CT.lockedTo) CT.show(CT.lockedTo, true);
+  });
 
   // Whenever the Mac connects (the page loading, or the bridge coming back), an empty Now Playing
   // gives way to the Idle screen (unless When idle is Never). From there, or from the page's first screen, it moves to Now Playing
@@ -285,20 +294,6 @@ export function initializeRuntime(state) {
   }
   CT.on('screen', function (msg) { setAsleep(!msg.on); });
 
-  // ---- Locked Mac --------------------------------------------------------------------------
-  // The sheet itself is Vue's (LockScreen.vue). What matters here is that the buttons stop
-  // reaching the screens underneath it: the top buttons would walk straight past the sheet into
-  // the calendar, which is the one thing it is there to prevent. The knob keeps working — volume
-  // by turning it, play/pause/next/previous by pressing — which is what the Mac's own lock screen
-  // allows too, and none of it puts anything on the glass. With lockScreen 'off' the screen is
-  // simply dark, as it has always been for a lock, and there is nothing to guard.
-  CT.locked = false;
-  CT.on('locked', function (msg) {
-    CT.locked = !!msg.locked;
-    state.locked = CT.locked;
-  });
-  function lockedOut() { return CT.locked && CT.settings.lockScreen !== 'off'; }
-
   /** Holding the sleep button: the Mac turns the backlight off until the next input. */
   function sleepNow() {
     setAsleep(true); // black straight away, even if the Mac isn't there to answer
@@ -330,6 +325,7 @@ export function initializeRuntime(state) {
 
   function runButton(action) {
     if (!action) return;
+    if (CT.lockedTo && (action.indexOf('screen:') === 0 || action === 'settings')) return;
     if (action.indexOf('screen:') === 0 || action === 'settings') autoScreen = false;
     if (action.indexOf('screen:') === 0) {
       var name = action.slice(7), screen = CT.screens[name];
@@ -351,9 +347,7 @@ export function initializeRuntime(state) {
   var clickTimer = null;
   function knobPress() {
     var screen = CT.screens[CT.current];
-    // Under the lock sheet the press belongs to playback, not to whatever screen it is covering:
-    // on the clock, screen.press() would start that screen's timer sight unseen.
-    if (!lockedOut() && screen.press && screen.press() !== false) return;
+    if (!CT.lockedTo && screen.press && screen.press() !== false) return;
     clicks++;
     clearTimeout(clickTimer);
     clickTimer = setTimeout(function () {
@@ -383,7 +377,7 @@ export function initializeRuntime(state) {
     // A screen can take the back button for itself (Settings opens the Mac's settings page on it,
     // the clock's stale usage refreshes on it).
     var screen = CT.screens[CT.current];
-    if (key === 'Escape' && screen && screen.back && screen.back() !== false) return;
+    if (key === 'Escape' && !CT.lockedTo && screen && screen.back && screen.back() !== false) return;
     if (key === 'Escape' && CT.current === 'settings') return CT.closeSettings();
     var actions = (CT.config.buttonClicks || {})[key];
     if (actions) return buttonPress(key, actions);
@@ -436,14 +430,6 @@ export function initializeRuntime(state) {
       holds[key] = { start: performance.now(), done: true };
       return;
     }
-    // Under the lock sheet only the knob answers. Marked done so the hold timer never arms
-    // either: holding the settings button would otherwise still put the screen to sleep, which
-    // is harmless but makes the lock view feel like it is half-listening.
-    if (lockedOut() && key !== 'Enter') {
-      debugInput('locked — ignoring ' + key);
-      holds[key] = { start: performance.now(), done: true };
-      return;
-    }
     press = holds[key] = { start: performance.now(), done: false, timer: null };
     if (!holdAction(key)) {
       press.done = true; // nothing to hold for: act now, as every button always has
@@ -471,9 +457,7 @@ export function initializeRuntime(state) {
     if (!d || wakeInstead()) return;
     var steps = (d > 0 ? 1 : -1) * (CT.config.knobDirection || 1);
     var screen = CT.screens[CT.current];
-    // Volume, not the covered screen's own turn — the clock's would set a timer length nobody
-    // can see, and the volume HUD is the one bit of feedback the lock sheet can safely show.
-    if (lockedOut() || !screen.turn || screen.turn(steps) === false) onKnobVolume(steps);
+    if (CT.lockedTo || !screen.turn || screen.turn(steps) === false) onKnobVolume(steps);
   }, { passive: false, capture: true });
 
   document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
@@ -488,7 +472,7 @@ export function initializeRuntime(state) {
   var flushTimer = null;
   var settleTimer = null;
   var hideTimer = null;
-  var awaiting = null;     // where the knob says the volume is, until the Mac reports it back
+  var awaiting = null;     // where the knob left the volume, until the Mac has caught up
   var awaitingUntil = 0;   // past this, take the Mac's word even if it still disagrees
   var lastReportAt = 0;    // when a volume reading last arrived from the Mac
 
@@ -514,18 +498,12 @@ export function initializeRuntime(state) {
     state.volume = v;
   }
 
-  // The Mac applies the queued deltas one at a time and reports after each, so what comes back
-  // isn't one late answer — it's the whole spin replayed: every down-turn and up-turn, a 64th at
-  // a time. Rendering any of it mid-stream puts that retrace on the bar, which slides away from
-  // where the knob was left and then crawls back to it.
-  //
-  // So the knob's value stands (`awaiting`) and the stream is let run. It's released only once
-  // the Mac has gone quiet for a beat — its queue is drained and its last word is final — and
-  // then its value is taken in one go. Matching on the value instead does not work: a spin that
-  // doubles back crosses its own finishing value part-way through the replay, and an early report
-  // that happens to match releases the hold with most of the retrace still to come.
-  //
-  // `awaitingUntil` is the backstop for a Mac that never answers at all.
+  // The Mac applies volume changes one at a time and reports after each, so for a while after a
+  // spin its reports replay the spin. Showing them would slide the bar away from where the knob
+  // left it and crawl it back. So the knob's value (`awaiting`) stands until the Mac's reports
+  // have gone quiet, then the Mac's last one is taken. (Waiting for a matching value doesn't
+  // work: a spin that doubles back passes its own end value partway through the replay.)
+  // `awaitingUntil` covers a Mac that never answers.
   function macHasSettled(now) {
     return now > awaitingUntil || (lastReportAt > lastTurn && now - lastReportAt > 400);
   }
@@ -546,8 +524,8 @@ export function initializeRuntime(state) {
       // turn and answers with the volume (or a toast).
       return CT.send({ type: 'volume', delta: steps * CT.config.volumeStep });
     }
-    // Starting a fresh turn picks up from the Mac's value — unless it's still catching up with
-    // the last one, in which case that's the stale number and the knob's own is the true one.
+    // A fresh turn starts from the Mac's value, unless the Mac is still catching up with the
+    // last turn: then its number is stale and the knob's is the right one.
     if (now > localUntil) localVol = awaiting != null ? awaiting : vol.volume || 0;
     var next = Math.min(1, Math.max(0, localVol + steps * CT.config.volumeStep));
     pendingDelta += next - localVol;
@@ -558,7 +536,7 @@ export function initializeRuntime(state) {
     renderVolume(localVol);
     showVolume();
     if (!flushTimer) flushTimer = setTimeout(flushVolume, 40);
-    // Keep asking until the Mac has caught up, so the bar still ends on the real value.
+    // Keep checking until the Mac has caught up, so the bar ends on the real value.
     clearTimeout(settleTimer);
     settleTimer = setTimeout(function settle() {
       if (awaiting != null && macHasSettled(performance.now())) awaiting = null;

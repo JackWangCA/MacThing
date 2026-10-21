@@ -113,6 +113,39 @@ test('resuming does not count the pause as music that was played', () => {
 });
 
 /**
+ * Music paused, a video played in the browser, then the video closed and Music was played again
+ * (captured off the MediaRemote stream). When Music takes Now Playing back it arrives as a full
+ * replacement still carrying the position from before the video, timestamped then. Play arrives
+ * as `{playing: true}` alone, so without the re-anchor everything since the pause, the whole
+ * video, counted as music: the bar jumped forward (to the end, for a long enough video) until
+ * the real position landed a moment later.
+ */
+const BACK_PAUSED_AT = 1792600101100964;
+const BACK_PLAYED_AT = 1792600128917089;
+const BACK_TO_MUSIC = [
+  { diff: false, payload: {} },
+  { diff: false, payload: { title: 'Cut Paper', artist: 'Blue Lake', album: 'The Animal (Migrated)', bundleIdentifier: 'com.apple.Music', playing: false, playbackRate: 0, elapsedTimeMicros: 58833912, durationMicros: 266000000, timestampEpochMicros: BACK_PAUSED_AT } },
+  { diff: true, payload: { playing: true } },
+  { diff: true, payload: { playbackRate: 1, elapsedTimeMicros: 58834298, timestampEpochMicros: BACK_PLAYED_AT } },
+];
+
+test('playing again after another app had Now Playing does not jump ahead', () => {
+  const now = BACK_PLAYED_AT / 1e3;
+  const realDate = Date.now;
+  Date.now = () => now;
+  try {
+    const { positions } = replay(BACK_TO_MUSIC, () => now);
+    const [, returned, played, confirmed] = positions;
+    assert.ok(Math.abs(returned - 58.83) < 0.01, 'back on Music, still paused where it was');
+    // Without the re-anchor this read 86.6s: 27.8s of video counted as music.
+    assert.ok(Math.abs(played - 58.83) < 0.05, `"{playing:true}" alone must start from the pause (got ${played?.toFixed(2)}s)`);
+    assert.ok(Math.abs(confirmed - 58.83) < 0.01, 'and Music then confirms the same position');
+  } finally {
+    Date.now = realDate;
+  }
+});
+
+/**
  * Recorded off the live stream (Apple Music, "Something in the Orange"): a burst of pause/resume
  * churn, ~21 cycles in three minutes, none of it from the device — the bridge logged no input at
  * all. Every change came as two diffs, `{playing}` by itself and then `{playbackRate}` without
