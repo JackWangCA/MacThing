@@ -621,7 +621,7 @@ chatgptUsage.start();
 appearance.start();
 power.start();
 reminders.start();
-startSettingsPage({ port: config.settingsPort, settings, status: macStatus, reminders });
+startSettingsPage({ port: config.settingsPort, settings, status: macStatus, reminders, dev: process.argv.includes('--watch') });
 
 trackDevices(debounce(refreshDevices, 400));
 setInterval(refreshDevices, 30 * 1000); // a stale adb server sends no events; look anyway

@@ -54,6 +54,7 @@
   .rem + .rem { border-top: 1px solid var(--line); }
   .rem-main { display: flex; align-items: center; gap: 10px; }
   .rem-times { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 0 26px; }
+  .rem-times .end { margin-left: auto; }
   .chip { display: inline-flex; align-items: center; gap: 2px; padding: 0 6px 0 0; border-radius: 99px;
     background: var(--seg); border: 1px solid transparent; font-size: 14px; }
   .chip button { border: 0; background: none; color: var(--muted); font: inherit; cursor: pointer; padding: 0 4px; }
@@ -234,7 +235,7 @@
         <h3 class="subhead">Reminders</h3>
         <div class="note">A card on the device. Any button dismisses it.</div>
         <dl class="how">
-          <dt>Every 45 min</dt><dd>45 minutes of time at your Mac, not on the clock. Locked, asleep or away from the keyboard pauses the count; a break that long starts it over.</dd>
+          <dt>On an interval</dt><dd>Counts time at your Mac, not on the clock. Locked, asleep or away from the keyboard pauses the count; a break that long starts it over.</dd>
           <dt>At set times</dt><dd>At each time you add, or when you’re back if you were away then.</dd>
         </dl>
         <div id="remList"></div>
@@ -302,7 +303,7 @@
   const EVERY = [15, 20, 30, 45, 60, 90, 120];
   const MAX_REMINDERS = 8, MAX_TIMES = 6;
   const DEFAULT_HOURS = { days: [1, 2, 3, 4, 5], from: 9 * 60, to: 18 * 60 };
-  const everyText = (m) => (m % 60 ? `Every ${m} min` : m === 60 ? 'Every hour' : `Every ${m / 60} hours`);
+  const everyText = (m) => (m < 60 ? `${m} min` : m === 60 ? '1 hour' : `${m / 60} hours`);
   const pad = (n) => String(n).padStart(2, '0');
   const DAY = 24 * 60;
   function timeText(m) { // minutes since midnight; 24:00 (the end of the day) reads as midnight
@@ -323,30 +324,46 @@
       on.addEventListener('change', () => edit(i, { on: on.checked }));
       const text = Object.assign(document.createElement('input'), { type: 'text', value: r.text, maxLength: 40, placeholder: 'Drink water' });
       text.addEventListener('change', () => { if (text.value.trim()) edit(i, { text: text.value.trim() }); else text.value = r.text; });
-      // One menu for both kinds: the intervals, then "At set times".
-      const repeat = document.createElement('select');
-      repeat.append(
-        ...EVERY.map((m) => Object.assign(document.createElement('option'), { value: m, textContent: everyText(m), selected: !times && m === r.every })),
+      // Two lines. First: on, the text and the kind. Second: that kind's setting (how often, or
+      // the times), then Remove. Show now is for testing, so only a dev run (npm run dev) has it.
+      const kind = document.createElement('select');
+      kind.append(
+        Object.assign(document.createElement('option'), { value: 'every', textContent: 'On an interval', selected: !times }),
         Object.assign(document.createElement('option'), { value: 'times', textContent: 'At set times', selected: times }),
       );
       // Switching to set times adds none: the time list opens so you pick the first one.
-      repeat.addEventListener('change', async () => {
-        if (repeat.value !== 'times') return edit(i, { repeat: 'every', every: Number(repeat.value) });
+      kind.addEventListener('change', async () => {
+        if (kind.value === 'every') return edit(i, { repeat: 'every', every: r.every || 45 });
         await edit(i, { repeat: 'times', times: r.times || [] });
         if (!r.times?.length) document.querySelector(`[data-add="${r.id}"]`)?.click();
       });
-      const test = Object.assign(document.createElement('button'), { type: 'button', className: 'btn quiet', textContent: 'Show now' });
-      test.addEventListener('click', () => fetch('/api/reminders/test', {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: r.id }),
-      }));
-      const remove = Object.assign(document.createElement('button'), { type: 'button', className: 'btn quiet', textContent: 'Remove' });
+      row.append(on, text, kind);
+      const detail = times ? timesRow(r, (t) => edit(i, { times: t })) : everyRow(r, (every) => edit(i, { every }));
+      if (state.dev) {
+        const test = Object.assign(document.createElement('button'), { type: 'button', className: 'btn quiet end', textContent: 'Show now' });
+        test.addEventListener('click', () => fetch('/api/reminders/test', {
+          method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id: r.id }),
+        }));
+        detail.append(test);
+      }
+      const remove = Object.assign(document.createElement('button'), { type: 'button', className: 'btn quiet' + (state.dev ? '' : ' end'), textContent: 'Remove' });
       remove.addEventListener('click', () => saveReminders(list.filter((_, j) => j !== i)));
-      row.append(on, text, repeat, test, remove);
-      wrap.append(row);
-      if (times) wrap.append(timesRow(r, (t) => edit(i, { times: t })));
+      detail.append(remove);
+      wrap.append(row, detail);
       return wrap;
     }));
     $('#addReminder').disabled = list.length >= MAX_REMINDERS;
+  }
+  // An interval reminder's second line: "Every [45 min] at your Mac".
+  function everyRow(r, saveEvery) {
+    const row = Object.assign(document.createElement('div'), { className: 'rem-times' });
+    const every = document.createElement('select');
+    every.setAttribute('aria-label', 'How often');
+    every.append(...EVERY.map((m) => Object.assign(document.createElement('option'), { value: m, textContent: everyText(m), selected: m === r.every })));
+    every.addEventListener('change', () => saveEvery(Number(every.value)));
+    row.append(Object.assign(document.createElement('span'), { textContent: 'Every' }), every,
+      Object.assign(document.createElement('span'), { className: 'note', textContent: 'at your Mac' }));
+    return row;
   }
   // An "At set times" reminder's times, as chips: click one to change it, × removes it. "Add time"
   // opens the list on a free time an hour after the last one (or the start of active hours).

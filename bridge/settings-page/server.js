@@ -10,9 +10,10 @@ const page = fs.readFileSync(new URL('./page.html', import.meta.url));
  * plus the same toggles as the device's settings screen. Loopback only; requests must carry a
  * loopback Host (DNS-rebinding guard), and writes must be same-origin JSON (CSRF guard).
  *
- * @param {{port: number, settings: import('../settings.js').settings, status: () => Promise<object>, reminders?: import('../widgets/reminders.js').Reminders}} opts
+ * @param {{port: number, settings: import('../settings.js').settings, status: () => Promise<object>, reminders?: import('../widgets/reminders.js').Reminders, dev?: boolean}} opts
+ *   dev: a dev run (`npm run dev`); the page then shows testing buttons such as Show now.
  */
-export function startSettingsPage({ port, settings, status, reminders }) {
+export function startSettingsPage({ port, settings, status, reminders, dev = false }) {
   const origins = [`http://127.0.0.1:${port}`, `http://localhost:${port}`];
 
   const server = http.createServer(async (req, res) => {
@@ -29,7 +30,7 @@ export function startSettingsPage({ port, settings, status, reminders }) {
         return res.end(page);
       }
       if (req.method === 'GET' && url.pathname === '/api/state') {
-        return json(200, { settings: settings.get(), ...(await status()) });
+        return json(200, { settings: settings.get(), ...(await status()), dev });
       }
       if (req.method === 'GET' && url.pathname === '/api/places') {
         const q = (url.searchParams.get('q') || '').trim();
