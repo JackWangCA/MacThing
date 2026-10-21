@@ -114,8 +114,12 @@
           <select id="idleMinutes" data-key="idleMinutes" data-type="number"><option value="0">Never</option><option value="1">After 1 min</option><option value="2">After 2 min</option><option value="5">After 5 min</option><option value="10">After 10 min</option></select></div>
         <div class="row"><div><div class="label">Idle screen</div><div class="note">Where to go when idle</div></div>
           <span class="seg" data-key="idleScreen"><button data-v="clock">Clock</button><button data-v="calendar">Calendar</button><button data-v="weather">Weather</button></span></div>
-        <div class="row"><div><div class="label">Sleep with Mac</div><div class="note">Screen off when the Mac sleeps or locks</div></div>
+        <div class="row"><div><div class="label">Sleep with Mac</div><div class="note">Screen off when the Mac sleeps or its display does</div></div>
           <span class="seg" data-key="sleepWithMac"><button data-v="true">On</button><button data-v="false">Off</button></span></div>
+        <div class="row"><div><div class="label">When Mac is locked</div><div class="note">The screen stays lit and shows this instead; a sleeping Mac still takes it dark</div></div>
+          <span class="seg" data-key="lockScreen"><button data-v="off">Screen off</button><button data-v="clock">Clock</button><button data-v="playing">Clock + playing</button></span></div>
+        <div class="row"><div><div class="label">Lock clock face</div><div class="note">The lock screen&rsquo;s own face, or the same one the Clock screen uses</div></div>
+          <span class="seg" data-key="lockFace"><button data-v="match">Match clock</button><button data-v="analog">Analog</button><button data-v="numbers">Numbers</button><button data-v="digital">Digital</button></span></div>
       </section>
     </div>
 
