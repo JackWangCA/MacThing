@@ -798,6 +798,11 @@ h3 {
 .m-range {
   margin-top: 16px;
 }
+/* Task reminders (Settings → Reminders on the Mac) reuse the meeting card; no calendar bar, so
+   the pill lines up with the title. */
+.reminder-alert .m-when {
+  margin-left: 0;
+}
 .m-where {
   margin-top: 4px;
 }

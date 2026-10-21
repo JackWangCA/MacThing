@@ -10,9 +10,10 @@ const page = fs.readFileSync(new URL('./page.html', import.meta.url));
  * plus the same toggles as the device's settings screen. Loopback only; requests must carry a
  * loopback Host (DNS-rebinding guard), and writes must be same-origin JSON (CSRF guard).
  *
- * @param {{port: number, settings: import('../settings.js').settings, status: () => Promise<object>}} opts
+ * @param {{port: number, settings: import('../settings.js').settings, status: () => Promise<object>, reminders?: import('../widgets/reminders.js').Reminders, dev?: boolean}} opts
+ *   dev: a dev run (`npm run dev`); the page then shows testing buttons such as Show now.
  */
-export function startSettingsPage({ port, settings, status }) {
+export function startSettingsPage({ port, settings, status, reminders, dev = false }) {
   const origins = [`http://127.0.0.1:${port}`, `http://localhost:${port}`];
 
   const server = http.createServer(async (req, res) => {
@@ -29,16 +30,25 @@ export function startSettingsPage({ port, settings, status }) {
         return res.end(page);
       }
       if (req.method === 'GET' && url.pathname === '/api/state') {
-        return json(200, { settings: settings.get(), ...(await status()) });
+        return json(200, { settings: settings.get(), ...(await status()), dev });
       }
       if (req.method === 'GET' && url.pathname === '/api/places') {
         const q = (url.searchParams.get('q') || '').trim();
         return json(200, { places: q.length < 2 ? [] : await searchPlaces(q) });
       }
-      if (req.method === 'POST' && url.pathname === '/api/settings') {
-        if (!origins.includes(req.headers.origin) || !req.headers['content-type']?.startsWith('application/json')) {
-          return json(403, { error: 'forbidden' });
+      const isPost = req.method === 'POST' && ['/api/settings', '/api/reminders/test'].includes(url.pathname);
+      if (isPost && (!origins.includes(req.headers.origin) || !req.headers['content-type']?.startsWith('application/json'))) {
+        return json(403, { error: 'forbidden' });
+      }
+      if (isPost && url.pathname === '/api/reminders/test') {
+        let body = '';
+        for await (const chunk of req) {
+          body += chunk;
+          if (body.length > 1000) return json(413, { error: 'too large' });
         }
+        return json(200, { ok: !!reminders?.fire(JSON.parse(body).id) });
+      }
+      if (req.method === 'POST' && url.pathname === '/api/settings') {
         let body = '';
         for await (const chunk of req) {
           body += chunk;
