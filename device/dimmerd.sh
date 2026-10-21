@@ -4,8 +4,14 @@
 #
 # The stock daemon sets the backlight straight from each light-sensor reading, and the sensor
 # sits where a hand goes: reach for the knob or a button and the screen dims under your fingers.
-# This uses the same curve, but only follows the room down once it has stayed darker for DELAY
-# seconds. Brighter takes effect right away.
+# This uses the same curve, but only follows the room once it has read that way for DELAY seconds
+# going darker, or RISE going brighter, and it fades between levels instead of stepping.
+#
+# Both directions wait, for different lengths. Only guarding the dim was not enough: a hand
+# crossing the sensor reflects the screen back into it, so reaching for a button reads as a spike
+# of light and the screen jumped brighter on the next reading. Worse, that reset the dim window,
+# so the wrong level then held for another DELAY seconds. RISE is the shorter of the two — a room
+# whose lights come on should catch up quickly, while a room going dark can afford to wait.
 #
 # Installed at /var/lib/carthing/dimmerd.sh by scripts/setup-device.sh, which points supervisord's
 # [program:backlight] at it, so the bridge and sleepd.sh keep stopping and starting it by that
@@ -19,11 +25,22 @@ POWER=/sys/class/aml_bl/power             # on/off: "backlight power state: 0|1"
 
 # Defaults. dimmer.conf, generated from bridge/config.js, overrides them.
 DELAY=10 # seconds the room must stay darker before the screen dims to match
+RISE=3   # and brighter, before it brightens to match
 POLL=1   # seconds between sensor readings
+FADE=400 # milliseconds a change takes; 0 steps straight there
+FADEMAX=24 # most writes one fade makes, so a big change isn't a slow crawl
 
 [ -f "$CONF" ] && . "$CONF"
 
 say() { echo "[dimmerd] $*"; }
+
+# usleep is what makes a fade a fade. Without it the only wait available is a whole second a
+# step, which would drag a 24-step change out over the best part of half a minute — far worse
+# than the snap it was meant to smooth. So decide once, here, rather than per step.
+if [ "$FADE" -gt 0 ] && ! command -v usleep >/dev/null 2>&1; then
+  say "no usleep — stepping straight to each level instead of fading"
+  FADE=0
+fi
 
 # The bridge and sleepd.sh stop this program while the screen is off, since a new level could light
 # the backlight again. Check anyway, in case something starts it then (supervisorctl update does).
@@ -32,6 +49,34 @@ set_level() {
   read -r p < "$POWER" 2>/dev/null
   case "$p" in *0) return 0 ;; esac
   echo "$1" > "$BL" 2>/dev/null
+}
+
+# Walk to a level instead of jumping to it. One write was a visible snap, and the jumps are not
+# small: the curve's bottom entry is 200 and anything darker than it is 235, so a hand over the
+# sensor moves the backlight 35 levels at once. Each write is a sysfs poke, so the number of them
+# is capped and the step grows for a big change rather than the fade taking longer.
+# Checks POWER through set_level on every step: the screen can be put to sleep mid-fade.
+fade_to() {
+  to=$1
+  delta=$((to - cur))
+  [ "$delta" = 0 ] && return 0
+  steps=$delta
+  [ "$steps" -lt 0 ] && steps=$((-steps))
+  [ "$steps" -gt "$FADEMAX" ] && steps=$FADEMAX
+  if [ "$FADE" -le 0 ] || [ "$steps" -le 1 ]; then
+    cur=$to
+    set_level "$cur"
+    return 0
+  fi
+  nap=$((FADE * 1000 / steps)) # microseconds per step
+  i=1
+  while [ "$i" -lt "$steps" ]; do
+    set_level $((cur + delta * i / steps))
+    usleep "$nap" 2>/dev/null
+    i=$((i + 1))
+  done
+  cur=$to
+  set_level "$cur"
 }
 
 # Read off sp-als-backlight's own log (raw reading → level, ALS ≥ threshold:level). Higher is
@@ -51,8 +96,15 @@ level_for() {
   LEVEL=$DARKEST
   at=0
   for p in $CURVE; do
-    [ "$1" -ge "${p%:*}" ] || return 0
-    at=${p%:*}
+    t=${p%:*}
+    if [ "$1" -lt "$t" ]; then
+      # Below the curve's first entry the stock daemon has nothing, and took the dimmest level
+      # for all of it — so a reading of 12 was 35 levels darker than a reading of 13, and a hand
+      # over the sensor dropped the backlight to minimum in one move. Slide across that gap.
+      [ "$at" -eq 0 ] && LEVEL=$((DARKEST - (DARKEST - ${p#*:}) * $1 / t))
+      return 0
+    fi
+    at=$t
     LEVEL=${p#*:}
   done
   while [ "$LEVEL" -gt 1 ] && [ "$1" -ge $((at * 105 / 100)) ]; do
@@ -75,10 +127,15 @@ fi
 cur=""
 read -r cur < "$BL" 2>/dev/null
 case "$cur" in '' | *[!0-9]*) cur=100 ;; esac
-say "started at $cur (dims after ${DELAY}s darker, sensor $SENSOR)"
+say "started at $cur (dims after ${DELAY}s darker, brightens after ${RISE}s lighter, ${FADE}ms fade, sensor $SENSOR)"
 
-since=0 # seconds the readings have all asked for dimmer than cur
-hold="" # the brightest level asked for in that time
+# One window per direction. A reading that disagrees with a window clears it: the room has to
+# read the same way throughout, and a hand waved over the sensor belongs to neither run, so it
+# simply holds the level where it is rather than moving it.
+dim_since=0  # seconds every reading has asked for dimmer than cur
+dim_hold=""  # the brightest of those readings
+rise_since=0 # and the same going the other way
+rise_hold="" # the dimmest of those readings
 
 while :; do
   als=""
@@ -86,24 +143,35 @@ while :; do
   case "$als" in '' | *[!0-9]*) sleep "$POLL"; continue ;; esac
   level_for "$als"
 
-  if [ "$LEVEL" -le "$cur" ]; then
-    since=0
-    hold=""
-    if [ "$LEVEL" -ne "$cur" ]; then
-      cur=$LEVEL
-      set_level "$cur"
+  if [ "$LEVEL" -gt "$cur" ]; then
+    rise_since=0
+    rise_hold=""
+    dim_since=$((dim_since + POLL))
+    if [ -z "$dim_hold" ] || [ "$LEVEL" -lt "$dim_hold" ]; then dim_hold=$LEVEL; fi
+    if [ "$dim_since" -ge "$DELAY" ]; then
+      # Only as dim as every reading in the window agreed on.
+      say "dark for ${dim_since}s: $cur → $dim_hold (sensor $als)"
+      fade_to "$dim_hold"
+      dim_since=0
+      dim_hold=""
+    fi
+  elif [ "$LEVEL" -lt "$cur" ]; then
+    dim_since=0
+    dim_hold=""
+    rise_since=$((rise_since + POLL))
+    if [ -z "$rise_hold" ] || [ "$LEVEL" -gt "$rise_hold" ]; then rise_hold=$LEVEL; fi
+    if [ "$rise_since" -ge "$RISE" ]; then
+      # And only as bright: a single reflected flash off a passing hand is not the room.
+      say "light for ${rise_since}s: $cur → $rise_hold (sensor $als)"
+      fade_to "$rise_hold"
+      rise_since=0
+      rise_hold=""
     fi
   else
-    since=$((since + POLL))
-    if [ -z "$hold" ] || [ "$LEVEL" -lt "$hold" ]; then hold=$LEVEL; fi
-    if [ "$since" -ge "$DELAY" ]; then
-      # Only as dim as every reading in the window agreed on.
-      say "dark for ${since}s: $cur → $hold (sensor $als)"
-      cur=$hold
-      set_level "$cur"
-      since=0
-      hold=""
-    fi
+    dim_since=0
+    dim_hold=""
+    rise_since=0
+    rise_hold=""
   fi
 
   sleep "$POLL"
