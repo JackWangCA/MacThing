@@ -73,7 +73,20 @@ export const ambientPreBlurred = computed(() => state.np.active ? !!shownBlur.va
 // in, instead of the no-art greys showing first and snapping over.
 export const hasArt = computed(() => !!(state.np.active && (shownArt.value || state.np.artworkKey)));
 CT.onSecond(now => { state.now = now; });
-CT.on('tick', () => { state.now = CT.now(); });
+// The Mac's tick arrives every 2s at a phase of its own, and writing state.now from each one
+// knocks the clock off the aligned second: measured on the device, state.now advanced by 683ms,
+// then 318ms, then 1000ms, over and over. Anything counting in whole seconds inherits that — the
+// timer held some seconds for 1.3s and dropped others after 0.7s. The aligned tick is never more
+// than a second behind, so an ordinary tick is left to it. Two cases still need this one: with
+// the backlight off the aligned tick stops calling its subscribers, so nothing else is moving
+// state.now; and a real jump — the Mac slept, or its clock was set — shouldn't wait even that
+// second. Routine staleness is at most the ~1s since the last aligned tick, so the threshold
+// sits above it.
+const CLOCK_JUMP_MS = 1500;
+CT.on('tick', () => {
+  const now = CT.now();
+  if (state.asleep || Math.abs(now - state.now) > CLOCK_JUMP_MS) state.now = now;
+});
 // Which song this is, for telling a fresh position from a corrected one.
 const trackOf = np => np.active ? np.title + '\n' + np.artist + '\n' + np.album : '';
 // The Mac works out the position afresh for every update it sends, so its number and the one the
