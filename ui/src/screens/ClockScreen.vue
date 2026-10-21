@@ -12,7 +12,7 @@ import { timer, total, remaining, timerLabel, timerTitle, timerUnit, stepPreset,
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
-// The digital face stacks the hours over the minutes, both two digits (1:14 is 01 over 14).
+// The digital face stacks the hours over the minutes, both two digits (5:01 → 05 over 01).
 const digits = computed(() => { const [hours, minutes] = time.value.time.split(':'); return { hours: hours.padStart(2, '0'), minutes }; });
 const next = computed(() => state.calendar.status === 'ok' ? state.calendar.events.find(e => !e.allDay && e.start > state.now && CT.dayNumber(e.start) === CT.dayNumber(state.now)) : null);
 // The clock button, pressed on the clock, steps it to the timer, then each usage Settings → Usage

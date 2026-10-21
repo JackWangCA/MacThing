@@ -472,10 +472,14 @@ export function initializeRuntime(state) {
   var flushTimer = null;
   var settleTimer = null;
   var hideTimer = null;
+  var awaiting = null;     // where the knob left the volume, until the Mac has caught up
+  var awaitingUntil = 0;   // past this, take the Mac's word even if it still disagrees
+  var lastReportAt = 0;    // when a volume reading last arrived from the Mac
 
   CT.on('volume', function (msg) {
     var prev = vol;
     vol = msg.volume;
+    lastReportAt = performance.now();
     if (performance.now() < localUntil) return; // knob in motion: don't fight the optimistic value
     renderVolume();
     // Not when the knob switches between the output and an app's volume: nothing was turned.
@@ -491,7 +495,18 @@ export function initializeRuntime(state) {
     state.volumeNote = vol.supported ? '' : vol.note || 'No volume control on ' + vol.device;
     state.volumeIcon = !vol.supported ? '' : vol.appId === 'com.spotify.client' ? 'spotify' : vol.appId === 'com.apple.Music' ? 'apple-music' : '';
     var v = optimistic != null ? optimistic : vol.muted ? 0 : vol.volume || 0;
+    if (optimistic == null && !vol.muted && awaiting != null) v = awaiting;
     state.volume = v;
+  }
+
+  // The Mac applies volume changes one at a time and reports after each, so for a while after a
+  // spin its reports replay the spin. Showing them would slide the bar away from where the knob
+  // left it and crawl it back. So the knob's value (`awaiting`) stands until the Mac's reports
+  // have gone quiet, then the Mac's last one is taken. (Waiting for a matching value doesn't
+  // work: a spin that doubles back passes its own end value partway through the replay.)
+  // `awaitingUntil` covers a Mac that never answers.
+  function macHasSettled(now) {
+    return now > awaitingUntil || (lastReportAt > lastTurn && now - lastReportAt > 400);
   }
 
   function showVolume() {
@@ -510,16 +525,25 @@ export function initializeRuntime(state) {
       // turn and answers with the volume (or a toast).
       return CT.send({ type: 'volume', delta: steps * CT.config.volumeStep });
     }
-    if (now > localUntil) localVol = vol.volume || 0;
+    // A fresh turn starts from the Mac's value, unless the Mac is still catching up with the
+    // last turn: then its number is stale and the knob's is the right one.
+    if (now > localUntil) localVol = awaiting != null ? awaiting : vol.volume || 0;
     var next = Math.min(1, Math.max(0, localVol + steps * CT.config.volumeStep));
     pendingDelta += next - localVol;
     localVol = next;
     localUntil = now + 500;
+    awaiting = next;
+    awaitingUntil = now + 2500;
     renderVolume(localVol);
     showVolume();
     if (!flushTimer) flushTimer = setTimeout(flushVolume, 40);
+    // Keep checking until the Mac has caught up, so the bar ends on the real value.
     clearTimeout(settleTimer);
-    settleTimer = setTimeout(function () { renderVolume(); }, 550);
+    settleTimer = setTimeout(function settle() {
+      if (awaiting != null && macHasSettled(performance.now())) awaiting = null;
+      renderVolume();
+      if (awaiting != null) settleTimer = setTimeout(settle, 150);
+    }, 550);
   }
 
   function flushVolume() {

@@ -20,6 +20,7 @@ import { MediaRemoteSource } from './nowplaying/mediaremote.js';
 import { MacAppearance } from './mac/appearance.js';
 import { MacHelper } from './mac/helper.js';
 import { MacPower } from './mac/power.js';
+import { Reminders, AWAY_MS } from './widgets/reminders.js';
 import { settings } from './settings.js';
 import { startSettingsPage } from './settings-page/server.js';
 import { Calendar } from './widgets/calendar.js';
@@ -43,6 +44,12 @@ const usage = new ClaudeUsage({ enabled: () => wantsUsage('claude') });
 const chatgptUsage = new CodexUsage({ enabled: () => wantsUsage('chatgpt') });
 const appearance = new MacAppearance();
 const power = new MacPower(paths.bin);
+// You're at the Mac: awake, unlocked, display on, and some input in the last few minutes.
+const reminders = new Reminders({
+  settings,
+  presence: async () =>
+    !systemAsleep && !power.locked && !power.displayAsleep && ((await power.idleMs()) ?? 0) < AWAY_MS,
+});
 
 /** @type {DeviceLink|null} */
 let link = null;
@@ -288,19 +295,63 @@ async function setFavorite(command) {
   }
 }
 
-const FINE_KEY_STEP = 1 / 64; // one Option+Shift volume-key press
+// Pressing the volume keys is what makes macOS show its volume indicator, but macOS applies
+// presses one at a time, about 100ms apart however fast they arrive. Every press sent is time
+// the Mac spends behind the knob, and a spin that goes up and back down was played out both ways.
+// So the presses are kept few:
+//
+//   - A plain press is 1/16, the same as a knob detent, so a detent is one press. (Option+Shift
+//     presses are 1/64: four per detent, four times the wait.)
+//   - Only one press is out at a time. Knob turns add up in keyBacklog while the Mac applies it,
+//     and when the Mac reports the new volume the next press goes out toward the total. Turning up
+//     and back down cancels in the backlog and is never pressed at all.
+//   - A backlog more than MAX_PRESSES away is set directly. That skips macOS's indicator for that
+//     change, but the Car Thing draws its own bar.
+//
+// Based on JackWangCA's fork (github.com/JackWangCA/MacThing), which found the four-presses-per-
+// detent cost and netted out bursts.
+const KEY_STEP = 1 / 16; // one plain volume-key press
+const FINE_KEY_STEP = 1 / 64; // one Option+Shift press, only for remainders smaller than a detent
+const MAX_PRESSES = 3;
+const PRESS_TIMEOUT_MS = 300; // stop waiting for the Mac's report after this
+
+let keyBacklog = 0;
+let pressInFlight = null; // timer while a press is out and the Mac hasn't reported it yet
 
 function changeVolume(delta) {
   if (!Number.isFinite(delta) || delta === 0) return;
   const app = knobApp();
   if (app) return changeAppVolume(app, delta);
   askForKeyAccess();
-  if (config.macVolumeIndicator && volume.state?.keys) {
-    const steps = Math.round(Math.abs(delta) / FINE_KEY_STEP);
-    for (let i = 0; i < steps; i++) volume.pressKey(delta > 0);
+  if (!(config.macVolumeIndicator && volume.state?.keys)) return volume.delta(delta);
+  keyBacklog += delta;
+  pressNext();
+}
+
+/** The Mac reported a volume: the press it was applying is done. */
+function pressLanded() {
+  if (!pressInFlight) return;
+  clearTimeout(pressInFlight);
+  pressInFlight = null;
+  pressNext();
+}
+
+function pressNext() {
+  if (pressInFlight) return;
+  const size = Math.abs(keyBacklog);
+  if (size < FINE_KEY_STEP / 2) return (keyBacklog = 0);
+  const up = keyBacklog > 0;
+  if (size > MAX_PRESSES * KEY_STEP + 1e-9) {
+    volume.delta(keyBacklog);
+    keyBacklog = 0;
   } else {
-    volume.delta(delta);
+    // The page's deltas are clamped at 0 and 1, so they don't always land on a detent; a bit
+    // under a detent goes out as Option+Shift presses.
+    const step = size >= KEY_STEP - 1e-9 ? KEY_STEP : FINE_KEY_STEP;
+    volume.pressKey(up, { fine: step === FINE_KEY_STEP });
+    keyBacklog -= up ? step : -step;
   }
+  pressInFlight = setTimeout(pressLanded, PRESS_TIMEOUT_MS);
 }
 
 // ---- Knob volume: the Mac's output or an app's own ----------------------------------------
@@ -562,6 +613,7 @@ function debounce(fn, ms) {
 log.info('Car Thing bridge starting');
 source.on('change', (s) => onNowPlaying(s).catch((err) => log.warn('[now playing]', err.message)));
 volume.on('change', (v) => {
+  pressLanded();
   if (appVol && knobApp() !== appVol.bundleId) appVol = null;
   pushVolume({ force: true });
 });
@@ -581,6 +633,10 @@ perpetual.on('change', (state) => link?.send({ type: 'perpetual', perpetual: sta
 usage.on('change', (state) => link?.send({ type: 'usage', usage: state }));
 chatgptUsage.on('change', (state) => link?.send({ type: 'chatgptUsage', usage: state }));
 appearance.on('change', (dark) => link?.send({ type: 'appearance', dark }));
+reminders.on('due', (reminder) => {
+  log.info(`[reminders] ${reminder.text}`);
+  link?.send({ type: 'reminder', reminder });
+});
 power.on('display', () => applyScreen());
 power.on('lock', (locked) => {
   log.info(`[screen] Mac ${locked ? 'locked' : 'unlocked'}`);
@@ -609,7 +665,8 @@ usage.start();
 chatgptUsage.start();
 appearance.start();
 power.start();
-startSettingsPage({ port: config.settingsPort, settings, status: macStatus });
+reminders.start();
+startSettingsPage({ port: config.settingsPort, settings, status: macStatus, reminders, dev: process.argv.includes('--watch') });
 
 trackDevices(debounce(refreshDevices, 400));
 setInterval(refreshDevices, 30 * 1000); // a stale adb server sends no events; look anyway
@@ -665,6 +722,7 @@ async function shutdown() {
   volume.stop();
   helper.stop();
   power.stop();
+  reminders.stop();
   setTimeout(() => process.exit(0), 300);
 }
 process.on('SIGINT', shutdown);
