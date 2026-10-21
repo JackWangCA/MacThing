@@ -32,9 +32,11 @@ watch(() => state.current, current => { if (NOTCHED.includes(current)) notchAt.v
     <div class="page-notch" :class="{ on: NOTCHED.includes(state.current) }" :style="{ transform: 'translateX(' + notchAt * 201 + 'px)' }" />
     <MeetingAlert />
     <ReminderAlert />
-    <div class="volume-hud fill flex items-center gap-16">
-      <svg class="vol-icon flex-none"><use :href="state.volumeIcon ? '#i-' + state.volumeIcon : state.volume === 0 ? '#i-muted' : '#i-speaker'" /></svg>
-      <UiProgress v-show="!state.volumeUnsupported" :value="state.volume" /><span v-show="state.volumeUnsupported" class="font-small weight-light truncate">{{ state.volumeNote }}</span>
+    <!-- A bar across the top of the screen rather than upstream's centred pill: it reads at a
+         glance from across the room and covers nothing that was on screen. -->
+    <div class="volume-hud">
+      <UiProgress v-show="!state.volumeUnsupported" :value="state.volume" />
+      <div v-show="state.volumeUnsupported" class="vol-note font-small weight-light truncate">{{ state.volumeNote }}</div>
     </div>
     <div :key="state.flash.key" class="flash disc flex center" :class="{ on: flashKey > 0 && flashKey === state.flash.key }" :style="{ color: state.flash.color }"><svg><use :href="'#i-' + state.flash.icon" /></svg></div>
     <div class="toast" :class="{ on: !!state.toast }">{{ state.toast }}</div>
