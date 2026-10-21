@@ -92,8 +92,12 @@ export const config = {
 
   // Auto-brightness (device/dimmerd.sh, installed by `./macthing device` in place of Spotify's
   // daemon). The light sensor is where your hand goes when you reach for the controls, so the
-  // screen only dims once the room has read darker for this long. Brighter happens right away.
+  // screen only moves once the room has read that way for a while — longer going dark than
+  // light, since a hand crossing the sensor reflects the screen back into it and reads as a
+  // flash of light. deviceFadeMs is how long the change itself takes; 0 steps straight there.
   deviceDimDelaySeconds: 10,
+  deviceBrightenDelaySeconds: 3,
+  deviceFadeMs: 400,
 
   // Sources that don't get an app badge on the artwork (your "home" player).
   unbadgedApps: ['com.apple.Music'],
