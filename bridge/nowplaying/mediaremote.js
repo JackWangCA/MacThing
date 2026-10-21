@@ -63,6 +63,7 @@ export class MediaRemoteSource extends EventEmitter {
     }
     if (msg.type !== 'data') return;
     if (msg.diff) {
+      this.reanchor(msg.payload);
       for (const [key, value] of Object.entries(msg.payload)) {
         if (value === null) delete this.raw[key];
         else this.raw[key] = value;
@@ -72,6 +73,35 @@ export class MediaRemoteSource extends EventEmitter {
     }
     this.snapshot = normalize(this.raw);
     this.emit('change', this.snapshot);
+  }
+
+  /**
+   * MediaRemote reports a position only when playback changes state, and it announces a pause in
+   * two parts: `{playing: false}` by itself, then the position it paused at. The first part
+   * carries no position, so stopping the clock on the strength of it freezes playback wherever it
+   * was last reported — which, mid-song, can be minutes back. The bar and the time jump backwards,
+   * then forwards again when the second part lands a moment later.
+   *
+   * Observed on Apple Music: a track began at 0:00 and 26 seconds later `{playing: false}` arrived
+   * alone, sending the display to 0:00 until `{playbackRate: 0, elapsedTimeMicros: 25977510, …}`
+   * put it back. So a state change that brings no position of its own gets one: where playback has
+   * actually reached by now.
+   *
+   * Resuming needs the same treatment for the opposite reason. There playback hasn't moved, but
+   * the reading is still anchored to the moment of the pause, and `{playing: true}` on its own
+   * would set it running against that: the whole paused interval counted as music, jumping the
+   * clock forward by however long the pause lasted before snapping back. Hence both fields are
+   * always rewritten — the position where it has got to, and the time that reading was taken.
+   */
+  reanchor(payload) {
+    const changesState = 'playing' in payload || 'playbackRate' in payload;
+    const bringsPosition = typeof payload.elapsedTimeMicros === 'number';
+    const { elapsed, elapsedAt, rate, duration } = this.snapshot;
+    if (!changesState || bringsPosition || elapsed == null) return;
+    const now = Date.now();
+    const reached = Math.max(0, elapsed + ((now - elapsedAt) / 1000) * rate);
+    this.raw.elapsedTimeMicros = Math.round((duration ? Math.min(duration, reached) : reached) * 1e6);
+    this.raw.timestampEpochMicros = now * 1e3;
   }
 
   /** @param {'play'|'pause'|'playpause'|'next'|'previous'|'stop'} action */
