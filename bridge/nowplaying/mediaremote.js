@@ -68,6 +68,22 @@ export class MediaRemoteSource extends EventEmitter {
         if (value === null) delete this.raw[key];
         else this.raw[key] = value;
       }
+      // A rate of its own can start playback but never stop it. A state change is announced as
+      // `{playing}` alone and then `{playbackRate}` without it; lose the first half of a resume
+      // — debounced away, or dropped in a burst of them — and `playing` stays false with nothing
+      // left to contradict it, because the stream speaks only on change. The snapshot then reads
+      // paused over playing audio until something really does change, which is the state the
+      // device gets stuck in. A moving rate is the only witness left, so it counts.
+      //
+      // A zero rate is never that witness, because a pause's own `{playing: false}` half arrives
+      // first and is believed, so the `{playbackRate: 0}` behind it only agrees with what the
+      // snapshot already says. Reading it anyway would cost something: normalize() takes a rate
+      // of 0 while `playing` for a rate of 1, which it would not need to do unless some source
+      // reports a stopped rate over running audio. For that source a lone 0 would show paused
+      // while it plays — the very bug above, arrived at from the other side. The asymmetry is
+      // not timidity: missing a pause leaves a badge to be corrected by the next real change,
+      // while a false pause is what walks the screen off Now Playing.
+      if (msg.payload.playbackRate > 0 && !('playing' in msg.payload)) this.raw.playing = true;
     } else {
       this.raw = { ...msg.payload };
     }

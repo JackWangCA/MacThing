@@ -144,3 +144,84 @@ test('playing again after another app had Now Playing does not jump ahead', () =
     Date.now = realDate;
   }
 });
+
+/**
+ * Recorded off the live stream (Apple Music, "Something in the Orange"): a burst of pause/resume
+ * churn, ~21 cycles in three minutes, none of it from the device — the bridge logged no input at
+ * all. Every change came as two diffs, `{playing}` by itself and then `{playbackRate}` without
+ * it, and of every rate-carrying payload captured, not one also carried `playing`.
+ *
+ * The device was found holding "paused" while Apple Music and MediaRemote both said playing, and
+ * only a real transition cleared it: with nothing further to report, the stream says nothing, so
+ * a resume whose `{playing: true}` went missing is never contradicted. With "When idle" set to a
+ * minute, that stale flag is enough to walk the screen off Now Playing.
+ */
+const PLAYING_SNAPSHOT = {
+  diff: false,
+  payload: {
+    title: 'Something in the Orange', artist: 'Zach Bryan', album: 'American Heartbreak',
+    bundleIdentifier: 'com.apple.Music', playing: true, playbackRate: 1,
+    elapsedTimeMicros: 1, durationMicros: 229000000, timestampEpochMicros: START_MICROS,
+  },
+};
+const line = (source, l) => source.onLine(JSON.stringify({ type: 'data', ...l }));
+
+test('a resume whose "{playing: true}" went missing is still a resume', () => {
+  const source = new MediaRemoteSource('/nowhere');
+  line(source, PLAYING_SNAPSHOT);
+  line(source, { diff: true, payload: { playing: false } });
+  line(source, { diff: true, payload: { playbackRate: 0, elapsedTimeMicros: 12000000 } });
+  assert.equal(source.snapshot.playing, false, 'the pause itself still registers');
+
+  // The resume, with only its second half arriving.
+  line(source, { diff: true, payload: { playbackRate: 1, elapsedTimeMicros: 12000000 } });
+  assert.equal(source.snapshot.playing, true, 'the rate is the only witness left, so it counts');
+  assert.equal(source.snapshot.rate, 1);
+});
+
+test('a pause is immediate, not held until its rate arrives', () => {
+  const source = new MediaRemoteSource('/nowhere');
+  line(source, PLAYING_SNAPSHOT);
+  line(source, { diff: true, payload: { playing: false } });
+  // The stale playbackRate of 1 is still in raw at this point; it must not keep the bar moving.
+  assert.equal(source.snapshot.playing, false, 'the first half of a pause is believed on its own');
+  assert.equal(source.snapshot.rate, 0);
+});
+
+test('an ordinary resume is unaffected', () => {
+  const source = new MediaRemoteSource('/nowhere');
+  line(source, PLAYING_SNAPSHOT);
+  line(source, { diff: true, payload: { playing: false } });
+  line(source, { diff: true, payload: { playbackRate: 0, elapsedTimeMicros: 9000000 } });
+  line(source, { diff: true, payload: { playing: true } });
+  assert.equal(source.snapshot.playing, true);
+  line(source, { diff: true, payload: { playbackRate: 1, elapsedTimeMicros: 9000000 } });
+  assert.equal(source.snapshot.playing, true, 'and the rate that follows agrees with it');
+  assert.equal(source.snapshot.rate, 1);
+});
+
+/**
+ * The rate is believed in one direction only, and this is the direction it is not.
+ *
+ * Nothing is given up by ignoring a lone 0: a real pause leads with `{playing: false}`, which is
+ * believed on its own (the test above), so the rate that follows never has to carry the pause by
+ * itself. What is avoided is a source that reports a stopped rate over running audio — which
+ * normalize() implies exists, since `rate: playing ? (raw.playbackRate > 0 ? ... : 1) : 0` reads
+ * a rate of 0 while `playing` as a rate of 1 rather than trusting it. For such a source a lone 0
+ * would show paused over playing audio, which is the bug this whole change exists to fix.
+ *
+ * So this one passes against the unpatched source too. It is here to fail against the wider rule
+ * — `this.raw.playing = msg.payload.playbackRate > 0`, believing the rate both ways — which is
+ * the tempting symmetrical version and the one that reintroduces the bug.
+ */
+test('a rate of 0 arriving alone is ignored, leaving the pause to the playing flag', () => {
+  const source = new MediaRemoteSource('/nowhere');
+  line(source, PLAYING_SNAPSHOT);
+  line(source, { diff: true, payload: { playbackRate: 0, elapsedTimeMicros: 5000000 } });
+  assert.equal(source.snapshot.playing, true, 'a rate alone does not stop playback');
+
+  // The flag still does, whenever it gets here.
+  line(source, { diff: true, payload: { playing: false } });
+  assert.equal(source.snapshot.playing, false);
+  assert.equal(source.snapshot.rate, 0);
+});
