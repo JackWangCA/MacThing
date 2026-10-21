@@ -68,6 +68,17 @@ export class MediaRemoteSource extends EventEmitter {
         if (value === null) delete this.raw[key];
         else this.raw[key] = value;
       }
+      // Both halves of a state change say the same thing, so the rate stands in when `playing`
+      // is missing. A change is announced as `{playing}` alone and then `{playbackRate}` without
+      // it; lose the first half of a resume — debounced away, or dropped in a burst of them —
+      // and `playing` stays false with nothing left to contradict it, because the stream speaks
+      // only on change. The snapshot then reads paused over playing audio until something really
+      // does change, which is the state the device gets stuck in. Taking the rate's word only
+      // when `playing` is absent leaves a pause as immediate as it was: its own half arrives
+      // first and is believed, and the `{playbackRate: 0}` that follows agrees with it.
+      if ('playbackRate' in msg.payload && !('playing' in msg.payload)) {
+        this.raw.playing = msg.payload.playbackRate > 0;
+      }
     } else {
       this.raw = { ...msg.payload };
     }
