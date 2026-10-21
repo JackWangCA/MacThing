@@ -74,3 +74,62 @@ test('a name arriving later replaces the fallback', async () => {
   await refreshAgain(weather);
   assert.equal(weather.auto.name, 'Palo Alto');
 });
+
+// A helper only geocodes on its first location request, so an unnamed reply means this one is
+// spent: the fix behind it is as old as the geocode it could not finish, and no later request
+// will do better. These cover trading it for a new one rather than living with the stale answer.
+function weatherWithRecycle(replies, { fails = false } = {}) {
+  const queue = [...replies];
+  const calls = { located: 0, recycled: 0 };
+  const helper = {
+    location: async () => {
+      calls.located++;
+      return queue.shift();
+    },
+    recycle: async () => {
+      calls.recycled++;
+      return !fails;
+    },
+  };
+  const settings = { get: () => ({ location: { mode: 'auto' }, units: 'C' }), on: () => {} };
+  return { weather: new Weather(helper, settings), calls };
+}
+
+test('an unnamed reply trades the helper in and asks the new one', async () => {
+  const { weather, calls } = weatherWithRecycle([
+    { ...PALO_ALTO, name: '' },
+    { ok: true, lat: 34.05, lon: -118.24, name: 'Los Angeles' },
+  ]);
+  await weather.refresh();
+  assert.equal(calls.recycled, 1);
+  assert.equal(weather.auto.name, 'Los Angeles', 'the fresh fix is the one that counts');
+  assert.equal(weather.auto.lat, 34.05, 'and its coordinates come with it');
+});
+
+test('a named reply is taken at its word', async () => {
+  const { weather, calls } = weatherWithRecycle([{ ...PALO_ALTO, name: 'Palo Alto' }]);
+  await weather.refresh();
+  assert.equal(calls.recycled, 0, 'nothing to fix, so nothing to restart');
+  assert.equal(calls.located, 1);
+});
+
+test('a helper that will not come back leaves the first reply standing', async () => {
+  const { weather, calls } = weatherWithRecycle([{ ...PALO_ALTO, name: '' }], { fails: true });
+  await weather.refresh();
+  assert.equal(calls.recycled, 1);
+  assert.equal(calls.located, 1, 'no second ask when there is nothing new to ask');
+  assert.equal(weather.auto.name, 'Current location');
+  assert.equal(weather.auto.lat, PALO_ALTO.lat, 'the stale fix still beats no fix');
+});
+
+test('a new helper with no name either is not traded in again', async () => {
+  const { weather, calls } = weatherWithRecycle([
+    { ...PALO_ALTO, name: '' },
+    { ...PALO_ALTO, name: '' },
+    { ...PALO_ALTO, name: '' },
+  ]);
+  await weather.refresh();
+  await refreshAgain(weather);
+  assert.equal(calls.recycled, 1, 'the cooldown stops a geocode that is simply down from looping');
+  assert.equal(calls.located, 3);
+});

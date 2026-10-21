@@ -3,6 +3,10 @@ import { log } from '../log.js';
 
 const REFRESH_MS = 15 * 60 * 1000;
 const RELOCATE_MS = 30 * 60 * 1000;
+// Least time between helper restarts. Restarting drops whatever else it had in flight, so a
+// geocode that is simply unavailable must not turn into a loop of them: at worst this costs one
+// restart per half hour, which is the rate the location is re-asked for anyway.
+const RECYCLE_EVERY_MS = 30 * 60 * 1000;
 // How far a new fix may sit from the last named one and still be called the same place. 0.05° is
 // roughly 5 km, which covers a fix wandering between cell and wifi accuracy without covering the
 // next town along.
@@ -33,6 +37,7 @@ export class Weather extends EventEmitter {
     this.inflight = null;
     this.retryWait = RETRY_FIRST_MS;
     this.retryAt = 0; // no asking again before this
+    this.recycledAt = 0; // last time a stale helper was traded for a new one
   }
 
   start() {
@@ -87,7 +92,23 @@ export class Weather extends EventEmitter {
     if (loc.mode === 'manual') return { name: loc.name, lat: loc.lat, lon: loc.lon, source: 'manual' };
     if (this.auto && Date.now() - this.auto.at < RELOCATE_MS) return this.auto;
 
-    const r = await this.helper.location().catch((err) => ({ ok: false, status: 'unavailable', error: err.message }));
+    const ask = () => this.helper.location().catch((err) => ({ ok: false, status: 'unavailable', error: err.message }));
+    let r = await ask();
+    // An unnamed reply means the helper ran its deadline out with the reverse geocode still
+    // going, and the fix it falls back on is as old as the geocode it could not finish. A helper
+    // only ever answers the first location request properly, so the second one here is asked of
+    // a new process. Without this the weather stays at wherever the bridge last started: moving
+    // city changed nothing until it was restarted by hand.
+    if (r.ok && !r.name && this.helper.recycle && Date.now() - this.recycledAt > RECYCLE_EVERY_MS) {
+      this.recycledAt = Date.now();
+      if (await this.helper.recycle()) {
+        const fresh = await ask();
+        if (fresh.ok) {
+          r = fresh;
+          if (!fresh.name) log.warn('[weather] still no place name from a fresh helper');
+        }
+      }
+    }
     if (r.ok) {
       this.auto = { name: this.#name(r), lat: r.lat, lon: r.lon, source: 'auto', at: Date.now() };
       return this.auto;

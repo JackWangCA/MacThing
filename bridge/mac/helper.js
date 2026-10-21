@@ -9,6 +9,9 @@ import { log } from '../log.js';
  * macOS asks for and remembers Location Services / Calendars permission for "Car Thing Helper".
  * Emits 'calendarChanged' and 'locationAuthorization' notices from the helper.
  */
+// The exit handler waits 2s before respawning, so a recycle has to outlast that.
+const RECYCLE_WAIT_MS = 8000;
+
 export class MacHelper extends EventEmitter {
   constructor(binDir) {
     super();
@@ -23,6 +26,7 @@ export class MacHelper extends EventEmitter {
     this.stopped = false;
     const proc = spawn(this.bin, [], { stdio: ['pipe', 'pipe', 'inherit'] });
     this.proc = proc;
+    queueMicrotask(() => this.emit('started'));
     createInterface({ input: proc.stdout }).on('line', (line) => {
       let msg;
       try {
@@ -55,6 +59,39 @@ export class MacHelper extends EventEmitter {
   stop() {
     this.stopped = true;
     this.proc?.stdin.end();
+  }
+
+  /**
+   * Trade this helper for a new one, and wait for it to come up.
+   *
+   * A helper geocodes on its first location request and no other: every one after it runs the
+   * 20-second deadline out and answers with the fix CoreLocation already had and no place name.
+   * `startUpdatingLocation()` wakes nothing on a Mac that has not moved, so the delegate never
+   * fires again and the fix goes stale with it — after a while the weather is pinned to wherever
+   * the bridge last started, whatever the Mac does. Restarting is the one thing known to work.
+   *
+   * Callers must rate-limit this: it kills whatever else was in flight (those requests reject
+   * with 'helper exited' and are retried on their own schedules), and recycling in a loop would
+   * be worse than a stale name. Resolves false if there was nothing to replace, or the
+   * replacement did not arrive in time.
+   */
+  recycle() {
+    const old = this.proc;
+    if (this.stopped || !old) return Promise.resolve(false);
+    log.info('[helper] restarting to get a fresh location fix');
+    return new Promise((resolve) => {
+      let timer = null;
+      const ready = () => {
+        clearTimeout(timer);
+        resolve(true);
+      };
+      this.once('started', ready);
+      timer = setTimeout(() => {
+        this.off('started', ready);
+        resolve(Boolean(this.proc));
+      }, RECYCLE_WAIT_MS);
+      old.kill();
+    });
   }
 
   /** Permission prompts can sit on screen for a while, hence the long default timeout. */
