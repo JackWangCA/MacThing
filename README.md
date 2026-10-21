@@ -9,7 +9,7 @@ device shows, and can be undone with one command. Nothing is installed on the de
 
 [Version 1.0.0](https://github.com/srcurran/MacThing/releases) · [Figma artwork and video source](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=327-1567)
 
-https://github.com/user-attachments/assets/f47f9c9d-7ae7-4c24-92b9-900ebb423bcd
+https://github.com/user-attachments/assets/bae1ab1a-63c3-4b50-8840-2d3ef3a6e8e8
 
 ![Now Playing on the Car Thing](docs/1.0.0/device-nowplaying.png)
 
@@ -23,6 +23,7 @@ background on. [docs/1.0.0](docs/1.0.0/README.md) lists every screen and which a
 
 - **Claude and ChatGPT usage** on the Clock screen: session and weekly rings, a pace for each, and when they reset. ChatGPT's numbers come live from Codex.
 - **Meeting alerts that start the timer:** queue the meeting's timer from the alert before it starts, or start it once it has. The timer stops counting ten minutes after the meeting ends.
+- **Reminders:** "Time to stand" or "Drink water" as a card on the device, on an interval that counts only time you're at the Mac, or at set times.
 - **A perpetual calendar** in place of the album art when nothing is playing, after [pketh's perpetual-calendar](https://github.com/pketh/perpetual-calendar), with new colours each day.
 - **A new digital clock:** two-digit hours stacked over the minutes, set in Merriweather.
 - **The knob's volume:** turn the Mac's output, Spotify's or Apple Music's volume, in the same steps as the Mac's volume keys, with the macOS volume pop-up.
@@ -56,6 +57,8 @@ _Nothing playing, the digital clock, Weather's Today and This Week views, a meet
 
 **Meeting alerts** (off by default; turn them on in Settings): at a timed event's alert, a sheet with its title, start and end time and location comes up over the bottom of whatever screen is up. A video call is named by its service (Zoom, Google Meet, Microsoft Teams, Webex, FaceTime) rather than shown as a link, including when the link is only in the event's URL or notes. "Event's alert" uses the alert set on the event in Calendar (only alerts within an hour of the start; an event without one gets the card as it starts); or pick a fixed 1, 5 or 10 minutes before every event. The back button under the knob works the Clock screen's timer from the card. Before the meeting, the card shows **Queue 30 min timer** (the meeting's length): press back to queue it (the card stays and says **Cancel timer**, in red; press back again to un-queue it), and the timer starts as the meeting does and comes up on the Clock screen, in place of the card. Once the meeting has started, it shows **Start 30 min timer** (the minutes left until it ends): press back to start the timer to the meeting's end (it comes up on the Clock screen). Only one timer can be queued. Only one timer runs at a time, so with two meetings at once each card says which one its timer is for. Any other button or the knob — or the back button before the meeting starts — cancels — that press only dismisses the card. It stays until then, or until the meeting ends, its "In 3 min" turning to "22 min ago" once it's started (a zero-length event's stays five minutes). Dismissed before the meeting starts, it comes back as it does, so every meeting's card is up at its start time. It shows one meeting at a time: when meetings overlap, the one that started last (before any has, the next to start; of two that start together, the one that ends first), and a press dismisses only that one. Turning the knob still sets the volume.
 
+**Reminders** (set them up under Reminders on the Mac settings page): up to eight short reminders, each shown as a card like the meeting alert's, with its text, when it repeats ("Every 45 min", or the time it was set for) and **Done**. A reminder repeats on an **Interval** (every 15 minutes to 2 hours) or at **Set times** (up to six a day). An interval counts only time you're at the Mac: while it's locked, asleep or you're away from the keyboard the count pauses, and a break as long as the interval starts it over, so a reminder never fires the moment you sit back down. A set time you're away for shows once you're back. **Active hours** (any time, or chosen days and hours) keep them all to the working day. Any button or a knob press dismisses the card — that press does nothing else — and left alone it goes after a minute. A meeting's card comes first; a reminder waits under it. Turning the knob still sets the volume.
+
 **Sleep:** the Car Thing's screen turns off whenever your Mac's display sleeps (with the Sleep setting at its default, With Mac; it can instead follow the Mac's idle time, or never sleep), when you hold the settings button, and — this part runs on the device itself — about a minute and a half after the Mac stops talking to it at all: shut down, unplugged from the Mac but still powered, or just the bridge stopped. Press any button or turn the knob to wake it; while the Mac is away it stays lit for 20 seconds, and while the Mac is only asleep, for a minute. That first input only wakes it.
 
 The backlight is the part that wears out, so "off" means the backlight really is off, not a black page — plus the device idles its CPU and the UI stops redrawing. There's no suspend-to-RAM: the Car Thing's kernel can't resume from one, and USB would drop with it, so an idle backlit-off device drawing very little is as deep as this goes.
@@ -64,7 +67,7 @@ The backlight is the part that wears out, so "off" means the backlight really is
 
 **Usage pace.** Both Claude and ChatGPT show numeric pace for the session and week. An unstarted window shows **0.0x**; any pace above zero shows at least **0.1x** so it never reads as unstarted; a window at or above its allowance shows **🔥🔥🔥**. Percentages and reset times stay visible. Fire artwork is bundled for offline use from [Twemoji v16.0.1](https://github.com/jdecked/twemoji/tree/v16.0.1), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), by Twitter and other contributors.
 
-**Settings** covers appearance (dark, light or match the Mac), the album art background, meeting alerts and Sleep (With Mac, after the Mac has been idle 30 min to 4 hr, or never). Everything else — whose usage the Clock shows, °F/°C, the clock face, 12/24-hour time, the knob volume, what works while the Mac is locked, what shows when no music is playing, the weather location, and which calendars and how many days the Calendar screen shows — is under **More settings on Mac**, which opens a settings page on your Mac at http://127.0.0.1:4747.
+**Settings** covers appearance (dark, light or match the Mac), the album art background, meeting alerts and Sleep (With Mac, after the Mac has been idle 30 min to 4 hr, or never). Everything else — whose usage the Clock shows, °F/°C, the clock face, 12/24-hour time, the knob volume, what works while the Mac is locked, what shows when no music is playing, the weather location, which calendars and how many days the Calendar screen shows, and reminders — is under **More settings on Mac**, which opens a settings page on your Mac at http://127.0.0.1:4747.
 
 ### Before you grant anything
 
@@ -147,7 +150,7 @@ npm run setup-device  # only if you set the device up before the sleep watchdog 
 
 ## Customizing
 
-**Everyday settings.** Use the device's Settings screen (fifth top button) or http://127.0.0.1:4747 on the Mac. The Mac page has a category sidebar for General, AI Usage, Weather and Calendar; selecting a category opens its settings panel. They're saved in `~/Library/Application Support/carthing-now-playing/settings.json`.
+**Everyday settings.** Use the device's Settings screen (fifth top button) or http://127.0.0.1:4747 on the Mac. The Mac page has a sidebar of categories — Appearance, Controls, Calendar, Weather, Clock, AI usage and Reminders — each opening its own panel. They're saved in `~/Library/Application Support/carthing-now-playing/settings.json`.
 
 A few of them change how the device behaves:
 
