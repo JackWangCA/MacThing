@@ -32,6 +32,10 @@ export const DEFAULTS = {
   // plus the track. Unlike a sleeping display, a lock keeps the screen lit: the point is to leave
   // something readable on the desk. A Mac that actually sleeps still takes the device dark with it.
   lockScreen: 'clock',
+  // The lock sheet's clock face. 'match' follows clockFace above, which is what it did before
+  // there was a choice; the rest override it, so the lock sheet can be a plain digital readout
+  // while the Clock screen keeps its analog face, or the other way round.
+  lockFace: 'match', // 'match' | 'analog' | 'numbers' | 'digital'
 };
 
 const VALID = {
@@ -53,6 +57,7 @@ const VALID = {
   idleScreen: (v) => ['clock', 'calendar', 'weather'].includes(v),
   sleepWithMac: (v) => typeof v === 'boolean',
   lockScreen: (v) => ['off', 'clock', 'playing'].includes(v),
+  lockFace: (v) => ['match', 'analog', 'numbers', 'digital'].includes(v),
 };
 
 class Settings extends EventEmitter {

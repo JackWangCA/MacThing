@@ -10,9 +10,14 @@ import AnalogClock from './AnalogClock.vue';
 // when nobody is sitting in front of them. 'playing' adds the track back, because wanting to see
 // what's on while you're away from the desk is a fair thing to want — it is opt-in for that reason.
 //
-// The clock follows Settings → Clock face, so the device looks like itself rather than like a
-// different product for the hours it spends locked.
-const face = computed(() => state.settings.clockFace);
+// Settings → Lock clock face picks the face. 'match' follows Settings → Clock face, so by
+// default the device looks like itself rather than like a different product for the hours it
+// spends locked; the rest override it, since the two screens are read from different distances
+// and a face that suits one need not suit the other.
+const face = computed(() => {
+  const chosen = state.settings.lockFace;
+  return !chosen || chosen === 'match' ? state.settings.clockFace : chosen;
+});
 const showing = computed(() => state.locked && state.settings.lockScreen !== 'off');
 const time = computed(() => CT.clockText(CT.parts(state.now)));
 const date = computed(() => {
