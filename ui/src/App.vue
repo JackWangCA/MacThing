@@ -10,6 +10,7 @@ import WeatherScreen from './screens/WeatherScreen.vue';
 import ClockScreen from './screens/ClockScreen.vue';
 import SettingsScreen from './screens/SettingsScreen.vue';
 import MeetingAlert from './components/MeetingAlert.vue';
+import LockScreen from './components/LockScreen.vue';
 // The paused badge on Now Playing shows flashes itself (it swaps its icon), so the flash's own disc stays hidden.
 const pausedBadge = computed(() => state.current === 'nowplaying' && state.np.active && !state.np.playing);
 // Which of the two showed *this* flash, settled as it fires rather than read live. Read live, it
@@ -32,6 +33,7 @@ watch(() => state.current, current => { if (NOTCHED.includes(current)) notchAt.v
     <div class="screens fill" :data-switch="state.screenSwitch || null"><NowPlayingScreen /><CalendarScreen /><WeatherScreen /><ClockScreen /><SettingsScreen /></div>
     <div class="page-notch" :class="{ on: NOTCHED.includes(state.current) }" :style="{ transform: 'translateX(' + notchAt * 201 + 'px)' }" />
     <MeetingAlert />
+    <LockScreen />
     <div class="volume-hud">
       <UiProgress v-show="!state.volumeUnsupported" :value="state.volume" />
       <div v-show="state.volumeUnsupported" class="vol-note font-small weight-light truncate">{{ state.volumeNote }}</div>

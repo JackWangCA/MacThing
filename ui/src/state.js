@@ -3,8 +3,8 @@ import { initializeRuntime } from '../js/core.js';
 
 export const state = reactive({
   // screenSwitch: how the current screen is coming in ('fade', 'next', 'previous'), until it has (core.js).
-  current: 'nowplaying', leaving: '', screenSwitch: 'fade', offline: true, asleep: false, light: false,
-  settings: { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', meetingAlert: 0, usageSource: 'bottlerocket', knobVolume: 'auto', idleMinutes: 0, idleScreen: 'clock', sleepWithMac: true, location: { mode: 'auto' } },
+  current: 'nowplaying', leaving: '', screenSwitch: 'fade', offline: true, asleep: false, light: false, locked: false,
+  settings: { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', meetingAlert: 0, usageSource: 'bottlerocket', knobVolume: 'auto', idleMinutes: 0, idleScreen: 'clock', sleepWithMac: true, lockScreen: 'clock', location: { mode: 'auto' } },
   now: Date.now(), np: { active: false }, npAt: 0, artwork: null,
   weather: { status: 'loading' }, calendar: { status: 'loading' }, reminders: { status: 'loading' }, usage: { status: 'loading' }, chatgptUsage: { status: 'loading' },
   volume: 0, volumeUnsupported: false, volumeNote: '', showVolume: false,

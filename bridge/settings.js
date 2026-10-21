@@ -27,6 +27,11 @@ export const DEFAULTS = {
   idleMinutes: 0, // once nothing has played this long on Now Playing, show idleScreen (0 = never)
   idleScreen: 'clock', // 'clock' | 'calendar' | 'weather'
   sleepWithMac: config.sleepWithMac, // screen off while the Mac's display sleeps or the Mac is locked
+  // What the device shows while the Mac is locked: 'off' = nothing, the screen goes dark as it
+  // does for a sleeping display | 'clock' = the time and date behind a padlock | 'playing' = that
+  // plus the track. Unlike a sleeping display, a lock keeps the screen lit: the point is to leave
+  // something readable on the desk. A Mac that actually sleeps still takes the device dark with it.
+  lockScreen: 'clock',
 };
 
 const VALID = {
@@ -47,6 +52,7 @@ const VALID = {
   idleMinutes: (v) => [0, 1, 2, 5, 10].includes(v),
   idleScreen: (v) => ['clock', 'calendar', 'weather'].includes(v),
   sleepWithMac: (v) => typeof v === 'boolean',
+  lockScreen: (v) => ['off', 'clock', 'playing'].includes(v),
 };
 
 class Settings extends EventEmitter {

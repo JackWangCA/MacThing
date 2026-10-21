@@ -19,12 +19,13 @@ import x from '@phosphor-icons/core/assets/bold/x-bold.svg?raw';
 import plus from '@phosphor-icons/core/assets/fill/plus-circle-fill.svg?raw';
 import check from '@phosphor-icons/core/assets/fill/check-circle-fill.svg?raw';
 import minus from '@phosphor-icons/core/assets/fill/minus-circle-fill.svg?raw';
+import lock from '@phosphor-icons/core/assets/fill/lock-fill.svg?raw';
 
 const ICONS = {
   'i-play': play, 'i-pause': pause, 'i-next': next, 'i-previous': previous,
   'i-heart': heart, 'i-heart-off': heartOff, 'i-note': note, 'i-timer': timer,
   'i-speaker': speaker, 'i-muted': muted, 'i-spotify': spotify, 'i-open-on-mac': openOnMac, 'i-refresh': refresh, 'i-x': x,
-  'i-plus': plus, 'i-check': check, 'i-minus': minus
+  'i-plus': plus, 'i-check': check, 'i-minus': minus, 'i-lock': lock
 };
 const inner = svg => svg.replace(/^<svg[^>]*>|<\/svg>\s*$/g, '');
 const symbols = Object.entries(ICONS).map(([id, svg]) => ({ id, body: inner(svg) }));

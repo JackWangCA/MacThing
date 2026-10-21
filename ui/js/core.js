@@ -285,6 +285,20 @@ export function initializeRuntime(state) {
   }
   CT.on('screen', function (msg) { setAsleep(!msg.on); });
 
+  // ---- Locked Mac --------------------------------------------------------------------------
+  // The sheet itself is Vue's (LockScreen.vue). What matters here is that the buttons stop
+  // reaching the screens underneath it: the top buttons would walk straight past the sheet into
+  // the calendar, which is the one thing it is there to prevent. The knob keeps working — volume
+  // by turning it, play/pause/next/previous by pressing — which is what the Mac's own lock screen
+  // allows too, and none of it puts anything on the glass. With lockScreen 'off' the screen is
+  // simply dark, as it has always been for a lock, and there is nothing to guard.
+  CT.locked = false;
+  CT.on('locked', function (msg) {
+    CT.locked = !!msg.locked;
+    state.locked = CT.locked;
+  });
+  function lockedOut() { return CT.locked && CT.settings.lockScreen !== 'off'; }
+
   /** Holding the sleep button: the Mac turns the backlight off until the next input. */
   function sleepNow() {
     setAsleep(true); // black straight away, even if the Mac isn't there to answer
@@ -337,7 +351,9 @@ export function initializeRuntime(state) {
   var clickTimer = null;
   function knobPress() {
     var screen = CT.screens[CT.current];
-    if (screen.press && screen.press() !== false) return;
+    // Under the lock sheet the press belongs to playback, not to whatever screen it is covering:
+    // on the clock, screen.press() would start that screen's timer sight unseen.
+    if (!lockedOut() && screen.press && screen.press() !== false) return;
     clicks++;
     clearTimeout(clickTimer);
     clickTimer = setTimeout(function () {
@@ -420,6 +436,14 @@ export function initializeRuntime(state) {
       holds[key] = { start: performance.now(), done: true };
       return;
     }
+    // Under the lock sheet only the knob answers. Marked done so the hold timer never arms
+    // either: holding the settings button would otherwise still put the screen to sleep, which
+    // is harmless but makes the lock view feel like it is half-listening.
+    if (lockedOut() && key !== 'Enter') {
+      debugInput('locked — ignoring ' + key);
+      holds[key] = { start: performance.now(), done: true };
+      return;
+    }
     press = holds[key] = { start: performance.now(), done: false, timer: null };
     if (!holdAction(key)) {
       press.done = true; // nothing to hold for: act now, as every button always has
@@ -447,7 +471,9 @@ export function initializeRuntime(state) {
     if (!d || wakeInstead()) return;
     var steps = (d > 0 ? 1 : -1) * (CT.config.knobDirection || 1);
     var screen = CT.screens[CT.current];
-    if (!screen.turn || screen.turn(steps) === false) onKnobVolume(steps);
+    // Volume, not the covered screen's own turn — the clock's would set a timer length nobody
+    // can see, and the volume HUD is the one bit of feedback the lock sheet can safely show.
+    if (lockedOut() || !screen.turn || screen.turn(steps) === false) onKnobVolume(steps);
   }, { passive: false, capture: true });
 
   document.addEventListener('contextmenu', function (e) { e.preventDefault(); });

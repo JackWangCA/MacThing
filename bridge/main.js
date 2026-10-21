@@ -21,6 +21,7 @@ import { MediaRemoteSource } from './nowplaying/mediaremote.js';
 import { MacAppearance } from './mac/appearance.js';
 import { MacHelper } from './mac/helper.js';
 import { MacPower } from './mac/power.js';
+import { screenShouldBeOn as policy } from './screen-policy.js';
 import { settings } from './settings.js';
 import { startSettingsPage } from './settings-page/server.js';
 import { Calendar } from './widgets/calendar.js';
@@ -218,6 +219,7 @@ function pushAll(target) {
   target.send({ type: 'usage', usage: usage.state });
   target.send({ type: 'chatgptUsage', usage: chatgptUsage.state });
   target.send({ type: 'screen', on: screenOn !== false }); // the page may have gone dark by itself
+  target.send({ type: 'locked', locked: power.locked });
 }
 
 // ---- Screen sleep ---------------------------------------------------------
@@ -228,13 +230,21 @@ let manualSleep = false; // held down the sleep button; any input clears it
 let screenOn = null; // unknown until applied to the current device link
 
 // The Car Thing's screen follows the Mac's display; a button/knob press wakes it for a while.
-// While the Mac is locked it stays off for good: what's on it is the locked-away Mac's business.
+// A locked Mac is its own case, set by Settings → When Mac is locked: it stays lit and shows the
+// lock sheet (LockScreen.vue) rather than going dark as it does for a sleeping display. The order
+// these rules are applied in matters and is spelled out, with tests, in screen-policy.js.
 function screenShouldBeOn() {
-  if (manualSleep) return false;
-  if (!settings.get().sleepWithMac) return true;
-  if (systemAsleep || power.locked) return false;
-  if (!power.displayAsleep) return true;
-  return Date.now() - lastDeviceInput < config.screenWakeMs;
+  const { sleepWithMac, lockScreen } = settings.get();
+  return policy({
+    manualSleep,
+    sleepWithMac,
+    lockScreen,
+    systemAsleep,
+    locked: power.locked,
+    displayAsleep: power.displayAsleep,
+    sinceInput: Date.now() - lastDeviceInput,
+    wakeMs: config.screenWakeMs,
+  });
 }
 
 async function applyScreen() {
@@ -694,7 +704,7 @@ volume.on('change', (v) => {
 settings.on('change', (values, changed) => {
   link?.send({ type: 'settings', settings: values });
   if (changed.includes('knobVolume')) refreshKnobTarget();
-  if (changed.includes('sleepWithMac')) applyScreen();
+  if (changed.includes('sleepWithMac') || changed.includes('lockScreen')) applyScreen();
 });
 settings.on('change', (_, changed) => {
   if (!changed.includes('usageSource')) return;
@@ -710,6 +720,9 @@ appearance.on('change', (dark) => link?.send({ type: 'appearance', dark }));
 power.on('display', () => applyScreen());
 power.on('lock', (locked) => {
   log.info(`[screen] Mac ${locked ? 'locked' : 'unlocked'}`);
+  // Sent before applyScreen so the lock view is already up underneath when the backlight
+  // comes on, rather than the last screen showing for a frame as it lights.
+  link?.send({ type: 'locked', locked });
   applyScreen();
 });
 power.on('willSleep', async () => {
