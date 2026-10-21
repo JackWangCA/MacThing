@@ -37,6 +37,10 @@ disclaimResponsibility()
 setvbuf(stdout, nil, _IOLBF, 0)
 
 /// How long a location request waits for a fresh fix before settling for the last known one.
+// Covers acquiring the fix *and* reverse-geocoding it, and the geocode is the slow half: 17.8s
+// measured for one that landed, with the rest of that session's requests expiring here. When this
+// expires mid-geocode the fix still goes back, correct but unnamed, and the bridge labels it
+// "Current location". Worth raising if the helper is being rebuilt for another reason anyway.
 let LOCATION_WAIT: TimeInterval = 20
 
 func send(_ obj: [String: Any]) {
