@@ -231,10 +231,13 @@ The device this was built on runs Spotify's final firmware, `v8.9.2`, community-
 
 ### Auto-brightness
 
-The light sensor sits where your hand goes when you reach for the knob or a button. Spotify's `sp-als-backlight` sets the backlight straight from each reading, so the screen dimmed under your fingers. `dimmerd.sh` uses the same curve, taken from that daemon's own log, but it only dims once every reading for `deviceDimDelaySeconds` (10) has been darker. It then dims only as far as the brightest of those readings. Getting brighter happens on the next one-second reading.
+The light sensor sits where your hand goes when you reach for the knob or a button. Spotify's `sp-als-backlight` sets the backlight straight from each reading, so the screen dimmed under your fingers. `dimmerd.sh` uses the same curve, taken from that daemon's own log, but it waits for the room to agree. It dims only once every reading for `deviceDimDelaySeconds` (10) has been darker, and then only as far as the brightest of those readings; it brightens once every reading for `deviceBrightenDelaySeconds` (3) has been lighter, and then only as far as the dimmest of them. A reading that disagrees clears the run, so a hand passing over the sensor moves nothing.
+
+Both directions wait, because guarding only the dim was not enough: a hand crossing the sensor reflects the screen back into it, so reaching for a button read as a flash of light and the screen jumped brighter at once. Brightening still waits the shorter time, so a room whose lights come on catches up quickly. Changes are faded over `deviceFadeMs` (400) rather than written in one step — set it to 0 to step straight there. The fade needs `usleep`; without it the daemon says so and steps instead, since the only other wait available is a whole second.
 
 - It keeps the `backlight` program name, so the bridge and `sleepd.sh` still stop it while the screen is off and start it again when the screen comes back.
 - When it starts, it keeps whatever brightness is already lit. The screen is often woken by a press, with the hand still over the sensor.
+- The stock curve stops at a reading of 13 and treats everything darker as the dimmest level, so a covered sensor fell 35 levels in one move. `dimmerd.sh` slides across that gap instead.
 - It sets the level through `/sys/class/backlight/aml-bl/brightness`. On this panel a higher number is dimmer: 235 in the dark, about 130 in a lit room. Its log, with each dim it made, goes to `/var/log/backlight.info` on the device.
 - It doesn't serve the stock daemon's `/tmp/light` socket, which only Spotify's own app read.
 

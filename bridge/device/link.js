@@ -20,6 +20,8 @@ const sleepConf = () => ({
 /** What device/dimmerd.sh reads out of /var/lib/carthing/dimmer.conf. */
 const dimmerConf = () => ({
   DELAY: config.deviceDimDelaySeconds,
+  RISE: config.deviceBrightenDelaySeconds,
+  FADE: config.deviceFadeMs,
 });
 
 /**
