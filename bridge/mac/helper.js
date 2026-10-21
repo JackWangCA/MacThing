@@ -75,7 +75,14 @@ export class MacHelper extends EventEmitter {
     return this.request('status', {}, 5000);
   }
 
-  /** @returns {Promise<{ok, status, lat?, lon?, name?, region?, country?}>} */
+  /**
+   * `name` can be empty on an `ok` reply — the coordinates are still good. `nameError` then says
+   * which half fell short ('noFixInTime' | 'geocodeTimedOut' | 'geocodeFailed: …' | 'noPlacemark'),
+   * `staleFix` marks a fix CoreLocation had already rather than one delivered for this request,
+   * and `fixAge` is its age in seconds.
+   * @returns {Promise<{ok, status, lat?, lon?, name?, region?, country?, accuracy?,
+   *   nameError?, staleFix?, fixAge?}>}
+   */
   location() {
     return this.request('location');
   }
