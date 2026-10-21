@@ -235,8 +235,8 @@
         <h3 class="subhead">Reminders</h3>
         <div class="note">A card on the device. Any button dismisses it.</div>
         <dl class="how">
-          <dt>On an interval</dt><dd>Counts time at your Mac, not on the clock. Locked, asleep or away from the keyboard pauses the count; a break that long starts it over.</dd>
-          <dt>At set times</dt><dd>At each time you add, or when you’re back if you were away then.</dd>
+          <dt>Interval</dt><dd>Counts time at your Mac, not on the clock. Locked, asleep or away from the keyboard pauses the count; a break that long starts it over.</dd>
+          <dt>Set times</dt><dd>At each time you add, or when you’re back if you were away then.</dd>
         </dl>
         <div id="remList"></div>
         <button type="button" class="btn" id="addReminder">Add reminder</button>
@@ -324,16 +324,21 @@
       on.addEventListener('change', () => edit(i, { on: on.checked }));
       const text = Object.assign(document.createElement('input'), { type: 'text', value: r.text, maxLength: 40, placeholder: 'Drink water' });
       text.addEventListener('change', () => { if (text.value.trim()) edit(i, { text: text.value.trim() }); else text.value = r.text; });
-      // Two lines. First: on, the text and the kind. Second: that kind's setting (how often, or
+      // Two lines. First: on, the text and the kind (Interval or Set times). Second: that kind's setting (how often, or
       // the times), then Remove. Show now is for testing, so only a dev run (npm run dev) has it.
-      const kind = document.createElement('select');
-      kind.append(
-        Object.assign(document.createElement('option'), { value: 'every', textContent: 'On an interval', selected: !times }),
-        Object.assign(document.createElement('option'), { value: 'times', textContent: 'At set times', selected: times }),
-      );
+      const kind = Object.assign(document.createElement('span'), { className: 'seg' });
+      kind.setAttribute('aria-label', 'Kind');
+      for (const [v, label] of [['every', 'Interval'], ['times', 'Set times']]) {
+        const b = Object.assign(document.createElement('button'), { type: 'button', textContent: label });
+        b.dataset.v = v;
+        b.setAttribute('aria-pressed', String(times === (v === 'times')));
+        kind.append(b);
+      }
       // Switching to set times adds none: the time list opens so you pick the first one.
-      kind.addEventListener('change', async () => {
-        if (kind.value === 'every') return edit(i, { repeat: 'every', every: r.every || 45 });
+      kind.addEventListener('click', async (e) => {
+        const v = e.target.dataset?.v;
+        if (!v || (v === 'times') === times) return;
+        if (v === 'every') return edit(i, { repeat: 'every', every: r.every || 45 });
         await edit(i, { repeat: 'times', times: r.times || [] });
         if (!r.times?.length) document.querySelector(`[data-add="${r.id}"]`)?.click();
       });
@@ -354,7 +359,7 @@
     }));
     $('#addReminder').disabled = list.length >= MAX_REMINDERS;
   }
-  // An interval reminder's second line: "Every [45 min] at your Mac".
+  // An interval reminder's second line: "Every [45 min] when your Mac is active".
   function everyRow(r, saveEvery) {
     const row = Object.assign(document.createElement('div'), { className: 'rem-times' });
     const every = document.createElement('select');
@@ -362,7 +367,7 @@
     every.append(...EVERY.map((m) => Object.assign(document.createElement('option'), { value: m, textContent: everyText(m), selected: m === r.every })));
     every.addEventListener('change', () => saveEvery(Number(every.value)));
     row.append(Object.assign(document.createElement('span'), { textContent: 'Every' }), every,
-      Object.assign(document.createElement('span'), { className: 'note', textContent: 'at your Mac' }));
+      Object.assign(document.createElement('span'), { className: 'note', textContent: 'when your Mac is active' }));
     return row;
   }
   // An "At set times" reminder's times, as chips: click one to change it, × removes it. "Add time"
