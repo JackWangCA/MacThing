@@ -82,7 +82,10 @@ try {
   assert.equal(await evaluate('document.getElementById("screen-nowplaying").classList.contains("paused")'), false);
   await message({ type: 'favorite', favorited: true });
   await capture('favorite');
-  assert.match(await evaluate('document.querySelector(".toast").textContent'), /Added to Favorites/);
+  assert.equal(await evaluate('document.querySelector(".flash use").getAttribute("href")'), '#i-heart', 'Favoriting flashes the heart, with no toast');
+  assert.equal(await evaluate('document.querySelector(".toast").textContent'), '');
+  await message({ type: 'skip', action: 'next' });
+  assert.equal(await evaluate('document.querySelector(".flash use").getAttribute("href")'), '#i-next', 'A skip made on the Mac flashes on the device');
   await message({ type: 'settings', settings });
   await message({ type: 'perpetual', perpetual: { status: 'ok', day: 20718, dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' } });
   await message({ type: 'nowPlaying', np: { active: false } });

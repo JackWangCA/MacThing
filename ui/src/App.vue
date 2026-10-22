@@ -14,7 +14,7 @@ import ReminderAlert from './components/ReminderAlert.vue';
 // The paused badge on Now Playing shows flashes itself (it swaps its icon), so the flash's own disc stays hidden.
 const pausedBadge = computed(() => state.current === 'nowplaying' && state.np.active && !state.np.playing);
 // The flash the disc plays, decided when it fires. Deciding it from pausedBadge as it changes would
-// replay the last flash (often the timer's) when play takes the paused badge away.
+// replay the last flash when play takes the paused badge away.
 const flashKey = ref(0);
 watch(() => state.flash.key, key => { if (!pausedBadge.value) flashKey.value = key; });
 watch(pausedBadge, paused => { if (paused) flashKey.value = 0; }); // the badge takes over from a flash under way

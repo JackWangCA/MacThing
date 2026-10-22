@@ -136,7 +136,8 @@ CT.on('command', action => {
     if (state.current !== 'nowplaying' || !np.active || np.playing) CT.flash(!np.active || np.playing ? 'play' : 'pause');
   } else if (action === 'next' || action === 'previous') CT.flash(action);
 });
+// Skips made on the Mac (keyboard, Music, Spotify…) show here the same way.
+CT.on('skip', msg => { if (msg.action === 'next' || msg.action === 'previous') CT.flash(msg.action); });
 CT.on('favorite', msg => {
-  CT.flash(msg.favorited ? 'heart' : 'heart-off');
-  CT.toast(msg.favorited ? 'Added to Favorites' : 'Removed from Favorites');
+  CT.flash(msg.favorited ? 'heart' : 'heart-break');
 });
