@@ -10,11 +10,11 @@
     --select-arrow: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20d%3D%22m3%204.5%203%203%203-3%22%20fill%3D%22none%22%20stroke%3D%22%236e6e73%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
     --seg: #e9e9ee; --seg-on: #fff; --accent: #2f7fb8; --warn: #b25000;
   }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #111; --card: #1c1c1e; --text: #f5f5f7; --muted: #98989d; --line: #2c2c2e;
-      --select-arrow: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20d%3D%22m3%204.5%203%203%203-3%22%20fill%3D%22none%22%20stroke%3D%22%2398989d%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
-      --seg: #2c2c2e; --seg-on: #48484a; --accent: #5aa9dc; --warn: #ffa94d; }
-  }
+  /* This page follows the same Appearance setting it sets for the device. Match Mac is
+     resolved to one of these two by applyTheme(), so there is no third palette here. */
+  :root[data-theme='dark'] { --bg: #111; --card: #1c1c1e; --text: #f5f5f7; --muted: #98989d; --line: #2c2c2e;
+    --select-arrow: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20d%3D%22m3%204.5%203%203%203-3%22%20fill%3D%22none%22%20stroke%3D%22%2398989d%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E");
+    --seg: #2c2c2e; --seg-on: #48484a; --accent: #5aa9dc; --warn: #ffa94d; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
     font: 15px/1.45 -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
@@ -49,7 +49,9 @@
     border: 1px solid var(--line); border-radius: 9px; outline-color: var(--accent); color-scheme: light;
     appearance: none; -webkit-appearance: none; background-image: var(--select-arrow);
     background-repeat: no-repeat; background-position: right 12px center; background-size: 12px 12px; }
-  @media (prefers-color-scheme: dark) { select[data-key], .rem select { color-scheme: dark; } }
+  /* The native dropdown follows the page, not the Mac: on Light with the Mac in dark mode the
+     popup would otherwise come up dark over a light page. */
+  :root[data-theme='dark'] select[data-key], :root[data-theme='dark'] .rem select { color-scheme: dark; }
   .rem { padding: 10px 0; }
   .rem + .rem { border-top: 1px solid var(--line); }
   .rem-main { display: flex; align-items: center; gap: 10px; }
@@ -123,6 +125,16 @@
     padding: 8px 14px; border-radius: 99px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
   .saved.on { opacity: 1; }
 </style>
+<script>
+  // Before first paint, so the page never flashes the wrong appearance on load.
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem('ct-page-theme'); } catch (e) {}
+    if (t !== 'light' && t !== 'dark' && t !== 'auto') t = 'auto';
+    document.documentElement.dataset.theme =
+      t === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : t;
+  })();
+</script>
 </head>
 <body>
 <main class="settings-layout">
@@ -265,8 +277,24 @@
     setTimeout(() => $('#saved').classList.remove('on'), 1200);
   }
 
+  // Appearance applies to this page too, not only to the device. Match Mac follows the Mac's own
+  // light/dark, and keeps following it while the page is open — the stylesheet only carries the
+  // two concrete palettes, so 'auto' is resolved to one of them here.
+  let darkQuery = null;
+  function applyTheme(theme) {
+    // Cached so the boot script in <head> can set it before the first paint on the next load,
+    // ahead of /api/state arriving.
+    try { localStorage.setItem('ct-page-theme', theme); } catch (e) {}
+    if (!darkQuery) {
+      darkQuery = matchMedia('(prefers-color-scheme: dark)');
+      darkQuery.addEventListener('change', () => applyTheme(state.settings.theme));
+    }
+    document.documentElement.dataset.theme = theme === 'auto' ? (darkQuery.matches ? 'dark' : 'light') : theme;
+  }
+
   function render() {
     const s = state.settings;
+    applyTheme(s.theme);
     document.querySelectorAll('.seg').forEach((seg) => {
       seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(s[seg.dataset.key]))));
     });
