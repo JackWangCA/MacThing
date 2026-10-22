@@ -96,6 +96,13 @@ export const config = {
   deviceDimDelaySeconds: 10,
   deviceBrightenDelaySeconds: 3,
   deviceFadeMs: 400,
+  // How much one notch of Settings → Brightness moves the screen, as a percentage of the room
+  // the curve has left in that direction — towards level 1 going brighter, towards 235 going
+  // dimmer. Measured as a share of the current level instead, a notch came to 8 levels in a lit
+  // room and could not be seen at all; the curve rests near the bright end of its range, so most
+  // of the panel's headroom is below it and a proportion of the level never reaches any of it.
+  // This way a notch is always worth something, and neither end can be overshot.
+  deviceBrightnessStepPercent: 25,
 
   // Sources that don't get an app badge on the artwork (your "home" player).
   unbadgedApps: ['com.apple.Music'],

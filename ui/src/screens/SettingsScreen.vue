@@ -8,6 +8,9 @@ const rows = [
   { key: 'theme', label: 'Appearance', options: [['dark', 'Dark'], ['light', 'Light'], ['auto', 'Match Mac']] },
   { key: 'artBackground', label: 'Album art background', options: [[false, 'Off'], [true, 'On']] },
   { key: 'meetingAlert', label: 'Meeting alerts', options: [[0, 'Off'], ['event', 'Event’s alert'], [1, '1 min before'], [5, '5 min before'], [10, '10 min before']] },
+  // Auto-brightness stays on at every setting; this shifts the whole curve, so the room still
+  // drives the screen and there is no choice here that leaves it blinding in the dark.
+  { key: 'brightness', label: 'Brightness', options: [[-2, 'Dimmest'], [-1, 'Dimmer'], [0, 'Default'], [1, 'Brighter'], [2, 'Brightest']] },
   { key: 'screenSleep', label: 'Sleep', options: [['mac', 'With Mac'], [30, 'Mac idle 30 min'], [60, 'Mac idle 1 hr'], [120, 'Mac idle 2 hr'], [240, 'Mac idle 4 hr'], ['never', 'Never']] },
   { key: 'whenLocked', label: 'When Mac is locked', options: [['unlocked', 'Everything works'], ['lock', 'Lock sheet'], ['lockTrack', 'Lock sheet + track'], ['nowplaying', 'Now Playing only'], ['weather', 'Weather only'], ['calendar', 'Calendar only'], ['clock', 'Clock only']] },
   { key: 'lockFace', label: 'Lock clock face', options: [['match', 'Match clock'], ['analog', 'Analog'], ['numbers', 'Numbers'], ['digital', 'Digital']] },

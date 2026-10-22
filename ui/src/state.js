@@ -5,7 +5,7 @@ export const state = reactive({
   // screenSwitch: how the current screen is coming in ('fade', 'next', 'previous'), until it has (core.js).
   current: 'nowplaying', leaving: '', screenSwitch: 'fade', offline: true, asleep: false, light: false,
   lock: null, // 'lock' | 'lockTrack' while the Mac is locked and the sheet is up; else null
-  settings: { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', meetingAlert: 0, usageSource: 'bottlerocket', knobVolume: 'auto', idleMinutes: 0, idleScreen: 'clock', screenSleep: 'mac', whenLocked: 'unlocked', lockFace: 'match', location: { mode: 'auto' } },
+  settings: { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', brightness: 0, meetingAlert: 0, usageSource: 'bottlerocket', knobVolume: 'auto', idleMinutes: 0, idleScreen: 'clock', screenSleep: 'mac', whenLocked: 'unlocked', lockFace: 'match', location: { mode: 'auto' } },
   now: Date.now(), np: { active: false }, npAt: 0, artwork: null,
   weather: { status: 'loading' }, calendar: { status: 'loading' }, dueReminders: { status: 'loading' }, perpetual: { status: 'loading' }, usage: { status: 'loading' }, chatgptUsage: { status: 'loading' },
   volume: 0, volumeUnsupported: false, volumeNote: '', volumeIcon: '', showVolume: false,
