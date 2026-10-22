@@ -200,10 +200,52 @@ test('an ordinary resume is unaffected', () => {
   assert.equal(source.snapshot.rate, 1);
 });
 
-test('a rate of 0 arriving alone pauses, rather than being ignored', () => {
+/**
+ * The rate is believed in one direction only, and this is the direction it is not.
+ *
+ * Nothing is given up by ignoring a lone 0: a real pause leads with `{playing: false}`, which is
+ * believed on its own (the test above), so the rate that follows never has to carry the pause by
+ * itself. What is avoided is the skip below, and sources that report a stopped rate over running
+ * audio — which normalize() implies exist, since `rate: playing ? (raw.playbackRate > 0 ? ... : 1)
+ * : 0` reads a rate of 0 while `playing` as a rate of 1 rather than trusting it.
+ */
+test('a rate of 0 arriving alone is ignored, leaving the pause to the playing flag', () => {
   const source = new MediaRemoteSource('/nowhere');
   line(source, PLAYING_SNAPSHOT);
   line(source, { diff: true, payload: { playbackRate: 0, elapsedTimeMicros: 5000000 } });
+  assert.equal(source.snapshot.playing, true, 'a rate alone does not stop playback');
+
+  // The flag still does, whenever it gets here.
+  line(source, { diff: true, payload: { playing: false } });
   assert.equal(source.snapshot.playing, false);
   assert.equal(source.snapshot.rate, 0);
+});
+
+/**
+ * Skipping a track from the Mac — the keyboard's next key, or Music's own button. Captured off
+ * the live stream, timings as recorded:
+ *
+ *   3952ms  {playbackRate: 0}                     the old track stopping, with no `playing`
+ *   4237ms  full snapshot, playing: true, rate: 0  the new track, not yet running
+ *   4494ms  {playbackRate: 1}                      and now it is
+ *
+ * Nothing paused: the gap between tracks is not a pause, and `playing` never says it is. Reading
+ * that first lone zero as one put the paused badge on screen for the 285ms until the snapshot
+ * landed, which is visible as a flash of the pause icon every time you skip.
+ */
+test('skipping a track on the Mac does not flash the paused badge', () => {
+  const source = new MediaRemoteSource('/nowhere');
+  line(source, PLAYING_SNAPSHOT);
+  line(source, { diff: true, payload: { playbackRate: 0 } });
+  assert.equal(source.snapshot.playing, true, 'the gap between tracks is not a pause');
+
+  line(source, {
+    diff: false,
+    payload: { ...PLAYING_SNAPSHOT.payload, title: 'Burn, Burn, Burn', playbackRate: 0 },
+  });
+  assert.equal(source.snapshot.playing, true, 'and the new track arrives already playing');
+  assert.equal(source.snapshot.rate, 1, 'a rate of 0 while playing is normalized to 1');
+
+  line(source, { diff: true, payload: { playbackRate: 1 } });
+  assert.equal(source.snapshot.playing, true);
 });

@@ -68,17 +68,21 @@ export class MediaRemoteSource extends EventEmitter {
         if (value === null) delete this.raw[key];
         else this.raw[key] = value;
       }
-      // Both halves of a state change say the same thing, so the rate stands in when `playing`
-      // is missing. A change is announced as `{playing}` alone and then `{playbackRate}` without
-      // it; lose the first half of a resume — debounced away, or dropped in a burst of them —
-      // and `playing` stays false with nothing left to contradict it, because the stream speaks
-      // only on change. The snapshot then reads paused over playing audio until something really
-      // does change, which is the state the device gets stuck in. Taking the rate's word only
-      // when `playing` is absent leaves a pause as immediate as it was: its own half arrives
-      // first and is believed, and the `{playbackRate: 0}` that follows agrees with it.
-      if ('playbackRate' in msg.payload && !('playing' in msg.payload)) {
-        this.raw.playing = msg.payload.playbackRate > 0;
-      }
+      // A rate of its own can start playback but never stop it. A state change is announced as
+      // `{playing}` alone and then `{playbackRate}` without it; lose the first half of a resume
+      // — debounced away, or dropped in a burst of them — and `playing` stays false with nothing
+      // left to contradict it, because the stream speaks only on change. The snapshot then reads
+      // paused over playing audio until something really does change, which is the state the
+      // device gets stuck in. A moving rate is the only witness left, so it counts.
+      //
+      // A zero rate is never that witness, because a pause's own `{playing: false}` half arrives
+      // first and is believed, so the `{playbackRate: 0}` behind it only agrees with what the
+      // snapshot already says. Reading it anyway breaks a skip: skipping a track from the Mac
+      // sends a lone `{playbackRate: 0}`, then `{playing: true, playbackRate: 0}` 285ms later
+      // (measured, Apple Music), and treating that first message as a pause flashes the paused
+      // badge over a track that never stopped. normalize() reading a rate of 0 while `playing`
+      // as a rate of 1 is the other half of the same story.
+      if (msg.payload.playbackRate > 0 && !('playing' in msg.payload)) this.raw.playing = true;
     } else {
       this.raw = { ...msg.payload };
     }
