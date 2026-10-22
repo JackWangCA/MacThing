@@ -7,9 +7,8 @@ import pause from '@phosphor-icons/core/assets/fill/pause-fill.svg?raw';
 import next from '@phosphor-icons/core/assets/fill/skip-forward-fill.svg?raw';
 import previous from '@phosphor-icons/core/assets/fill/skip-back-fill.svg?raw';
 import heart from '@phosphor-icons/core/assets/fill/heart-fill.svg?raw';
-import heartOff from '@phosphor-icons/core/assets/bold/heart-bold.svg?raw';
+import heartBreak from '@phosphor-icons/core/assets/bold/heart-break-bold.svg?raw';
 import note from '@phosphor-icons/core/assets/fill/music-notes-fill.svg?raw';
-import timer from '@phosphor-icons/core/assets/fill/timer-fill.svg?raw';
 import speaker from '@phosphor-icons/core/assets/fill/speaker-high-fill.svg?raw';
 import muted from '@phosphor-icons/core/assets/fill/speaker-x-fill.svg?raw';
 import spotify from '@phosphor-icons/core/assets/fill/spotify-logo-fill.svg?raw';
@@ -19,7 +18,7 @@ import x from '@phosphor-icons/core/assets/bold/x-bold.svg?raw';
 
 const ICONS = {
   'i-play': play, 'i-pause': pause, 'i-next': next, 'i-previous': previous,
-  'i-heart': heart, 'i-heart-off': heartOff, 'i-note': note, 'i-timer': timer,
+  'i-heart': heart, 'i-heart-break': heartBreak, 'i-note': note,
   'i-speaker': speaker, 'i-muted': muted, 'i-spotify': spotify, 'i-open-on-mac': openOnMac, 'i-refresh': refresh, 'i-x': x
 };
 const inner = svg => svg.replace(/^<svg[^>]*>|<\/svg>\s*$/g, '');

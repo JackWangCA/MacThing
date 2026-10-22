@@ -28,8 +28,13 @@ import { PerpetualCover } from './widgets/perpetual.js';
 import { ClaudeUsage } from './widgets/usage.js';
 import { CodexUsage } from './widgets/codex-usage.js';
 import { Weather } from './widgets/weather.js';
+import { SkipDetector } from './nowplaying/skips.js';
 
 const source = new MediaRemoteSource(paths.bin);
+const skips = new SkipDetector();
+// A press on the device already shows its own flash, so a skip seen this soon after one is that press.
+const OWN_PRESS_MS = 3000;
+let lastDeviceCommand = 0;
 const volume = new Volume(paths.bin);
 const appVolume = new AppVolume();
 const apps = new AppInfo(paths.bin);
@@ -265,6 +270,7 @@ function musicctl(command) {
 
 async function runCommand(action) {
   log.info(`[input] ${action}`);
+  lastDeviceCommand = Date.now();
   if (action === 'favorite' || action === 'unfavorite') return setFavorite(action);
   try {
     if (!current.np.active && (action === 'playpause' || action === 'play')) {
@@ -611,7 +617,15 @@ function debounce(fn, ms) {
 // ---- Start ----------------------------------------------------------------
 
 log.info('Car Thing bridge starting');
-source.on('change', (s) => onNowPlaying(s).catch((err) => log.warn('[now playing]', err.message)));
+source.on('change', (s) => {
+  // Skips made on the Mac show on the device the same way as its own.
+  const skip = skips.observe(s);
+  if (skip && Date.now() - lastDeviceCommand > OWN_PRESS_MS) {
+    log.info(`[now playing] skipped: ${skip}`);
+    link?.send({ type: 'skip', action: skip });
+  }
+  onNowPlaying(s).catch((err) => log.warn('[now playing]', err.message));
+});
 volume.on('change', (v) => {
   pressLanded();
   if (appVol && knobApp() !== appVol.bundleId) appVol = null;
