@@ -47,8 +47,14 @@ const q = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
  * `program` is its supervisord name and `confFile` the settings file the script sources. A
  * stopped program is updated but left stopped: the bridge stops the backlight one while the
  * screen is off.
+ *
+ * `restart: false` writes the files and leaves the running program alone, for a daemon that
+ * re-reads its own conf (dimmerd does, every poll). Restarting that one mid-session would throw
+ * away the level it is holding and the hysteresis windows it has built up, to deliver a change
+ * it was going to notice within the second anyway. Connect-time syncs still restart, since the
+ * script itself may have changed and only a restart picks that up.
  */
-export async function syncDaemon(serial, { name, program, confFile, localScript, remoteDir, conf }) {
+export async function syncDaemon(serial, { name, program, confFile, localScript, remoteDir, conf, restart = true }) {
   const remoteScript = `${remoteDir}/${name}.sh`;
   const registered = (await shell(serial, `grep -qF ${q(remoteScript)} /etc/supervisord.conf && echo yes; true`)).trim() === 'yes';
   if (!registered) return { installed: false, changed: false };
@@ -68,7 +74,10 @@ export async function syncDaemon(serial, { name, program, confFile, localScript,
     serial,
     `printf '%s\\n' ${lines.map(q).join(' ')} > ${remoteDir}/${confFile} && ` +
       `chmod +x ${remoteScript} && echo ${version} > ${remoteDir}/${name}.version && sync; ` +
-      `supervisorctl status ${program} 2>/dev/null | grep -q STOPPED || supervisorctl restart ${program} >/dev/null 2>&1; true`,
+      (restart
+        ? `supervisorctl status ${program} 2>/dev/null | grep -q STOPPED || supervisorctl restart ${program} >/dev/null 2>&1; `
+        : '') +
+      `true`,
   );
   return { installed: true, changed: true };
 }

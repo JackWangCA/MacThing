@@ -639,6 +639,9 @@ settings.on('change', (values, changed) => {
   link?.send({ type: 'settings', settings: values });
   if (changed.includes('knobVolume')) refreshKnobTarget();
   if (changed.includes('screenSleep') || changed.includes('whenLocked')) refreshIdle();
+  // The backlight is the device's own business: the level lives in dimmer.conf, which the
+  // auto-brightness daemon re-reads as it runs.
+  if (changed.includes('brightness')) link?.syncDimmer({ restart: false });
 });
 settings.on('change', (_, changed) => {
   if (!changed.includes('usageSource')) return;

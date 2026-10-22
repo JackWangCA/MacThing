@@ -160,6 +160,9 @@
           <span class="seg" data-key="theme"><button data-v="dark">Dark</button><button data-v="light">Light</button><button data-v="auto">Match Mac</button></span></div>
         <div class="row"><span class="label">Album art background</span>
           <span class="seg" data-key="artBackground"><button data-v="false">Off</button><button data-v="true">On</button></span></div>
+        <!-- data-type="number" is what turns the button's "-2" back into a number in saveChoice. -->
+        <div class="row"><div><label class="label">Brightness</label><div class="note">The screen follows the room at every setting; this shifts how bright it aims for</div></div>
+          <span class="seg" data-key="brightness" data-type="number"><button data-v="-2">Dimmest</button><button data-v="-1">Dimmer</button><button data-v="0">Default</button><button data-v="1">Brighter</button><button data-v="2">Brightest</button></span></div>
       </section>
       <section>
         <h3 class="subhead">Sleep and lock</h3>

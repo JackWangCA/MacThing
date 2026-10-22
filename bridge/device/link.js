@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { config, paths } from '../config.js';
 import { log } from '../log.js';
+import { settings } from '../settings.js';
 import { adb, shell } from './adb.js';
 import { CDP, listTargets } from './cdp.js';
 import { isBootInstalled, syncDaemon, syncUi } from './deploy.js';
@@ -21,6 +22,8 @@ const sleepConf = () => ({
 /** What device/dimmerd.sh reads out of /var/lib/carthing/dimmer.conf. */
 const dimmerConf = () => ({
   DELAY: config.deviceDimDelaySeconds,
+  BIAS: settings.get().brightness,
+  STEP: config.deviceBrightnessStepPercent,
 });
 
 /**
@@ -61,13 +64,7 @@ export class DeviceLink extends EventEmitter {
     if (sleepd.changed) log.info('[device] sleep watchdog updated');
     else if (!sleepd.installed) log.warn('[device] no sleep watchdog — run `npm run setup-device` so the screen sleeps when the Mac is off');
 
-    const dimmer = await syncDaemon(this.serial, {
-      name: 'dimmerd', program: 'backlight', confFile: 'dimmer.conf',
-      localScript: paths.dimmerd, remoteDir: config.deviceDir, conf: dimmerConf(),
-    }).catch((err) => {
-      log.warn('[device] dimmer:', err.message);
-      return { installed: false, changed: false };
-    });
+    const dimmer = await this.syncDimmer();
     if (dimmer.changed) log.info('[device] dimmer updated');
     else if (!dimmer.installed) log.warn("[device] stock dimmer still running — run `npm run setup-device` so a hand on the controls doesn't dim the screen");
 
@@ -189,6 +186,27 @@ export class DeviceLink extends EventEmitter {
         : `supervisorctl stop backlight >/dev/null 2>&1; echo 0 > ${power}; true`,
       { timeout: 3000 },
     );
+  }
+
+  /**
+   * Writes /var/lib/carthing/dimmer.conf, which is how Settings → Brightness reaches the panel.
+   * Called on connect, and again whenever the setting changes.
+   *
+   * A change mid-session doesn't restart the daemon: it re-reads the conf every poll, so the new
+   * level lands within a second without losing the level it is holding. Only the connect-time
+   * call restarts, because that one may also have pushed a new script.
+   *
+   * syncDaemon leaves a stopped program stopped either way, so changing brightness while the
+   * screen is asleep updates the file without lighting the panel back up.
+   */
+  syncDimmer({ restart = true } = {}) {
+    return syncDaemon(this.serial, {
+      name: 'dimmerd', program: 'backlight', confFile: 'dimmer.conf',
+      localScript: paths.dimmerd, remoteDir: config.deviceDir, conf: dimmerConf(), restart,
+    }).catch((err) => {
+      log.warn('[device] dimmer:', err.message);
+      return { installed: false, changed: false };
+    });
   }
 
   async screenshot() {

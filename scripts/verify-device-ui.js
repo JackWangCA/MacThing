@@ -60,7 +60,10 @@ try {
   }
   assert.equal(mounted, true, 'Vue mounted');
   await evaluate('window.fixtureReceive = window.__carthingReceive; window.__carthingReceive = function(){}; window.fixtureSent = []; CT.send = function(msg){window.fixtureSent.push(msg)}');
-  const settings = { theme: 'dark', clock24h: false, artBackground: false, clockFace: 'analog', calendarDays: 2, location: { mode: 'auto' } };
+  // A settings message replaces the whole object, so anything left out here renders as its first
+  // option. For most rows that is also the default and the screenshot still reads true; brightness
+  // is the one whose default sits in the middle of its options, so it has to be named.
+  const settings = { theme: 'dark', clock24h: false, artBackground: false, clockFace: 'analog', calendarDays: 2, brightness: 0, location: { mode: 'auto' } };
   await message({ type: 'settings', settings });
   await message({ type: 'screen', on: true });
   await tick(Date.UTC(2026, 8, 22, 14, 35));
@@ -314,7 +317,9 @@ try {
   await pause(400);
   await tick(now);
   await message({ type: 'settings', settings });
-  await evaluate("CT.show('settings'); CT.screens.settings.turn(3); CT.screens.settings.press()");
+  // turn() counts rows, so this is Sleep's position in SettingsScreen.vue's list, not its name:
+  // adding a row above it moves this number.
+  await evaluate("CT.show('settings'); CT.screens.settings.turn(4); CT.screens.settings.press()");
   await pause(100);
   assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "screenSleep" && m.value === 30)'), true, 'Settings → Sleep steps With Mac to Mac idle 30 min');
   await capture('settings');
