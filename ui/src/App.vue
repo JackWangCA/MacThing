@@ -11,6 +11,7 @@ import ClockScreen from './screens/ClockScreen.vue';
 import SettingsScreen from './screens/SettingsScreen.vue';
 import MeetingAlert from './components/MeetingAlert.vue';
 import ReminderAlert from './components/ReminderAlert.vue';
+import LockScreen from './components/LockScreen.vue';
 // The paused badge on Now Playing shows flashes itself (it swaps its icon), so the flash's own disc stays hidden.
 const pausedBadge = computed(() => state.current === 'nowplaying' && state.np.active && !state.np.playing);
 // The flash the disc plays, decided when it fires. Deciding it from pausedBadge as it changes would
@@ -19,6 +20,9 @@ const flashKey = ref(0);
 watch(() => state.flash.key, key => { if (!pausedBadge.value) flashKey.value = key; });
 watch(pausedBadge, paused => { if (paused) flashKey.value = 0; }); // the badge takes over from a flash under way
 const ambient = computed(() => !!(state.settings.artBackground && (hasArt.value || idleCover.value)));
+// The lock sheet covers the screen underneath, so overlays drawn above it (the play/pause
+// flash) have to lay themselves out against the screen rather than against what it is hiding.
+const locked = computed(() => !!state.lock);
 const NOTCHED = ['nowplaying', 'calendar', 'weather', 'clock']; // left to right, as the top buttons run
 // Settings has no top button, so the notch stays under the last page's while it fades out.
 const notchAt = ref(Math.max(0, NOTCHED.indexOf(state.current)));
@@ -32,6 +36,7 @@ watch(() => state.current, current => { if (NOTCHED.includes(current)) notchAt.v
     <div class="page-notch" :class="{ on: NOTCHED.includes(state.current) }" :style="{ transform: 'translateX(' + notchAt * 201 + 'px)' }" />
     <MeetingAlert />
     <ReminderAlert />
+    <LockScreen />
     <!-- A bar across the top of the screen rather than upstream's centred pill: it reads at a
          glance from across the room and covers nothing that was on screen. -->
     <div class="volume-hud">

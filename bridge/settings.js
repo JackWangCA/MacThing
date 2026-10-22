@@ -29,10 +29,18 @@ export const DEFAULTS = {
   // When the screen turns off: 'mac' = while the Mac's display sleeps or the Mac is locked |
   // minutes the Mac has been idle (no keyboard or mouse, like a screen saver) | 'never'
   screenSleep: 'mac',
-  // While the Mac is locked (and screenSleep isn't 'mac', which turns the screen off):
-  // 'unlocked' = everything works | 'nowplaying' | 'weather' | 'calendar' | 'clock' = held on that
-  // screen, with only the knob's volume and media controls
+  // While the Mac is locked:
+  // 'unlocked' = everything works
+  // 'lock' | 'lockTrack' = the lock sheet over whatever screen you left: the time, the date and a
+  //   padlock, and with 'lockTrack' the playing track too (LockScreen.vue)
+  // 'nowplaying' | 'weather' | 'calendar' | 'clock' = held on that screen
+  // All but 'unlocked' leave only the knob's volume and the media controls working. The four
+  // screens need screenSleep to be something other than 'mac', which turns the screen off on a
+  // lock; the sheet is the exception, since staying lit is the whole point of it.
   whenLocked: 'unlocked',
+  // The lock sheet's clock face. 'match' follows clockFace above; the rest override it, so the
+  // sheet can be a plain digital readout while the Clock screen keeps its analog face.
+  lockFace: 'match', // 'match' | 'analog' | 'numbers' | 'digital'
   // Task reminders: [{ id, text, on, repeat: 'every' | 'times', every (minutes at the Mac),
   // times (minutes since midnight) }]. See widgets/reminders.js.
   reminders: [],
@@ -58,7 +66,8 @@ const VALID = {
   idleMinutes: (v) => [0, 1, 2, 5, 10].includes(v),
   idleScreen: (v) => ['clock', 'calendar', 'weather'].includes(v),
   screenSleep: (v) => ['mac', 30, 60, 120, 240, 'never'].includes(v),
-  whenLocked: (v) => ['unlocked', 'nowplaying', 'weather', 'calendar', 'clock'].includes(v),
+  whenLocked: (v) => ['unlocked', 'lock', 'lockTrack', 'nowplaying', 'weather', 'calendar', 'clock'].includes(v),
+  lockFace: (v) => ['match', 'analog', 'numbers', 'digital'].includes(v),
   reminders: (v) =>
     Array.isArray(v) &&
     v.length <= MAX_REMINDERS &&

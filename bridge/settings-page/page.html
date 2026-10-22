@@ -173,7 +173,9 @@
         <div class="row"><div><label class="label" for="screenSleep">Sleep</label><div class="note">With Mac: when the Mac’s display sleeps or the Mac locks. Idle: no keyboard or mouse on the Mac</div></div>
           <select id="screenSleep" data-key="screenSleep" data-type="number"><option value="mac">With Mac</option><option value="30">Mac idle 30 min</option><option value="60">Mac idle 1 hr</option><option value="120">Mac idle 2 hr</option><option value="240">Mac idle 4 hr</option><option value="never">Never</option></select></div>
         <div class="row" id="whenLockedRow"><div><label class="label" for="whenLocked">When Mac is locked</label><div class="note" id="whenLockedNote"></div></div>
-          <select id="whenLocked" data-key="whenLocked"><option value="unlocked">Everything works</option><option value="nowplaying">Now Playing only</option><option value="weather">Weather only</option><option value="calendar">Calendar only</option><option value="clock">Clock only</option></select></div>
+          <select id="whenLocked" data-key="whenLocked"><option value="unlocked">Everything works</option><option value="lock">Lock sheet</option><option value="lockTrack">Lock sheet + track</option><option value="nowplaying">Now Playing only</option><option value="weather">Weather only</option><option value="calendar">Calendar only</option><option value="clock">Clock only</option></select></div>
+        <div class="row" id="lockFaceRow"><div><div class="label">Lock clock face</div><div class="note">The lock sheet&rsquo;s own face, or the same one the Clock screen uses</div></div>
+          <span class="seg" data-key="lockFace"><button data-v="match">Match clock</button><button data-v="analog">Analog</button><button data-v="numbers">Numbers</button><button data-v="digital">Digital</button></span></div>
       </section>
       <section>
         <h3 class="subhead">When no music is playing</h3>
@@ -322,12 +324,20 @@
     if (idleOff) $('#idleScreen').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === 'none')));
     $('#idleMinutes').disabled = idleOff;
     $('#idleAfterRow').classList.toggle('off', idleOff);
+    // Holding the device on a real screen needs the screen to be on, which With Mac denies a
+    // locked Mac; the lock sheet is the thing that keeps it lit, so it stays available.
     const sleepsWhenLocked = s.screenSleep === 'mac';
-    $('#whenLocked').disabled = sleepsWhenLocked;
-    $('#whenLockedRow').classList.toggle('off', sleepsWhenLocked);
-    $('#whenLockedNote').textContent = sleepsWhenLocked
-      ? 'Asleep: Sleep is set to With Mac'
-      : 'Only: that screen, plus volume and playback';
+    const sheet = s.whenLocked === 'lock' || s.whenLocked === 'lockTrack';
+    $('#whenLocked').querySelectorAll('option').forEach((o) => {
+      o.disabled = sleepsWhenLocked && !['unlocked', 'lock', 'lockTrack'].includes(o.value);
+    });
+    $('#whenLockedNote').textContent = sheet
+      ? 'The time, the date and a padlock over whatever screen you left'
+      : sleepsWhenLocked
+        ? 'Screen off: Sleep is With Mac. The lock sheet still shows; the four screens need another Sleep setting'
+        : 'Only: that screen, plus volume and playback';
+    $('#lockFaceRow').classList.toggle('off', !sheet);
+    $('#lockFaceRow').querySelectorAll('button').forEach((b) => { b.disabled = !sheet; });
     const manual = s.location.mode === 'manual';
     document.querySelector(`input[name=loc][value=${manual ? 'manual' : 'auto'}]`).checked = true;
     $('#manualNote').textContent = manual ? `Using ${s.location.name}` : 'Search for a city';

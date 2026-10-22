@@ -623,7 +623,8 @@ h3 {
 }
 /* Off Now Playing, and behind the lock sheet (which covers whichever screen that is), there is
    no album art under the disc, so it centres on the whole screen instead. */
-#app:not([data-screen='nowplaying']) .flash {
+#app:not([data-screen='nowplaying']) .flash,
+#app.locked .flash {
   left: 0;
 }
 .flash.on {
@@ -869,6 +870,73 @@ h3 {
    up, so unlocking puts back the screen you left rather than navigating away from it. Opaque,
    not a scrim — the point is that what is underneath cannot be read. It sits above the meeting
    alert in App.vue for the same reason. */
+.lock-screen {
+  justify-content: center;
+  background: var(--offline-bg);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.4s ease,
+    visibility 0s linear 0.4s;
+}
+.lock-screen.on {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.4s ease;
+}
+.lock-badge {
+  width: 52px;
+  height: 52px;
+  margin-bottom: 22px;
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--muted);
+}
+.lock-badge svg {
+  width: 26px;
+  height: 26px;
+  fill: currentColor;
+}
+/* Smaller than the clock screen's 150px: the padlock and the date share the stage here, and the
+   whole sheet is meant to be read from across the room rather than filled edge to edge. */
+.lock-time {
+  font-size: 112px;
+  line-height: 1;
+  letter-spacing: -0.055em;
+}
+.lock-ampm {
+  margin-left: 12px;
+  font-size: 34px;
+  letter-spacing: -0.02em;
+}
+/* The analog face is built to fill a whole stage: .c-face pins itself 48px into a 480 square and
+   is declared further down this file, so it won out over a plain .lock-analog and sat on top of
+   the padlock and the date. Here it is one item in a column instead, so it has to come out of
+   absolute positioning and be sized to leave room for the rest. */
+.lock-screen .lock-analog {
+  position: static;
+  width: 236px;
+  height: 236px;
+  flex: none;
+}
+.lock-date {
+  margin-top: 14px;
+}
+.lock-track {
+  margin-top: 26px;
+  max-width: 560px;
+}
+.lock-note {
+  width: 15px;
+  height: 15px;
+  margin-right: 9px;
+  fill: var(--muted);
+  flex: none;
+}
+.lock-track-text {
+  font-size: 19px;
+}
+
 /* Only while it can be seen: hidden, a running animation still has the device drawing 60 frames
    a second. */
 .offline .pulse {

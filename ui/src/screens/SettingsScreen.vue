@@ -9,6 +9,8 @@ const rows = [
   { key: 'artBackground', label: 'Album art background', options: [[false, 'Off'], [true, 'On']] },
   { key: 'meetingAlert', label: 'Meeting alerts', options: [[0, 'Off'], ['event', 'Event’s alert'], [1, '1 min before'], [5, '5 min before'], [10, '10 min before']] },
   { key: 'screenSleep', label: 'Sleep', options: [['mac', 'With Mac'], [30, 'Mac idle 30 min'], [60, 'Mac idle 1 hr'], [120, 'Mac idle 2 hr'], [240, 'Mac idle 4 hr'], ['never', 'Never']] },
+  { key: 'whenLocked', label: 'When Mac is locked', options: [['unlocked', 'Everything works'], ['lock', 'Lock sheet'], ['lockTrack', 'Lock sheet + track'], ['nowplaying', 'Now Playing only'], ['weather', 'Weather only'], ['calendar', 'Calendar only'], ['clock', 'Clock only']] },
+  { key: 'lockFace', label: 'Lock clock face', options: [['match', 'Match clock'], ['analog', 'Analog'], ['numbers', 'Numbers'], ['digital', 'Digital']] },
   { spacer: true }, // an empty slot that sets "More settings on Mac" apart; the knob skips it
   { label: 'More settings on Mac', page: '', value: () => '' }
 ];

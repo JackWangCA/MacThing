@@ -240,24 +240,41 @@ let screenOn = null; // unknown until applied to the current device link
 
 let macIdleMs = 0; // kept up to date while the Sleep setting is a number of minutes
 
+/** While Locked is showing the lock sheet rather than holding the device on a real screen. */
+const sheetWhenLocked = (s) => s.whenLocked === 'lock' || s.whenLocked === 'lockTrack';
+
 // The Sleep setting. With Mac: the screen follows the Mac's display, and while the Mac is locked it
 // stays off for good (what's on it is the locked-away Mac's business). A number of minutes: off
 // once the Mac has gone that long without input, like a screen saver, or while it sleeps. Either
 // way a button/knob press wakes it for a while. Never: always on, unless the sleep button is held.
+//
+// A locked Mac is its own case when While Locked is the lock sheet: the sheet exists to leave
+// something readable on the desk, so it keeps the screen lit whatever Sleep says. A Mac that
+// genuinely sleeps still takes the device dark with it, which is why the order below matters —
+// held sleep button, then Never, then a sleeping Mac, then the lock, then idle.
 function screenShouldBeOn() {
   if (manualSleep) return false;
-  const mode = settings.get().screenSleep;
+  const s = settings.get();
+  const mode = s.screenSleep;
   if (mode === 'never') return true;
-  if (mode === 'mac' && power.locked) return false;
   if (systemAsleep) return false;
+  if (power.locked) {
+    if (sheetWhenLocked(s)) return true;
+    if (mode === 'mac') return false;
+  }
   const idle = mode === 'mac' ? power.displayAsleep : macIdleMs >= mode * 60 * 1000;
   return !idle || Date.now() - lastDeviceInput < config.screenWakeMs;
 }
 
-// While Locked: the screen the device is held on while the Mac is locked, or null.
+// While Locked: what the device shows while the Mac is locked — 'lock'/'lockTrack' for the sheet
+// over whatever screen you left, one of the four screen names to be held on it, or null.
 function lockedScreen() {
   const s = settings.get();
-  return power.locked && s.screenSleep !== 'mac' && s.whenLocked !== 'unlocked' ? s.whenLocked : null;
+  if (!power.locked || s.whenLocked === 'unlocked') return null;
+  // Holding the device on a real screen only means anything while the screen would be on anyway;
+  // the sheet is what keeps it on, so it doesn't ask.
+  if (sheetWhenLocked(s)) return s.whenLocked;
+  return s.screenSleep !== 'mac' ? s.whenLocked : null;
 }
 let sentLock;
 /** Tells the device which screen it's held on; only on a change unless `target` is a fresh page. */
