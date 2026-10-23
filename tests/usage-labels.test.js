@@ -30,7 +30,13 @@ test('numeric labels use the actual K ratio and the elapsed-time floor', () => {
   assert.ok(Math.abs(paceK(sample, SESSION_MS, now) - (22 / 78) / (.2 / .8)) < 1e-9);
   assert.equal(paceNumber(sample, SESSION_MS, now), '1.1x');
   assert.equal(paceNumber(window(42, .56), SESSION_MS, now), '0.6x');
-  assert.equal(paceNumber(window(99, .01), SESSION_MS, now), '891x');
+  assert.equal(paceNumber(window(99, .01), SESSION_MS, now), '891x 🔥🔥');
+  // 1.9x stays calm; from 2x the decimal goes and a fire comes, from 4x two.
+  assert.equal(paceNumber(window(32, .2), SESSION_MS, now), '1.9x');
+  assert.equal(paceNumber(window(33.3, .2), SESSION_MS, now), '2x 🔥');
+  assert.equal(paceNumber(window(38, .2), SESSION_MS, now), '2x 🔥');
+  assert.equal(paceNumber(window(45, .2), SESSION_MS, now), '3x 🔥');
+  assert.equal(paceNumber(window(50, .2), SESSION_MS, now), '4x 🔥🔥');
   assert.equal(paceNumber(window(97, .99), SESSION_MS, now), '0.3x');
   assert.equal(paceNumber({percent: 0, resetsAt: null}, SESSION_MS, now), '0.0x');
   assert.equal(paceNumber(window(0, .5), SESSION_MS, now), '0.0x');

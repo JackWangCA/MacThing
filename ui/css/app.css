@@ -458,6 +458,14 @@ h3 {
   letter-spacing: 0;
   word-spacing: 0;
 }
+/* Fires after a pace number (2x and up) are smaller, so "4.6x" and two fires fit the rail. */
+.rail-fires-after {
+  margin-left: 0.1em;
+}
+.font-huge .rail-fires-after {
+  font-size: 0.42em;
+  vertical-align: 0.1em;
+}
 /* Keep the 32px weekly pace and percentage together in the 272px rail. */
 .usage-week {
   letter-spacing: -0.02em;

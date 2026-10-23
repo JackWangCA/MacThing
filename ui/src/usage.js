@@ -20,14 +20,17 @@ export function paceK(w, length, now) {
   return (used / (1 - used)) / (t / (1 - t));
 }
 
-/** A glanceable K label: a decimal below 10, whole numbers above it, three fires at the limit.
+/** A glanceable K label: one decimal below 2x, whole numbers from 2x with one fire, two fires
+ *  from 4x, and three fires alone at the limit, so a hot label never gets longer for its decimal.
  *  Any use above zero shows at least 0.1x, so 0.0x means none. */
 export function paceNumber(w, length, now) {
   const k = paceK(w, length, now);
   if (!Number.isFinite(k)) return '🔥🔥🔥';
   const rounded = Math.round(k * 10) / 10;
   if (k > 0 && rounded < 0.1) return '0.1x';
-  return (rounded < 10 ? rounded.toFixed(1) : String(Math.round(k))) + 'x';
+  if (rounded < 2) return rounded.toFixed(1) + 'x';
+  const whole = Math.round(k);
+  return whole + 'x ' + (whole >= 4 ? '🔥🔥' : '🔥');
 }
 
 // Under an hour the countdown steps 45, 30, 25, 20, 15, 10, then every minute to 1.
