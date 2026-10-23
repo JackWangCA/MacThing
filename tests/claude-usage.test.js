@@ -240,3 +240,22 @@ test('update age appears only after ten minutes since a successful reading', () 
   assert.equal(usageUpdatedText({status:'error',updatedAt:NOW-20*60000},NOW),'');
   assert.equal(usageUpdatedText({status:'ok'},NOW),'');
 });
+
+test('the session burn spans the oldest reading 10–20 minutes back in the same session', async () => {
+  let now = NOW, used = 20, resets = NOW + 3 * 3600000;
+  const usage = new ClaudeUsage({ cacheFile: null, now: () => now, readCredentials: async () => fresh,
+    fetch: async () => ({ status: 200, ok: true, json: async () => ({
+      five_hour: { utilization: used, resets_at: new Date(resets).toISOString() },
+      seven_day: { utilization: 42, resets_at: '2027-02-01T00:00:00Z' } }) }) });
+  const read = async (minutes, percent) => { now += minutes * 60000; used = percent; await usage.refresh(); return usage.state.session.burn; };
+  assert.equal(await read(0, 20), undefined);
+  assert.equal(await read(5, 21.5), undefined);
+  assert.deepEqual(await read(5, 24), { percent: 4, ms: 10 * 60000 });
+  assert.deepEqual(await read(5, 30.5), { percent: 10.5, ms: 15 * 60000 });
+  assert.deepEqual(await read(5, 31), { percent: 11, ms: 20 * 60000 });
+  // The reading 25 minutes back is dropped; the span starts at the next one.
+  assert.deepEqual(await read(5, 31), { percent: 9.5, ms: 20 * 60000 });
+  // A new session starts the history again.
+  resets += 5 * 3600000;
+  assert.equal(await read(5, 1), undefined);
+});

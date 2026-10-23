@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { paceK, paceNumber, SESSION_MS } from '../ui/src/usage.js';
+import { burnK, paceK, paceNumber, SESSION_MS } from '../ui/src/usage.js';
 
 test('legacy label choices are ignored and cannot be selected', async () => {
   const home = await fs.mkdtemp(path.join(os.tmpdir(),'macthing-settings-test-'));
@@ -46,4 +46,21 @@ test('numeric labels use the actual K ratio and the elapsed-time floor', () => {
   assert.equal(paceNumber(window(10, .5), SESSION_MS, now), '0.1x');
   assert.equal(paceNumber(window(100, .5), SESSION_MS, now), '🔥🔥🔥');
   assert.equal(paceNumber(window(110, .5), SESSION_MS, now), '🔥🔥🔥');
+});
+
+test('a hot burn right now brings fires to a calm pace', () => {
+  const now = 1800000000000;
+  // 40% used with 60% of the session gone is 0.4x overall, with 60% left to spend in 2h: 30%/h.
+  const w = burn => ({ percent: 40, resetsAt: now + SESSION_MS * .4, burn });
+  // 15% in 15 minutes is 60%/h, 2x the affordable pace.
+  assert.ok(Math.abs(burnK(w({ percent: 15, ms: 15 * 60000 }), now, now) - 2) < 1e-9);
+  assert.equal(paceNumber(w(), SESSION_MS, now, now), '0.4x');
+  assert.equal(paceNumber(w({ percent: 4, ms: 15 * 60000 }), SESSION_MS, now, now), '0.4x');
+  assert.equal(paceNumber(w({ percent: 15, ms: 15 * 60000 }), SESSION_MS, now, now), '0.4x 🔥');
+  assert.equal(paceNumber(w({ percent: 30, ms: 15 * 60000 }), SESSION_MS, now, now), '0.4x 🔥🔥');
+  // A burn measured more than 20 minutes ago, or a label without updatedAt (the week), stays calm.
+  assert.equal(paceNumber(w({ percent: 30, ms: 15 * 60000 }), SESSION_MS, now, now - 21 * 60000), '0.4x');
+  assert.equal(paceNumber(w({ percent: 30, ms: 15 * 60000 }), SESSION_MS, now), '0.4x');
+  // A hot window keeps its own fires when the burn is calmer.
+  assert.equal(paceNumber({ ...w({ percent: 1, ms: 15 * 60000 }), percent: 80 }, SESSION_MS, now, now), '3x 🔥');
 });

@@ -20,17 +20,30 @@ export function paceK(w, length, now) {
   return (used / (1 - used)) / (t / (1 - t));
 }
 
+// A burn is only news while it's recent: the bridge measured it up to the reading at updatedAt.
+const BURN_FRESH_MS = 20 * 60 * 1000;
+/** The pace right now: the window's use over its last 10–20 minutes (w.burn, from the bridge)
+ *  divided by the pace affordable for the rest of the window, like paceK. 0 without a fresh burn. */
+export function burnK(w, updatedAt, now) {
+  const b = w.burn, used = clamp(w.percent / 100);
+  if (!b || !(b.ms > 0) || !w.resetsAt || !(now - updatedAt < BURN_FRESH_MS) || used >= 1) return 0;
+  const left = Math.max(0, w.resetsAt - now);
+  if (!left) return 0;
+  return (b.percent / 100 / b.ms) / ((1 - used) / left);
+}
+
+const fires = k => k >= 3.5 ? '🔥🔥' : k >= 1.95 ? '🔥' : '';
 /** A glanceable K label: one decimal below 2x, whole numbers from 2x with one fire, two fires
  *  from 4x, and three fires alone at the limit, so a hot label never gets longer for its decimal.
- *  Any use above zero shows at least 0.1x, so 0.0x means none. */
-export function paceNumber(w, length, now) {
+ *  Any use above zero shows at least 0.1x, so 0.0x means none. With `updatedAt`, a hot burn
+ *  right now (burnK) brings its fires even while the window's pace is calm: 1.2x 🔥🔥. */
+export function paceNumber(w, length, now, updatedAt) {
   const k = paceK(w, length, now);
   if (!Number.isFinite(k)) return '🔥🔥🔥';
   const rounded = Math.round(k * 10) / 10;
-  if (k > 0 && rounded < 0.1) return '0.1x';
-  if (rounded < 2) return rounded.toFixed(1) + 'x';
-  const whole = Math.round(k);
-  return whole + 'x ' + (whole >= 4 ? '🔥🔥' : '🔥');
+  const hot = [fires(k), fires(updatedAt == null ? 0 : burnK(w, updatedAt, now))].sort((a, b) => b.length - a.length)[0];
+  const label = k > 0 && rounded < 0.1 ? '0.1x' : rounded < 2 ? rounded.toFixed(1) + 'x' : Math.round(k) + 'x';
+  return hot ? label + ' ' + hot : label;
 }
 
 // Under an hour the countdown steps 45, 30, 25, 20, 15, 10, then every minute to 1.
