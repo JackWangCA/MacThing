@@ -1,21 +1,24 @@
 // What Smart switching reacts to (smart.js does the switching). Plain functions over the Mac's
 // readings, with no Vue, so the tests can drive them.
-import { SESSION_MS, paceK } from './usage.js';
+import { SESSION_MS, paceK, burnK, fires } from './usage.js';
 import { isWet } from './weather.js';
 
 const HOUR = 3600000;
 
-// Pace tiers: 2x and 4x (where the Claude-o-meter's fires start), then the limit itself.
-export function paceTier(k) {
-  return !Number.isFinite(k) ? 3 : k >= 4 ? 2 : k >= 2 ? 1 : 0;
+/** How hot the session reads on the Claude-o-meter: 0 calm, 1 🔥, 2 🔥🔥, 3 💀 (at the limit). The
+ *  fires follow the burn right now when the Mac has one, else the average so far (see paceNumber). */
+export function heat(usage, now) {
+  const w = usage.session, k = paceK(w, SESSION_MS, now);
+  if (!Number.isFinite(k)) return 3;
+  return [...fires(burnK(w, usage.updatedAt, now) ?? k)].length;
 }
 
 // A window that ends after this much use is worth showing: the allowance is back.
 export const RESET_MIN_PERCENT = 80;
 
 /**
- * Watches one provider's usage. check(usage, now) returns 'hot' when the session's pace climbs
- * into a higher tier than it has reached before (once per tier per session), 'reset' when a
+ * Watches one provider's usage. check(usage, now) returns 'hot' when the session's fires climb
+ * higher than they have been this session (see heat; once each per session), 'reset' when a
  * session or week that was at least RESET_MIN_PERCENT used runs out, else ''. The first reading
  * only sets the baseline, so a page load never switches anything.
  */
@@ -39,7 +42,7 @@ export function usageWatch() {
     const fresh = !session || session.resetsAt !== usage.session.resetsAt;
     session = track(session, usage.session);
     week = track(week, usage.week);
-    const tier = paceTier(paceK(usage.session, SESSION_MS, now));
+    const tier = heat(usage, now);
     if (fresh) session.tier = first ? tier : 0;
     if (reset) return 'reset';
     if (tier > session.tier) { session.tier = tier; return 'hot'; }
