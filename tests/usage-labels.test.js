@@ -44,8 +44,8 @@ test('numeric labels use the actual K ratio and the elapsed-time floor', () => {
   assert.equal(paceNumber(window(50, 1 - 7.5 / 168), SESSION_MS, now), '0.1x');
   assert.equal(paceNumber(window(0.1, .9), SESSION_MS, now), '0.1x');
   assert.equal(paceNumber(window(10, .5), SESSION_MS, now), '0.1x');
-  assert.equal(paceNumber(window(100, .5), SESSION_MS, now), '🔥🔥🔥');
-  assert.equal(paceNumber(window(110, .5), SESSION_MS, now), '🔥🔥🔥');
+  assert.equal(paceNumber(window(100, .5), SESSION_MS, now), '💀');
+  assert.equal(paceNumber(window(110, .5), SESSION_MS, now), '💀');
 });
 
 test('a hot burn right now brings fires to a calm pace', () => {

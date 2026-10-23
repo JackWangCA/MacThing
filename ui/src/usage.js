@@ -34,12 +34,12 @@ export function burnK(w, updatedAt, now) {
 
 const fires = k => k >= 3.5 ? '🔥🔥' : k >= 1.95 ? '🔥' : '';
 /** A glanceable K label: one decimal below 2x, whole numbers from 2x with one fire, two fires
- *  from 4x, and three fires alone at the limit, so a hot label never gets longer for its decimal.
+ *  from 4x, and a skull alone at the limit, so a hot label never gets longer for its decimal.
  *  Any use above zero shows at least 0.1x, so 0.0x means none. With `updatedAt`, a hot burn
  *  right now (burnK) brings its fires even while the window's pace is calm: 1.2x 🔥🔥. */
 export function paceNumber(w, length, now, updatedAt) {
   const k = paceK(w, length, now);
-  if (!Number.isFinite(k)) return '🔥🔥🔥';
+  if (!Number.isFinite(k)) return '💀';
   const rounded = Math.round(k * 10) / 10;
   const hot = [fires(k), fires(updatedAt == null ? 0 : burnK(w, updatedAt, now))].sort((a, b) => b.length - a.length)[0];
   const label = k > 0 && rounded < 0.1 ? '0.1x' : rounded < 2 ? rounded.toFixed(1) + 'x' : Math.round(k) + 'x';

@@ -259,3 +259,22 @@ test('the session burn spans the oldest reading 10–20 minutes back in the same
   resets += 5 * 3600000;
   assert.equal(await read(5, 1), undefined);
 });
+
+test('Mac emoji are drawn once, cached, and left out when they cannot be drawn', async () => {
+  const { macEmoji } = await import('../bridge/widgets/emoji.js');
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'macthing-emoji-test-'));
+  try {
+    const drawn = [];
+    const render = async (emoji, file) => {
+      drawn.push(emoji);
+      if (emoji === '💀') throw new Error('no font');
+      await fs.writeFile(file, 'png');
+    };
+    const first = await macEmoji(['🔥', '💀'], { dir, render });
+    assert.deepEqual(Object.keys(first), ['🔥']);
+    assert.equal(first['🔥'], 'data:image/png;base64,' + Buffer.from('png').toString('base64'));
+    await macEmoji(['🔥'], { dir, render });
+    assert.deepEqual(drawn, ['🔥', '💀']);
+    assert.ok(await fs.stat(path.join(dir, '1f525-128-v2.png')));
+  } finally { await fs.rm(dir, { recursive: true, force: true }); }
+});

@@ -27,6 +27,7 @@ import { Calendar } from './widgets/calendar.js';
 import { PerpetualCover } from './widgets/perpetual.js';
 import { ClaudeUsage } from './widgets/usage.js';
 import { CodexUsage } from './widgets/codex-usage.js';
+import { macEmoji } from './widgets/emoji.js';
 import { Weather } from './widgets/weather.js';
 import { SkipDetector } from './nowplaying/skips.js';
 
@@ -58,6 +59,8 @@ const reminders = new Reminders({
 
 /** @type {DeviceLink|null} */
 let link = null;
+// The Mac's Apple emoji for the usage labels (🔥, and 💀 at the limit), once drawn.
+let emoji = {};
 let connecting = false;
 
 // ---- Now Playing ----------------------------------------------------------
@@ -171,6 +174,7 @@ function pushAll(target) {
   target.send({ type: 'weather', weather: weather.state });
   target.send({ type: 'calendar', calendar: calendar.state });
   target.send({ type: 'perpetual', perpetual: perpetual.state });
+  target.send({ type: 'emoji', emoji });
   target.send({ type: 'usage', usage: usage.state });
   target.send({ type: 'chatgptUsage', usage: chatgptUsage.state });
   target.send({ type: 'screen', on: screenOn !== false }); // the page may have gone dark by itself
@@ -675,6 +679,7 @@ helper.start();
 weather.start();
 calendar.start();
 perpetual.start();
+macEmoji(['🔥', '💀']).then((drawn) => { emoji = drawn; link?.send({ type: 'emoji', emoji }); });
 usage.start();
 chatgptUsage.start();
 appearance.start();
