@@ -112,6 +112,13 @@ CT.showTimer = () => {
   mode.value = 'timer';
   CT.show('clock');
 };
+// Smart switching: brings a provider's usage up on the clock screen.
+CT.showUsage = provider => {
+  if (!providers.value.includes(provider)) return;
+  if (!(mode.value === provider && state.current === 'clock')) CT.send({ type: 'refreshUsage' });
+  mode.value = provider;
+  CT.show('clock');
+};
 // A finished timer counts up past its time until you leave it, then goes back to its preset.
 watch(() => mode.value === 'timer' && state.current === 'clock', up => { if (!up && timer.status === 'done') resetTimer(); });
 // A meeting's timer counts on past its end for ten minutes at most, then puts itself away.

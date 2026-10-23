@@ -8,6 +8,11 @@
     80: ['rain', 'Showers'], 81: ['rain', 'Showers'], 82: ['rain', 'Heavy showers'], 85: ['snow', 'Snow showers'], 86: ['snow', 'Snow showers'],
     95: ['thunder', 'Thunderstorms'], 96: ['thunder', 'Thunderstorms'], 99: ['thunder', 'Thunderstorms']
   };
+  /** Rain, drizzle, snow or thunder: weather worth a heads-up. */
+  export function isWet(code) {
+    var kind = (CODES[code] || [''])[0];
+    return kind === 'rain' || kind === 'drizzle' || kind === 'snow' || kind === 'thunder';
+  }
   export function describe(code, isDay) {
     var c = CODES[code] || ['cloudy', 'Cloudy'];
     var kind = c[0];
