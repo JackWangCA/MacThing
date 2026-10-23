@@ -41,7 +41,9 @@ export function usageWatch() {
   return function check(usage, now) {
     // The time can run out between readings, so this looks before any new reading is taken in.
     const reset = ended(session, now) || ended(week, now);
-    if (!usage || usage.status !== 'ok') return reset ? 'reset' : '';
+    // Bottlerocket's reading is a spend against a limit, with no session or week to run out or
+    // burn hot, so there is nothing here to watch.
+    if (!usage || usage.status !== 'ok' || !usage.session) return reset ? 'reset' : '';
     const first = !session;
     const fresh = !session || session.resetsAt !== usage.session.resetsAt;
     session = track(session, usage.session);

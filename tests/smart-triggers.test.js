@@ -117,3 +117,10 @@ test('weather: fires when rain becomes due, once, and not on the first reading',
   assert.equal(check(dry, T0 + 45 * MIN), false);
   assert.equal(check(wet, T0 + 50 * MIN), true);
 });
+
+test('usage: a Bottlerocket reading (a spend, with no session or week) is never a trigger', () => {
+  const check = usageWatch();
+  const reading = { status: 'ok', spent: 412.5, limit: 500, percent: 82.5 };
+  assert.equal(check(reading, 0), '');
+  assert.equal(check({ ...reading, spent: 499, percent: 99.8 }, 60000), '');
+});
