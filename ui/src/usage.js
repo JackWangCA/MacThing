@@ -23,25 +23,36 @@ export function paceK(w, length, now) {
 // A burn is only news while it's recent: the bridge measured it up to the reading at updatedAt.
 const BURN_FRESH_MS = 20 * 60 * 1000;
 /** The pace right now: the window's use over its last 10–20 minutes (w.burn, from the bridge)
- *  divided by the pace affordable for the rest of the window, like paceK. 0 without a fresh burn. */
+ *  divided by the pace affordable for the rest of the window, like paceK. null without a fresh burn. */
 export function burnK(w, updatedAt, now) {
   const b = w.burn, used = clamp(w.percent / 100);
-  if (!b || !(b.ms > 0) || !w.resetsAt || !(now - updatedAt < BURN_FRESH_MS) || used >= 1) return 0;
+  if (!b || !(b.ms > 0) || !w.resetsAt || !(now - updatedAt < BURN_FRESH_MS) || used >= 1) return null;
   const left = Math.max(0, w.resetsAt - now);
-  if (!left) return 0;
+  if (!left) return null;
   return (b.percent / 100 / b.ms) / ((1 - used) / left);
 }
 
-const fires = k => k >= 3.5 ? '🔥🔥' : k >= 1.95 ? '🔥' : '';
-/** A glanceable K label: one decimal below 2x, whole numbers from 2x with one fire, two fires
- *  from 4x, and a skull alone at the limit, so a hot label never gets longer for its decimal.
- *  Any use above zero shows at least 0.1x, so 0.0x means none. With `updatedAt`, a hot burn
- *  right now (burnK) brings its fires even while the window's pace is calm: 1.2x 🔥🔥. */
+/** How hot a window is: from the pace at the current rate (the fresh burn when the bridge has one,
+ *  else the average so far). Either pace is the time left until reset divided by the time until
+ *  the allowance runs out at that rate, so above 1x you'd be locked out before the reset, and
+ *  above 2x the lockout would be longer than the time you'd have left to work. Rounded like the
+ *  label, so 1.0x is calm and anything that reads 2x has both fires. */
+export function fires(k) {
+  const rounded = Math.round(k * 10) / 10;
+  return rounded >= 2 ? '🔥🔥' : rounded > 1 ? '🔥' : '';
+}
+
+/** A glanceable K label: one decimal below 2x and whole numbers from 2x, so a hot label never
+ *  gets longer for its decimal, then its fires; a skull alone at the limit. Any use above zero
+ *  shows at least 0.1x, so 0.0x means none. With `updatedAt` (the session), the fires follow the
+ *  burn right now when there is one: a 1.0x session suddenly burning at 4x reads 1.0x 🔥🔥, and
+ *  a 3x session that has stopped reads 3x. */
 export function paceNumber(w, length, now, updatedAt) {
   const k = paceK(w, length, now);
   if (!Number.isFinite(k)) return '💀';
   const rounded = Math.round(k * 10) / 10;
-  const hot = [fires(k), fires(updatedAt == null ? 0 : burnK(w, updatedAt, now))].sort((a, b) => b.length - a.length)[0];
+  const recent = updatedAt == null ? null : burnK(w, updatedAt, now);
+  const hot = fires(recent ?? k);
   const label = k > 0 && rounded < 0.1 ? '0.1x' : rounded < 2 ? rounded.toFixed(1) + 'x' : Math.round(k) + 'x';
   return hot ? label + ' ' + hot : label;
 }

@@ -28,15 +28,16 @@ test('numeric labels use the actual K ratio and the elapsed-time floor', () => {
   const window = (percent, elapsed) => ({percent, resetsAt: now + SESSION_MS * (1 - elapsed)});
   const sample = window(22, .2);
   assert.ok(Math.abs(paceK(sample, SESSION_MS, now) - (22 / 78) / (.2 / .8)) < 1e-9);
-  assert.equal(paceNumber(sample, SESSION_MS, now), '1.1x');
-  assert.equal(paceNumber(window(42, .56), SESSION_MS, now), '0.6x');
+  // Without a burn the fires follow the average: above 1x you'd be locked out before the reset (🔥),
+  // from 2x for longer than you'd have left to work (🔥🔥). From 2x the decimal goes.
+  assert.equal(paceNumber(window(20, .2), SESSION_MS, now), '1.0x');
+  assert.equal(paceNumber(sample, SESSION_MS, now), '1.1x 🔥');
+  assert.equal(paceNumber(window(32, .2), SESSION_MS, now), '1.9x 🔥');
+  assert.equal(paceNumber(window(33.3, .2), SESSION_MS, now), '2x 🔥🔥');
+  assert.equal(paceNumber(window(38, .2), SESSION_MS, now), '2x 🔥🔥');
+  assert.equal(paceNumber(window(45, .2), SESSION_MS, now), '3x 🔥🔥');
   assert.equal(paceNumber(window(99, .01), SESSION_MS, now), '891x 🔥🔥');
-  // 1.9x stays calm; from 2x the decimal goes and a fire comes, from 4x two.
-  assert.equal(paceNumber(window(32, .2), SESSION_MS, now), '1.9x');
-  assert.equal(paceNumber(window(33.3, .2), SESSION_MS, now), '2x 🔥');
-  assert.equal(paceNumber(window(38, .2), SESSION_MS, now), '2x 🔥');
-  assert.equal(paceNumber(window(45, .2), SESSION_MS, now), '3x 🔥');
-  assert.equal(paceNumber(window(50, .2), SESSION_MS, now), '4x 🔥🔥');
+  assert.equal(paceNumber(window(42, .56), SESSION_MS, now), '0.6x');
   assert.equal(paceNumber(window(97, .99), SESSION_MS, now), '0.3x');
   assert.equal(paceNumber({percent: 0, resetsAt: null}, SESSION_MS, now), '0.0x');
   assert.equal(paceNumber(window(0, .5), SESSION_MS, now), '0.0x');
@@ -48,19 +49,20 @@ test('numeric labels use the actual K ratio and the elapsed-time floor', () => {
   assert.equal(paceNumber(window(110, .5), SESSION_MS, now), '💀');
 });
 
-test('a hot burn right now brings fires to a calm pace', () => {
+test('the fires follow the burn right now when there is one', () => {
   const now = 1800000000000;
-  // 40% used with 60% of the session gone is 0.4x overall, with 60% left to spend in 2h: 30%/h.
-  const w = burn => ({ percent: 40, resetsAt: now + SESSION_MS * .4, burn });
-  // 15% in 15 minutes is 60%/h, 2x the affordable pace.
-  assert.ok(Math.abs(burnK(w({ percent: 15, ms: 15 * 60000 }), now, now) - 2) < 1e-9);
-  assert.equal(paceNumber(w(), SESSION_MS, now, now), '0.4x');
-  assert.equal(paceNumber(w({ percent: 4, ms: 15 * 60000 }), SESSION_MS, now, now), '0.4x');
-  assert.equal(paceNumber(w({ percent: 15, ms: 15 * 60000 }), SESSION_MS, now, now), '0.4x 🔥');
-  assert.equal(paceNumber(w({ percent: 30, ms: 15 * 60000 }), SESSION_MS, now, now), '0.4x 🔥🔥');
-  // A burn measured more than 20 minutes ago, or a label without updatedAt (the week), stays calm.
-  assert.equal(paceNumber(w({ percent: 30, ms: 15 * 60000 }), SESSION_MS, now, now - 21 * 60000), '0.4x');
-  assert.equal(paceNumber(w({ percent: 30, ms: 15 * 60000 }), SESSION_MS, now), '0.4x');
-  // A hot window keeps its own fires when the burn is calmer.
-  assert.equal(paceNumber({ ...w({ percent: 1, ms: 15 * 60000 }), percent: 80 }, SESSION_MS, now, now), '3x 🔥');
+  // 60% used with 60% of the session gone is 1.0x: 40% left for 2h, 20%/h.
+  const w = (burn, percent = 60) => ({ percent, resetsAt: now + SESSION_MS * .4, burn });
+  // 40% to 60% in 15 minutes is 80%/h: out in 30 minutes, 4x the affordable pace.
+  assert.ok(Math.abs(burnK(w({ percent: 20, ms: 15 * 60000 }), now, now) - 4) < 1e-9);
+  assert.equal(paceNumber(w(), SESSION_MS, now, now), '1.0x');
+  assert.equal(paceNumber(w({ percent: 4, ms: 15 * 60000 }), SESSION_MS, now, now), '1.0x');
+  assert.equal(paceNumber(w({ percent: 6, ms: 15 * 60000 }), SESSION_MS, now, now), '1.0x 🔥');
+  assert.equal(paceNumber(w({ percent: 20, ms: 15 * 60000 }), SESSION_MS, now, now), '1.0x 🔥🔥');
+  // A burn measured more than 20 minutes ago falls back to the average.
+  assert.equal(paceNumber(w({ percent: 20, ms: 15 * 60000 }), SESSION_MS, now, now - 21 * 60000), '1.0x');
+  // A hot session that has stopped won't run out, so it's calm; without updatedAt (the week) the
+  // average decides.
+  assert.equal(paceNumber(w({ percent: 0, ms: 15 * 60000 }, 80), SESSION_MS, now, now), '3x');
+  assert.equal(paceNumber(w({ percent: 0, ms: 15 * 60000 }, 80), SESSION_MS, now), '3x 🔥🔥');
 });
