@@ -11,6 +11,7 @@
 import AppKit
 import CoreLocation
 import EventKit
+import MapKit
 import Foundation
 
 // Be our own "responsible process" so permissions attach to this app, not to node/launchd.
@@ -31,6 +32,24 @@ func disclaimResponsibility() {
 }
 disclaimResponsibility()
 setvbuf(stdout, nil, _IOLBF, 0)
+
+/// How long a location request waits for a fresh fix before settling for the last known one.
+let FIX_WAIT: TimeInterval = 20
+
+/// A fix already this recent is used as it stands, without waiting for the delegate to deliver
+/// another. On a Mac that hasn't moved, startUpdatingLocation() frequently delivers nothing at
+/// all: measured after the deadlines were split, three requests in a row sat out the whole of
+/// FIX_WAIT and then fell back to this very fix anyway — so the wait bought twenty seconds of
+/// nothing, and cost the place name, because no geocode was ever started to find one.
+let FIX_FRESH: TimeInterval = 5 * 60
+
+/// And how long the fix then gets to be turned into a place name. These were one 20-second
+/// budget covering both, which the geocode kept losing: measured against the live helper, the
+/// reverse geocode that succeeded took 17.8s on its own, so whatever the fix had already spent
+/// came out of its margin. Requests after it expired at 21.0s with the right coordinates and no
+/// name, and the bridge drew "Current location" over a correct forecast. Splitting the two means
+/// the geocode always gets its full budget rather than the remainder.
+let GEOCODE_WAIT: TimeInterval = 30
 
 func send(_ obj: [String: Any]) {
   guard let data = try? JSONSerialization.data(withJSONObject: obj),
@@ -64,6 +83,9 @@ final class Helper: NSObject, CLLocationManagerDelegate {
   let locationManager = CLLocationManager()
   let geocoder = CLGeocoder()
   var locationWaiters: [Any] = []
+  var locationDeadline: DispatchWorkItem?
+  var geocodeDeadline: DispatchWorkItem?
+  var cancelGeocodeRequest: () -> Void = {}
   var askedForCalendar = false
 
   override init() {
@@ -118,15 +140,128 @@ final class Helper: NSObject, CLLocationManagerDelegate {
     case .denied, .restricted:
       send(["id": id, "ok": false, "status": locationStatus])
     case .notDetermined:
+      // No deadline yet: the permission panel can sit on screen until someone answers it.
       locationWaiters.append(id)
       locationManager.requestWhenInUseAuthorization()
     default:
       locationWaiters.append(id)
-      locationManager.requestLocation()
+      startLocating()
     }
   }
 
+  /// Continuous updates, stopped at the first fix, rather than requestLocation(). A background
+  /// (LSUIElement) agent whose authorization is already settled gets nothing back from the
+  /// one-shot call — neither delegate ever fires and the bridge waits out its whole timeout.
+  func startLocating() {
+    // A waiter that arrives mid-geocode rides along on it: flushLocation answers everyone, and
+    // starting a second geocode on the shared CLGeocoder would only break the one in flight.
+    guard geocodeDeadline == nil else { return }
+    // Nothing to wait for if CoreLocation is already holding something recent.
+    if let loc = locationManager.location, -loc.timestamp.timeIntervalSinceNow < FIX_FRESH {
+      return startGeocoding(loc)
+    }
+    locationManager.startUpdatingLocation()
+    guard locationDeadline == nil else { return } // a request is already running
+    let work = DispatchWorkItem { [weak self] in self?.locationRanOut() }
+    locationDeadline = work
+    DispatchQueue.main.asyncAfter(deadline: .now() + FIX_WAIT, execute: work)
+  }
+
+  /// No fresh fix in time, so the older one CoreLocation holds is the answer. It still gets
+  /// geocoded: the coordinates are sound whatever their age — they are what the forecast is
+  /// drawn from — and a name costs a tenth of a second now. Replying unnamed here is what put
+  /// "Current location" on the screen over a perfectly correct forecast.
+  func locationRanOut() {
+    locationDeadline = nil
+    guard let loc = locationManager.location else {
+      return flushLocation(["ok": false, "status": "unavailable", "error": "no location fix"])
+    }
+    locationManager.stopUpdatingLocation()
+    startGeocoding(loc, fresh: false)
+  }
+
+  /// Turns the fix into a place name, through MapKit where there is one.
+  ///
+  /// CLGeocoder is deprecated as of macOS 26, and on 27 it is also barely usable. Measured side
+  /// by side against the same coordinates: MKReverseGeocodingRequest answered in 0.10s, and
+  /// CLGeocoder took 17.8s on the occasion it answered at all, with the requests either side of
+  /// it running the deadline out and coming back empty. That gap was the whole of the bug — the
+  /// coordinates were always right, and the Weather screen still read "Current location".
+  ///
+  /// MKMapItem.placemark is itself deprecated, but it is the one route to the same structured
+  /// fields this reply has always carried. The supported accessors only offer "Palo Alto, CA" as
+  /// a single string, and splitting a localized address back into city and region is a worse bet
+  /// than a deprecated getter.
+  ///
+  /// The geocode gets its own deadline, started once the fix is in hand rather than sharing the
+  /// fix's, and whatever is in flight is cancelled when that expires: a CLGeocoder left running
+  /// refuses the next request on the same instance, so a hung one used to take its successor
+  /// down with it.
+  func startGeocoding(_ loc: CLLocation, fresh: Bool = true) {
+    guard geocodeDeadline == nil else { return }
+    // Armed before the request goes out: MapKit can answer fast enough to beat it otherwise, and
+    // geocoded() ignores anything arriving once the deadline has had its say.
+    let work = DispatchWorkItem { [weak self] in
+      guard let self else { return }
+      self.geocodeDeadline = nil
+      self.cancelGeocodeRequest()
+      self.cancelGeocodeRequest = {}
+      self.flushLocation(self.located(loc, nil, nameError: "geocodeTimedOut", fresh: fresh))
+    }
+    geocodeDeadline = work
+    DispatchQueue.main.asyncAfter(deadline: .now() + GEOCODE_WAIT, execute: work)
+
+    if #available(macOS 26.0, *), let req = MKReverseGeocodingRequest(location: loc) {
+      cancelGeocodeRequest = { req.cancel() }
+      Task { @MainActor [weak self] in
+        do {
+          let items = try await req.mapItems
+          self?.geocoded(loc, items.first?.placemark, nil, fresh: fresh)
+        } catch {
+          self?.geocoded(loc, nil, error, fresh: fresh)
+        }
+      }
+    } else {
+      cancelGeocodeRequest = { [weak self] in self?.geocoder.cancelGeocode() }
+      geocoder.reverseGeocodeLocation(loc) { [weak self] placemarks, err in
+        self?.geocoded(loc, placemarks?.first, err, fresh: fresh)
+      }
+    }
+  }
+
+  /// The geocode came back. Main thread only — both callers answer there.
+  func geocoded(_ loc: CLLocation, _ placemark: CLPlacemark?, _ err: Error?, fresh: Bool) {
+    guard geocodeDeadline != nil else { return } // the deadline already answered for us
+    geocodeDeadline?.cancel()
+    geocodeDeadline = nil
+    cancelGeocodeRequest = {}
+    let why = err.map { "geocodeFailed: \($0.localizedDescription)" } ?? "noPlacemark"
+    flushLocation(located(loc, placemark, nameError: placemark == nil ? why : nil, fresh: fresh))
+  }
+
+  /// A successful fix, named if the geocode managed it. `nameError` says which half fell short
+  /// when it didn't — without it an unnamed reply looks the same whether the fix never arrived,
+  /// the geocode ran out of time, or it answered with nothing, and those want different fixes.
+  func located(_ loc: CLLocation, _ p: CLPlacemark?, nameError: String?, fresh: Bool = true) -> [String: Any] {
+    var reply: [String: Any] = [
+      "ok": true, "status": "authorized",
+      "lat": loc.coordinate.latitude, "lon": loc.coordinate.longitude,
+      "accuracy": loc.horizontalAccuracy,
+      "name": p?.locality ?? p?.subAdministrativeArea ?? p?.administrativeArea ?? "",
+      "region": p?.administrativeArea ?? "", "country": p?.isoCountryCode ?? "",
+    ]
+    if let nameError { reply["nameError"] = nameError }
+    if !fresh { reply["staleFix"] = true } // CoreLocation never delivered a new one in time
+    reply["fixAge"] = Int(-loc.timestamp.timeIntervalSinceNow)
+    return reply
+  }
+
   func flushLocation(_ reply: [String: Any]) {
+    locationDeadline?.cancel()
+    locationDeadline = nil
+    geocodeDeadline?.cancel()
+    geocodeDeadline = nil
+    locationManager.stopUpdatingLocation()
     let ids = locationWaiters
     locationWaiters = []
     for id in ids { send(reply.merging(["id": id]) { $1 }) }
@@ -138,25 +273,21 @@ final class Helper: NSObject, CLLocationManagerDelegate {
     switch manager.authorizationStatus {
     case .notDetermined: break
     case .denied, .restricted: flushLocation(["ok": false, "status": locationStatus])
-    default: manager.requestLocation()
+    default: startLocating()
     }
   }
 
   func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
     guard let loc = locations.last, !locationWaiters.isEmpty else { return }
-    geocoder.reverseGeocodeLocation(loc) { placemarks, _ in
-      let p = placemarks?.first
-      self.flushLocation([
-        "ok": true, "status": "authorized",
-        "lat": loc.coordinate.latitude, "lon": loc.coordinate.longitude,
-        "accuracy": loc.horizontalAccuracy,
-        "name": p?.locality ?? p?.subAdministrativeArea ?? p?.administrativeArea ?? "",
-        "region": p?.administrativeArea ?? "", "country": p?.isoCountryCode ?? "",
-      ])
-    }
+    locationManager.stopUpdatingLocation() // one fix is enough
+    locationDeadline?.cancel() // the fix is in; from here the geocode is on its own clock
+    locationDeadline = nil
+    startGeocoding(loc)
   }
 
   func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+    // While updates run, "location unknown" is temporary: keep waiting for the deadline.
+    if (error as? CLError)?.code == .locationUnknown { return }
     flushLocation(["ok": false, "status": "unavailable", "error": error.localizedDescription])
   }
 
@@ -215,6 +346,7 @@ final class Helper: NSObject, CLLocationManagerDelegate {
       }
     send(["id": id, "ok": true, "status": "authorized", "calendars": list])
   }
+
 }
 
 let helper = Helper()
