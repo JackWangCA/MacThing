@@ -3,6 +3,10 @@ import { log } from '../log.js';
 
 const REFRESH_MS = 15 * 60 * 1000;
 const RELOCATE_MS = 30 * 60 * 1000;
+// How far a new fix may sit from the last named one and still be called the same place. 0.05° is
+// roughly 5 km, which covers a fix wandering between cell and wifi accuracy without covering the
+// next town along.
+const NEARBY_DEG = 0.05;
 // Asking again from the device (the weather button while the weather is unavailable): each try
 // that fails doubles the wait before the next is allowed, 4 s, 8 s, 16 s… up to 5 minutes.
 const RETRY_FIRST_MS = 4000;
@@ -26,6 +30,7 @@ export class Weather extends EventEmitter {
     this.settings = settings;
     this.state = { status: 'loading' };
     this.auto = null; // last Mac-located position
+    this.named = null; // {name, lat, lon}: where a geocode last actually resolved a name
     this.inflight = null;
     this.retryWait = RETRY_FIRST_MS;
     this.retryAt = 0; // no asking again before this
@@ -85,13 +90,39 @@ export class Weather extends EventEmitter {
 
     const r = await this.helper.location().catch((err) => ({ ok: false, status: 'unavailable', error: err.message }));
     if (r.ok) {
-      this.auto = { name: r.name || 'Current location', lat: r.lat, lon: r.lon, source: 'auto', at: Date.now() };
+      this.auto = { name: this.#name(r), lat: r.lat, lon: r.lon, source: 'auto', at: Date.now() };
       return this.auto;
     }
     if (this.auto) return this.auto; // transient failure: keep using the last fix
     log.warn(`[weather] no location (${r.status}${r.error ? `: ${r.error}` : ''})`);
     this.#set({ status: 'noLocation', reason: r.status });
     return null;
+  }
+
+  /// The place name for a located fix. A reply can carry good coordinates and no name: the
+  /// helper answers on a 20s deadline, and if the reverse geocode is still out when it expires
+  /// it sends the fix CoreLocation already holds, unnamed but `ok`. Taken at face value that
+  /// turns a resolved town into "Current location" until some later geocode happens to land —
+  /// which is the whole of the bug, since the forecast itself was right all along. So a name
+  /// already resolved for this spot stands. Moving invalidates it: the coordinates are sound
+  /// even in the unnamed reply, so a fix that is no longer near the named one falls back rather
+  /// than labelling the new place with the old town's name.
+  ///
+  /// "Near" is measured from where the geocode actually resolved the name, not from the last fix
+  /// to inherit it. Those differ once an unnamed fix is accepted, because it keeps the name while
+  /// carrying its own coordinates: anchoring to it would let each hop re-centre the circle on the
+  /// edge of the last one, so the name could walk any distance in 5 km steps while every single
+  /// step passed the check. Holding the anchor still bounds the error at 5 km from the one place
+  /// the name was ever known to be right.
+  #name(r) {
+    if (r.name) {
+      this.named = { name: r.name, lat: r.lat, lon: r.lon };
+      return r.name;
+    }
+    const near = this.named
+      && Math.abs(this.named.lat - r.lat) < NEARBY_DEG
+      && Math.abs(this.named.lon - r.lon) < NEARBY_DEG;
+    return near ? this.named.name : 'Current location';
   }
 
   #set(state) {
