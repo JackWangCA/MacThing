@@ -249,3 +249,45 @@ test('skipping a track on the Mac does not flash the paused badge', () => {
   line(source, { diff: true, payload: { playbackRate: 1 } });
   assert.equal(source.snapshot.playing, true);
 });
+
+// ---- Art across snapshots (keepArt) ----------------------------------------------------------
+
+const HAPPIER = { title: 'Happier', artist: 'Ed Sheeran', album: '÷', bundleIdentifier: 'com.apple.Music', contentItemIdentifier: 'happier-1', playing: true, playbackRate: 1, elapsedTimeMicros: 1, durationMicros: 207000000, timestampEpochMicros: Date.now() * 1e3 };
+const COVER = { artworkData: Buffer.from('a cover').toString('base64'), artworkMimeType: 'image/jpeg' };
+const send = (source, diff, payload) => source.onLine(JSON.stringify({ type: 'data', diff, payload }));
+
+test('a snapshot of the same track after an adapter reset keeps its cover', () => {
+  // The adapter's reset path: an empty snapshot, then the track again with MediaRemote mid-way
+  // through reloading the cover, and no message after it, because the cover never "changed".
+  const source = new MediaRemoteSource('/nowhere');
+  send(source, false, HAPPIER);
+  send(source, true, COVER);
+  send(source, false, {});
+  assert.equal(source.snapshot.active, false);
+  send(source, false, { ...HAPPIER, processIdentifier: 4242 });
+  assert.equal(source.snapshot.artwork?.base64, COVER.artworkData);
+  assert.equal(source.snapshot.artwork?.mime, 'image/jpeg');
+});
+
+test('a new track does not inherit the previous cover', () => {
+  const source = new MediaRemoteSource('/nowhere');
+  send(source, false, { ...HAPPIER, ...COVER });
+  send(source, false, { ...HAPPIER, title: 'Perfect', contentItemIdentifier: 'perfect-1' });
+  assert.equal(source.snapshot.artwork, null, "Happier's cover must not go on Perfect");
+});
+
+test('a diff that removes the art is believed, even through a later snapshot', () => {
+  const source = new MediaRemoteSource('/nowhere');
+  send(source, false, { ...HAPPIER, ...COVER });
+  send(source, true, { artworkData: null, artworkMimeType: null });
+  assert.equal(source.snapshot.artwork, null);
+  send(source, false, HAPPIER);
+  assert.equal(source.snapshot.artwork, null);
+});
+
+test('the same title from another app is another item', () => {
+  const source = new MediaRemoteSource('/nowhere');
+  send(source, false, { ...HAPPIER, ...COVER });
+  send(source, false, { ...HAPPIER, bundleIdentifier: 'com.spotify.client' });
+  assert.equal(source.snapshot.artwork, null);
+});

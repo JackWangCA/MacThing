@@ -8,6 +8,11 @@ import { isBrowserPlaceholder } from './browser-art.js';
 
 const SEND_IDS = { play: 0, pause: 1, playpause: 2, stop: 3, next: 4, previous: 5 };
 
+// What makes two messages the same item, as the adapter itself decides it (identifyingPayloadKeys
+// in vendor/mediaremote-adapter), less the process ID, which a relaunched player changes.
+const itemId = (raw) =>
+  raw.title ? [raw.bundleIdentifier, raw.parentApplicationBundleIdentifier, raw.title, raw.artist, raw.album].join('\n') : null;
+
 /**
  * Now-playing source backed by macOS MediaRemote — the same data as Control Center's
  * Now Playing — so it covers Apple Music, Spotify, Podcasts, browsers (YouTube…) and
@@ -28,6 +33,7 @@ export class MediaRemoteSource extends EventEmitter {
     this.snapshot = normalize({});
     this.proc = null;
     this.stopped = false;
+    this.lastArt = null; // {id, data, mime}: the newest cover the stream has sent, and for what
   }
 
   start() {
@@ -64,6 +70,7 @@ export class MediaRemoteSource extends EventEmitter {
     if (msg.type !== 'data') return;
     if (msg.diff) {
       this.reanchor(msg.payload);
+      if (msg.payload.artworkData === null) this.lastArt = null; // see keepArt
       for (const [key, value] of Object.entries(msg.payload)) {
         if (value === null) delete this.raw[key];
         else this.raw[key] = value;
@@ -85,9 +92,34 @@ export class MediaRemoteSource extends EventEmitter {
       if (msg.payload.playbackRate > 0 && !('playing' in msg.payload)) this.raw.playing = true;
     } else {
       this.raw = { ...msg.payload };
+      this.keepArt();
     }
+    const id = itemId(this.raw);
+    if (this.raw.artworkData && id) this.lastArt = { id, data: this.raw.artworkData, mime: this.raw.artworkMimeType };
     this.snapshot = normalize(this.raw);
     this.emit('change', this.snapshot);
+  }
+
+  /**
+   * A full snapshot for the item already on screen must not drop its cover. MediaRemote unloads a
+   * cover and loads it again without saying so, so a read in between comes back without art. The
+   * adapter covers for that by keeping the cover it already had for the same item, but it throws
+   * that away whenever it resets: a now-playing notification from another process (a browser tab,
+   * another player) or from none at all clears everything it holds, and the re-read that follows
+   * can land in that gap. Nothing announces the cover coming back, because to MediaRemote it never
+   * changed, so it stays missing until the next track. The adapter's diffs are against what it
+   * last printed, so this copy is the same as its own and cannot recover the cover either.
+   *
+   * So the carry-over is redone here, where a reset doesn't reach: a snapshot without art, for the
+   * same item as the last cover sent, gets that cover back. Only snapshots: a diff that removes the
+   * art (`artworkData: null`) is MediaRemote really saying it has none, and is believed.
+   */
+  keepArt() {
+    const { lastArt, raw } = this;
+    if (raw.artworkData || !lastArt || itemId(raw) !== lastArt.id) return;
+    raw.artworkData = lastArt.data;
+    if (lastArt.mime) raw.artworkMimeType = lastArt.mime;
+    log.info(`[mediaremote] kept the cover for "${raw.title}" through a snapshot that came without it`);
   }
 
   /**
