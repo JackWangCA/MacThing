@@ -92,10 +92,11 @@ cmd_build() {
   run 'mkdir -p /var/lib/carthing/ui'
   adb -s "$serial" push "$repo/device/sleepd.sh" /var/lib/carthing/sleepd.sh >/dev/null
   adb -s "$serial" push "$repo/device/dimmerd.sh" /var/lib/carthing/dimmerd.sh >/dev/null
+  adb -s "$serial" push "$repo/device/inputd.sh" /var/lib/carthing/inputd.sh >/dev/null
   adb -s "$serial" push "$repo/device/supervisord.conf" /tmp/macthing-supervisord.conf >/dev/null
   run "
 set -e
-chmod +x /var/lib/carthing/sleepd.sh /var/lib/carthing/dimmerd.sh
+chmod +x /var/lib/carthing/sleepd.sh /var/lib/carthing/dimmerd.sh /var/lib/carthing/inputd.sh
 [ -f /var/lib/carthing/ui/index.html ] || echo '<body style=\"background:#121212\"></body>' > /var/lib/carthing/ui/index.html
 
 mount -o remount,rw /

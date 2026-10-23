@@ -28,6 +28,9 @@ const dimmerConf = () => ({
   STEP: config.deviceBrightnessStepPercent,
 });
 
+/** What device/inputd.sh reads out of /var/lib/carthing/input.conf. */
+const inputConf = () => ({ PORT: config.deviceInputPort });
+
 /**
  * One live connection to a Car Thing: forwards its Chromium devtools port over adb,
  * makes sure the page shows our UI, and relays messages both ways.
@@ -73,6 +76,16 @@ export class DeviceLink extends EventEmitter {
     const dimmer = await this.syncDimmer();
     if (dimmer.changed) log.info('[device] dimmer updated');
     else if (!dimmer.installed) log.warn("[device] stock dimmer still running — run `./macthing device` so a hand on the controls doesn't dim the screen");
+
+    const input = await syncDaemon(this.serial, {
+      name: 'inputd', program: 'carthing-input', confFile: 'input.conf',
+      localScript: paths.inputd, remoteDir: config.deviceDir, conf: inputConf(),
+    }).catch((err) => {
+      log.warn('[device] direct input:', err.message);
+      return { installed: false, changed: false };
+    });
+    if (input.changed) log.info('[device] direct input updated');
+    else if (!input.installed) log.warn('[device] no direct input — run `./macthing device` so the buttons respond on time during animations');
 
     const boot = await bootUrl(this.serial, config.deviceUiDir);
     this.pageUrl = boot || `file://${config.deviceUiDir}/index.html`;

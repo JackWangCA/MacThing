@@ -243,12 +243,13 @@ The device this was built on runs Spotify's final firmware, `v8.9.2`, community-
 - Weston compositor
 - 32-bit userland on a 64-bit kernel, 512 MB RAM
 
-`./macthing device` changes four things, and `./macthing uninstall --device` reverts all of them:
+`./macthing device` changes five things, and `./macthing uninstall --device` reverts all of them:
 
 - `/usr/share/qt-superbird-app/webapp` becomes a symlink to `/var/lib/carthing/ui`. Spotify's original is kept as `webapp.spotify`.
 - Spotify's background app (`qt-superbird-app`) no longer autostarts. It was using about 15% CPU on wake-word listening and Bluetooth pairing. The original config is kept as `/etc/supervisord.conf.spotify`.
 - `device/sleepd.sh` is installed at `/var/lib/carthing/sleepd.sh` and registered with supervisord as `carthing-sleep`, so the device can sleep without the Mac (below). The bridge keeps the script and its `sleep.conf` up to date on every connect; `supervisorctl status carthing-sleep` and `/tmp/carthing-sleep.log` on the device show what it's doing.
 - supervisord's `backlight` program runs `device/dimmerd.sh` (installed at `/var/lib/carthing/dimmerd.sh`) instead of Spotify's `sp-als-backlight`. See [Auto-brightness](#auto-brightness).
+- `device/inputd.sh` runs as `carthing-input`: it reads the buttons and the knob straight from `/dev/input` and serves them to the page on `ws://127.0.0.1:8765`. See [Direct input](#direct-input).
 
 It then copies the result to the other system slot (below).
 
@@ -300,6 +301,12 @@ Nothing on the Mac can turn the backlight off once the Mac is gone, so the devic
 - when the heartbeat starts changing again it puts the governor back and hands the screen over in whatever state the heartbeat last asked for.
 
 The page does its own small version of this: after the same timeout with no messages it renders black, so the screen isn't showing "Waiting for your Mac" all night even on a device where the watchdog isn't installed.
+
+### Direct input
+
+Chromium gets keys from Weston over the Wayland connection it shares with its GPU driver (it runs with `--in-process-gpu`). While the page animates, the driver waits for frames on that connection, and key events read off it can sit undelivered until something else wakes Chromium's input handling. Presses during a screen switch's 1.5s fade arrived up to 1.2s late and in bunches; with the animations turned off, none of 284 presses took over 66ms, and injected input, which never touches Wayland, was never late at all.
+
+So `inputd.sh` (Python 3.7, which the system has) reads `gpio-keys` and `rotary@0` itself — evdev hands every reader its own copy, so Weston and `sleepd.sh` still get them — and sends `{"k": "1", "v": 1}` (1 down, 0 up, 2 repeat) and `{"w": ±1}` per knob click. `core.js` takes input from it while connected and ignores the same keys when they turn up as keyboard events; when it isn't running, the keyboard path works as before. The bridge keeps the script current on every connect; `/tmp/carthing-input.log` on the device says which devices it's serving.
 
 ### Gotchas
 
@@ -373,7 +380,7 @@ ui/               device UI source (Vue 3, 800×480)
   css/app.css     one stylesheet: tokens, components, bespoke controls, then utility classes
 dist/ui/          generated device bundle and local assets (git-ignored)
 vite.config.js    Vue compiler and Chromium 69 classic-script build
-device/           sleepd.sh (sleep watchdog) and dimmerd.sh (auto-brightness), installed by setup-device;
+device/           sleepd.sh (sleep watchdog), dimmerd.sh (auto-brightness), inputd.sh (direct input), installed by setup-device;
                   supervisord.conf, the MacThing image's (device-image.sh)
 scripts/          device setup/restore, device-image.sh (the MacThing image), screenshots, LaunchAgent
   boot-logo/      the boot picture: render.swift draws it, pack.js puts it in the logo partition

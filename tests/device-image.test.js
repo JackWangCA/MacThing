@@ -23,7 +23,7 @@ test('stock Spotify is not our UI', () => {
 test("the image's supervisord.conf boots our UI and has none of Spotify's programs", async () => {
   const conf = await fs.readFile(new URL('../device/supervisord.conf', import.meta.url), 'utf8');
   const programs = [...conf.matchAll(/^\[program:([^\]]+)\]/gm)].map((m) => m[1]);
-  assert.deepEqual(programs.sort(), ['backlight', 'bluetoothd', 'carthing-sleep', 'chromium', 'earlyoom']);
+  assert.deepEqual(programs.sort(), ['backlight', 'bluetoothd', 'carthing-input', 'carthing-sleep', 'chromium', 'earlyoom']);
   assert.match(conf, /--app=file:\/\/\/var\/lib\/carthing\/ui\/index\.html/);
   assert.match(conf, /^command=\/bin\/sh \/var\/lib\/carthing\/dimmerd\.sh$/m);
   assert.doesNotMatch(conf, /superbird|swupdate|sp-als-backlight/);

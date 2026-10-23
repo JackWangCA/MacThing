@@ -412,15 +412,13 @@ export function initializeRuntime(state) {
     runButton(action);
   }
 
-  window.addEventListener('keydown', function (e) {
-    var key = keyName(e);
-    debugInput('keydown key=' + e.key + ' code=' + e.code + ' → ' + key + (e.repeat ? ' (repeat)' : ''));
-    if (!key) return;
-    e.preventDefault();
-    if (!e.repeat) emit('input', key); // e.g. the When idle countdown starts over
+  // Keys arrive two ways: as keyboard events, and straight from the device's input devices over
+  // device/inputd.sh's WebSocket. Both end up here.
+  function keyDown(key, repeat) {
+    if (!repeat) emit('input', key); // e.g. the When idle countdown starts over
 
     var press = holds[key];
-    if (e.repeat) {
+    if (repeat) {
       // Auto-repeat is the backstop for the timer on a device that fires it while a key is held.
       if (press && !press.done && holdAction(key) && performance.now() - press.start >= holdMs()) fireHold(key, press);
       return;
@@ -446,29 +444,91 @@ export function initializeRuntime(state) {
       return runKey(key);
     }
     press.timer = setTimeout(function () { fireHold(key, press); }, holdMs());
+  }
+
+  function keyUp(key) {
+    var press = holds[key];
+    delete holds[key];
+    if (!press) return;
+    clearTimeout(press.timer);
+    if (!press.done) runKey(key); // short press: the action happens on release
+  }
+
+  /** One click of the knob: positive one way, negative the other (knobDirection says which). */
+  function knobTurn(d) {
+    if (d) emit('input', 'wheel');
+    if (!d || wakeInstead()) return;
+    var steps = (d > 0 ? 1 : -1) * (CT.config.knobDirection || 1);
+    var screen = CT.screens[CT.current];
+    if (heldByLock() || !screen.turn || screen.turn(steps) === false) onKnobVolume(steps);
+  }
+
+  window.addEventListener('keydown', function (e) {
+    var key = keyName(e);
+    debugInput('keydown key=' + e.key + ' code=' + e.code + ' → ' + key + (e.repeat ? ' (repeat)' : '') + (direct ? ' (direct input has it)' : ''));
+    if (!key) return;
+    e.preventDefault();
+    if (!direct) keyDown(key, e.repeat);
   }, true);
 
   window.addEventListener('keyup', function (e) {
     var key = keyName(e);
     if (!key) return;
     e.preventDefault();
-    var press = holds[key];
-    delete holds[key];
-    if (!press) return;
-    clearTimeout(press.timer);
-    if (!press.done) runKey(key); // short press: the action happens on release
+    if (!direct) keyUp(key);
   }, true);
 
   window.addEventListener('wheel', function (e) {
     e.preventDefault();
-    var d = e.deltaX || e.deltaY;
-    debugInput('wheel dx=' + e.deltaX + ' dy=' + e.deltaY);
-    if (d) emit('input', 'wheel');
-    if (!d || wakeInstead()) return;
-    var steps = (d > 0 ? 1 : -1) * (CT.config.knobDirection || 1);
-    var screen = CT.screens[CT.current];
-    if (heldByLock() || !screen.turn || screen.turn(steps) === false) onKnobVolume(steps);
+    debugInput('wheel dx=' + e.deltaX + ' dy=' + e.deltaY + (direct ? ' (direct input has it)' : ''));
+    if (!direct) knobTurn(e.deltaX || e.deltaY);
   }, { passive: false, capture: true });
+
+  // The same buttons and knob, read straight from evdev by device/inputd.sh. Keyboard events come
+  // from Weston over the Wayland connection Chromium shares with its GPU driver, and while the
+  // page animates (a screen switch fades for 1.5s) they're held there and arrive late, in
+  // bunches — up to 1.2s, measured. This path doesn't go near it. While it's connected, the same
+  // presses arriving as keyboard events are ignored; without it (an older device setup, or the
+  // daemon restarting) the keyboard path does the job as it always has.
+  var direct = false;
+  var directRetry = 1000;
+  function connectDirect() {
+    var ws;
+    try {
+      ws = new WebSocket('ws://127.0.0.1:8765'); // config.deviceInputPort
+    } catch (err) {
+      return setTimeout(connectDirect, directRetry);
+    }
+    ws.onopen = function () {
+      direct = true;
+      directRetry = 1000;
+      debugInput('direct input connected');
+    };
+    ws.onmessage = function (m) {
+      var msg = JSON.parse(m.data);
+      if (msg.k) {
+        debugInput('direct ' + msg.k + ' ' + (msg.v === 0 ? 'up' : msg.v === 2 ? 'repeat' : 'down'));
+        if (msg.v === 0) keyUp(msg.k);
+        else keyDown(msg.k, msg.v === 2);
+      } else if (msg.w) {
+        debugInput('direct wheel ' + msg.w);
+        knobTurn(msg.w);
+      }
+    };
+    ws.onclose = function () {
+      if (direct) {
+        direct = false;
+        // Its releases went with it: a press it was holding would otherwise read as a key that
+        // never sends keyup, which turns holds off for good.
+        for (var key in holds) clearTimeout(holds[key].timer);
+        holds = {};
+        debugInput('direct input lost; back to keyboard events');
+      }
+      setTimeout(connectDirect, directRetry);
+      directRetry = Math.min(directRetry * 2, 30000);
+    };
+  }
+  connectDirect();
 
   document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 

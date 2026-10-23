@@ -15,7 +15,8 @@
 #     dimming, so a hand reaching for the controls (and over the light sensor) doesn't dim it.
 #
 # Finally copies the result to the device's other system slot (device-image.sh mirror), which the
-# bootloader falls back to after a failed boot. On a MacThing image, only the daemons are pushed.
+# bootloader falls back to after a failed boot. On a MacThing image it runs device-image.sh build
+# and mirror instead.
 #
 # Undo everything with scripts/restore-device.sh.
 set -euo pipefail
@@ -25,21 +26,24 @@ here=${0:A:h}
 serial=$(adb devices -l | awk '/spotify-car-thing|Car_Thing/ && $2=="device" {print $1; exit}')
 [[ -n "$serial" ]] || { echo "No Car Thing found over adb" >&2; exit 1; }
 
+# A MacThing image (scripts/device-image.sh) has none of the Spotify files patched below. Rebuild it
+# from this checkout instead, which brings its supervisord.conf and daemons up to date.
+if [[ -n "$(adb -s "$serial" shell 'cat /etc/macthing-image 2>/dev/null' | tr -d '\r')" ]]; then
+  echo "• MacThing image: rebuilding it from this checkout"
+  "$here/device-image.sh" build
+  "$here/device-image.sh" mirror
+  exit
+fi
+
 adb -s "$serial" shell 'mkdir -p /var/lib/carthing'
 adb -s "$serial" push "$here/../device/sleepd.sh" /var/lib/carthing/sleepd.sh >/dev/null
 adb -s "$serial" push "$here/../device/dimmerd.sh" /var/lib/carthing/dimmerd.sh >/dev/null
+adb -s "$serial" push "$here/../device/inputd.sh" /var/lib/carthing/inputd.sh >/dev/null
 
 adb -s "$serial" shell '
 set -e
 mkdir -p /var/lib/carthing/ui
 [ -f /var/lib/carthing/ui/index.html ] || echo "<body style=\"background:#121212\"></body>" > /var/lib/carthing/ui/index.html
-
-# A MacThing image (scripts/device-image.sh) has all of this built in, and none of the Spotify
-# files patched below.
-if [ -f /etc/macthing-image ]; then
-  echo "• MacThing image $(cat /etc/macthing-image): boot setup is built in"
-  exit 0
-fi
 
 mount -o remount,rw /
 trap "sync; mount -o remount,ro /" EXIT
@@ -79,6 +83,22 @@ EOF
 else
   echo "• sleep watchdog already installed"
 fi
+chmod +x /var/lib/carthing/inputd.sh
+if ! grep -q "^\[program:carthing-input\]" /etc/supervisord.conf; then
+  cat >> /etc/supervisord.conf <<EOF
+
+[program:carthing-input]
+command=/bin/sh /var/lib/carthing/inputd.sh
+autostart=true
+autorestart=true
+startsecs=2
+stdout_logfile=/tmp/carthing-input.log
+redirect_stderr=true
+EOF
+  echo "• direct input installed (buttons respond on time during animations)"
+else
+  echo "• direct input already installed"
+fi
 chmod +x /var/lib/carthing/dimmerd.sh
 if ! grep -q "^command=/bin/sh /var/lib/carthing/dimmerd.sh" /etc/supervisord.conf; then
   # swap the command only inside the [program:backlight] section, keeping its name: the bridge
@@ -98,7 +118,7 @@ lit=yes
 supervisorctl status backlight 2>/dev/null | grep -q STOPPED && lit=no
 supervisorctl reread >/dev/null 2>&1; supervisorctl update >/dev/null 2>&1
 [ "$lit" = no ] && supervisorctl stop backlight >/dev/null 2>&1
-supervisorctl start carthing-sleep >/dev/null 2>&1; supervisorctl status carthing-sleep backlight'
+supervisorctl start carthing-sleep carthing-input >/dev/null 2>&1; supervisorctl status carthing-sleep carthing-input backlight'
 # The bootloader falls back to the other system slot after a failed boot, and a slot without this
 # setup boots Spotify's app again. Keep both the same.
 "$here/device-image.sh" mirror

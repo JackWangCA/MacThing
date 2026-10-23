@@ -10,6 +10,7 @@ export const paths = {
   bin: path.join(root, 'native', 'bin'),
   sleepd: path.join(root, 'device', 'sleepd.sh'),
   dimmerd: path.join(root, 'device', 'dimmerd.sh'),
+  inputd: path.join(root, 'device', 'inputd.sh'),
 };
 
 export const config = {
@@ -21,6 +22,9 @@ export const config = {
   // so updates never need the read-only rootfs remounted.
   deviceDir: '/var/lib/carthing',
   deviceUiDir: '/var/lib/carthing/ui',
+  // device/inputd.sh serves the buttons and knob to the page here, on the device's own loopback.
+  // ui/js/core.js connects before it has any config, so it has the same number written in.
+  deviceInputPort: 8765,
 
   // Buttons → action. Keys are what the device reports to the page: top buttons 1–4, the
   // fifth (settings) button at the end of the top row (m) and the back button under the knob
