@@ -110,7 +110,7 @@ That one command checks what's installed, pulls the dependencies, builds the Vue
 
 Everything else is a subcommand of the same script; `./macthing` on its own lists them.
 
-Re-run `./macthing device` if the bridge logs `boot web app not pointed at our UI yet`, `no sleep watchdog` or `stock dimmer still running`. The rootfs edit normally survives a reboot, but it has been seen to revert, and a device that's been reflashed or restored will need it again. Nothing breaks meanwhile — the bridge points the device at this UI on every connect — but until you do, the Car Thing shows Spotify's own app before the bridge connects, doesn't sleep on its own when the Mac goes away, and dims whenever a hand covers the light sensor.
+Re-run `./macthing device` if the bridge logs `boot web app not pointed at our UI yet`, `no sleep watchdog` or `stock dimmer still running`. The Car Thing has two system slots and the bootloader falls back to the other one after a failed boot, so `./macthing device` sets up both; a device set up before it did, or one that's been reflashed or restored, will need it again. Nothing breaks meanwhile — the bridge points the device at this UI on every connect — but until you do, the Car Thing shows Spotify's own app before the bridge connects, doesn't sleep on its own when the Mac goes away, and dims whenever a hand covers the light sensor.
 
 The first time an Apple Music song plays, macOS asks whether **musicctl** may control Music. That's `native/bin/musicctl`, a small helper that reads whether the song is in your library and favorited — the two marks on Now Playing — and sends the library, favorite and play commands. Say no and the marks stay hidden; the back button then says so when you press it.
 
@@ -194,6 +194,8 @@ The permission belongs to that exact build of `MacThingVolume`, so `native/build
                                 # config back and reboot the Car Thing (omit --device to keep it)
 ```
 
+A Car Thing running the [MacThing image](#macthing-image) has Spotify's files removed, so `--device` can't put them back; restore the backup instead (see there).
+
 ## Design
 
 Every screen is drawn in the Figma file [MacThing](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/MacThing?node-id=0-1) — Now Playing and its states, the three widgets, Settings, and light copies of them all. The type scale is by size, so the same numbers turn up everywhere:
@@ -248,6 +250,34 @@ The device this was built on runs Spotify's final firmware, `v8.9.2`, community-
 - `device/sleepd.sh` is installed at `/var/lib/carthing/sleepd.sh` and registered with supervisord as `carthing-sleep`, so the device can sleep without the Mac (below). The bridge keeps the script and its `sleep.conf` up to date on every connect; `supervisorctl status carthing-sleep` and `/tmp/carthing-sleep.log` on the device show what it's doing.
 - supervisord's `backlight` program runs `device/dimmerd.sh` (installed at `/var/lib/carthing/dimmerd.sh`) instead of Spotify's `sp-als-backlight`. See [Auto-brightness](#auto-brightness).
 
+It then copies the result to the other system slot (below).
+
+### Two system slots
+
+The root filesystem is one of two partitions, `system_a` and `system_b`; `androidboot.slot_suffix` in `/proc/cmdline` says which is running. U-boot counts boot attempts and falls back to the other slot after failed ones, which is what a Mac restart cutting power mid-boot can cause. Everything under `/var` and `/var/lib` is shared, but the boot setup lives on the root filesystem, so a slot that was never set up brings back "Welcome to Car Thing" and the stock dimmer. `scripts/device-image.sh mirror` copies the running slot over the other one, and both `./macthing device` and `./macthing image` end with it. It refuses if the other slot holds a different release, since both boot the same kernel.
+
+### MacThing image
+
+`./macthing image` goes further than `./macthing device`: it takes Spotify's software out instead of switching it off.
+
+1. **Backup.** Dumps `bootloader`, `env`, `misc`, `logo`, `boot_a`, `boot_b`, `system_a` and `system_b` (about 1.1 GB) to `~/Library/Application Support/carthing-now-playing/device-backup/<serial>/`, each checked against a checksum taken on the device. Nothing else runs without it. `data` and `settings` hold your data and are never written.
+2. **Build.** On the running slot: deletes `qt-superbird-app`, its stock web app and "Hey Spotify" voice models, the `swupdate` OTA updater and its keys, and `sp-als-backlight`. Bluetooth stays installed but isn't started. `/etc/supervisord.conf` is replaced whole by `device/supervisord.conf`, which opens `/var/lib/carthing/ui` at boot directly, and `/etc/macthing-image` records the version.
+3. **Mirror** to the other slot, as above.
+4. **Export** the result as `macthing-system-<version>.img` beside the backup. `scripts/device-image.sh flash <img>` writes one to the slot that isn't running, for a second Car Thing or a rebuild.
+5. **Boot picture.** The `logo` partition is an Amlogic resource pack (`AML_RES!`) of 480×800 RGB565 bitmaps, each with a CRC32; U-boot shows the one named `bootup_spotify` before Linux starts (Thing Labs' logo on a community-flashed device). `scripts/boot-logo/render.swift` draws the MacThing wordmark and `scripts/boot-logo/pack.js` puts it in that entry, always starting from the backed-up original, so nothing else in the pack changes. Change `render.swift` and run `scripts/device-image.sh logo` for a different picture. The panel is portrait, so the stored picture is the landscape one turned 90° clockwise.
+
+Every step is a subcommand of `scripts/device-image.sh` and safe to re-run. No Spotify files are in this repo; the image is built from the device's own system.
+
+**Rolling back.** Over adb only the slot that isn't running can be written, so restoring the running one takes USB burn mode with [superbird-tool](https://github.com/thinglabsoss/superbird-tool): unplug the Car Thing, hold buttons 1 and 4, plug it in, then
+
+```bash
+python3 superbird_tool.py --burn_mode
+python3 superbird_tool.py --dont_reset --restore_partition system_a <backup>/system_a.img
+python3 superbird_tool.py --dont_reset --restore_partition system_b <backup>/system_b.img
+```
+
+The boot picture can go back over adb: `adb push <backup>/logo.img /var/l.img`, then on the device `dd if=/var/l.img of=/dev/logo bs=1M`. Burn mode also restores `boot_*`, `bootloader`, `env` or `misc` if one of those were ever damaged, though the image never writes them.
+
 ### Auto-brightness
 
 The light sensor sits where your hand goes when you reach for the knob or a button. Spotify's `sp-als-backlight` sets the backlight straight from each reading, so the screen dimmed under your fingers. `dimmerd.sh` uses the same curve, taken from that daemon's own log, but it waits for the room to agree. It dims only once every reading for `deviceDimDelaySeconds` (10) has been darker, and then only as far as the brightest of those readings; it brightens once every reading for `deviceBrightenDelaySeconds` (3) has been lighter, and then only as far as the dimmest of them. A reading that disagrees clears the run, so a hand passing over the sensor moves nothing.
@@ -280,7 +310,8 @@ The page does its own small version of this: after the same timeout with no mess
 - The kernel has no USB HID gadget driver, so the Car Thing can't simply act as a USB media-key device.
 - The device clock is never set, so the idle clock uses the Mac's time and timezone.
 - The backlight switch is `/sys/class/aml_bl/power` (`echo 0|1`). The standard `/sys/class/backlight/aml-bl/bl_power` accepts writes and does nothing, and its `brightness` only sets the level, so neither turns the LEDs off. Writing either leaves them lit while the page goes black.
-- `./macthing device` doesn't survive a power cycle (see Setup).
+- **There are two system slots** and the bootloader can switch between them on its own (see [Two system slots](#two-system-slots)). A setup that vanished after a reboot was almost certainly set up in the other one.
+- **`adb shell` isn't binary-safe here, and this adbd has no `exec-out`.** A command's output turns every `\n` into `\r\n`, so `device-image.sh` stages partition dumps on `/var` and `adb pull`s them. A command that prints nothing, with adb's output going to a pipe, can also be cut off early: `dd` made its file and wrote nothing. Its `run` helper ends every command that changes the device with its exit code, so adb can't return before the command is done.
 - Userland is 32-bit, so a raw `input_event` is 16 bytes, not 24. This matters only if you read or inject `/dev/input/event*` yourself.
 - The UI must be plain ES2017 and CSS that Chromium 69 supports: no `?.`, `??`, flex `gap`, `inset`, `aspect-ratio` or `clamp()`.
 
@@ -342,8 +373,10 @@ ui/               device UI source (Vue 3, 800×480)
   css/app.css     one stylesheet: tokens, components, bespoke controls, then utility classes
 dist/ui/          generated device bundle and local assets (git-ignored)
 vite.config.js    Vue compiler and Chromium 69 classic-script build
-device/           sleepd.sh (sleep watchdog) and dimmerd.sh (auto-brightness), installed by setup-device
-scripts/          device setup/restore, screenshots, LaunchAgent
+device/           sleepd.sh (sleep watchdog) and dimmerd.sh (auto-brightness), installed by setup-device;
+                  supervisord.conf, the MacThing image's (device-image.sh)
+scripts/          device setup/restore, device-image.sh (the MacThing image), screenshots, LaunchAgent
+  boot-logo/      the boot picture: render.swift draws it, pack.js puts it in the logo partition
   util/           one-off comparisons (art-compare.js: album art background versions side by side)
 vendor/           mediaremote-adapter source (cloned by native/build.sh, git-ignored)
 .github/workflows release.yml: a version bump in package.json merged to main publishes release v<version>

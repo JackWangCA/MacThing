@@ -5,6 +5,12 @@ set -euo pipefail
 serial=$(adb devices -l | awk '/spotify-car-thing|Car_Thing/ && $2=="device" {print $1; exit}')
 [[ -n "$serial" ]] || { echo "No Car Thing found over adb" >&2; exit 1; }
 
+if [[ -n "$(adb -s "$serial" shell 'cat /etc/macthing-image 2>/dev/null' | tr -d '\r')" ]]; then
+  echo "This Car Thing runs the MacThing image, which has Spotify's files removed, so there is" >&2
+  echo "nothing here to put back. Restore the backup instead: see \"MacThing image\" in README.md." >&2
+  exit 1
+fi
+
 adb -s "$serial" shell '
 set -e
 supervisorctl stop carthing-sleep >/dev/null 2>&1 || true

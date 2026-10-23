@@ -4,7 +4,7 @@ import { log } from '../log.js';
 import { settings } from '../settings.js';
 import { adb, shell } from './adb.js';
 import { CDP, listTargets } from './cdp.js';
-import { isBootInstalled, syncDaemon, syncUi } from './deploy.js';
+import { bootUrl, syncDaemon, syncUi } from './deploy.js';
 
 const BINDING = '__carthingSend'; // page → Mac (Runtime.addBinding)
 const CONSOLE_MARK = '⁣carthing '; // fallback channel if bindings are unavailable
@@ -74,9 +74,9 @@ export class DeviceLink extends EventEmitter {
     if (dimmer.changed) log.info('[device] dimmer updated');
     else if (!dimmer.installed) log.warn("[device] stock dimmer still running — run `./macthing device` so a hand on the controls doesn't dim the screen");
 
-    const installed = await isBootInstalled(this.serial, config.deviceUiDir);
-    this.pageUrl = installed ? config.deviceBootUrl : `file://${config.deviceUiDir}/index.html`;
-    if (!installed) log.warn('[device] boot web app not pointed at our UI yet — run `./macthing device` so it survives reboots');
+    const boot = await bootUrl(this.serial, config.deviceUiDir);
+    this.pageUrl = boot || `file://${config.deviceUiDir}/index.html`;
+    if (!boot) log.warn('[device] boot web app not pointed at our UI yet — run `./macthing device` so it survives reboots');
 
     const target = await this.#waitForPage();
     const cdp = await CDP.connect(target.webSocketDebuggerUrl);

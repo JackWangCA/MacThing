@@ -82,8 +82,24 @@ export async function syncDaemon(serial, { name, program, confFile, localScript,
   return { installed: true, changed: true };
 }
 
-/** True once scripts/setup-device.sh has pointed the boot web app at the UI folder. */
-export async function isBootInstalled(serial, remoteDir) {
-  const target = (await shell(serial, 'readlink /usr/share/qt-superbird-app/webapp; true')).trim();
-  return target === remoteDir;
+// Where Spotify's system keeps its web app. scripts/setup-device.sh leaves Chromium opening it and
+// makes it a link to the UI folder.
+const STOCK_WEBAPP = '/usr/share/qt-superbird-app/webapp';
+
+/**
+ * The page Chromium opens at boot, if it is our UI; null while the device still boots Spotify's.
+ * A MacThing image (scripts/device-image.sh) opens the UI folder directly. A patched system opens
+ * Spotify's web app path, which setup-device.sh turned into a link to the UI folder.
+ */
+export async function bootUrl(serial, remoteDir) {
+  const out = await shell(serial, `grep -o -- '--app=[^ ]*' /etc/supervisord.conf | head -1; echo '--8<--'; readlink ${STOCK_WEBAPP}; true`);
+  return parseBootUrl(out, remoteDir);
+}
+
+export function parseBootUrl(out, remoteDir) {
+  const [app = '', link = ''] = out.replace(/\r/g, '').split('--8<--').map((s) => s.trim());
+  const opens = app.replace(/^--app=/, '');
+  if (opens === `file://${remoteDir}/index.html`) return opens;
+  if (opens === `file://${STOCK_WEBAPP}/index.html` && link === remoteDir) return opens;
+  return null;
 }

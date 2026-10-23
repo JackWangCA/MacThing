@@ -43,6 +43,8 @@ MacThing — a Spotify Car Thing as a second screen for your Mac.
                         --dev  rebuild and redeploy the UI whenever a source file changes
 
   ./macthing device     Re-apply the Car Thing's boot setup (safe to re-run)
+  ./macthing image      Back up the Car Thing, then strip Spotify's software out of it for good
+                        (scripts/device-image.sh; see "MacThing image" in README.md)
   ./macthing uninstall  Stop and remove from login. --device also puts the Car Thing back.
 
 First time here? Plug the Car Thing in and run ./macthing setup — or double-click
@@ -261,6 +263,11 @@ cmd_device() {
   ./scripts/setup-device.sh
 }
 
+cmd_image() {
+  [[ -n "$(carthing_serial || true)" ]] || die "No Car Thing found over adb. Plug it in and check: adb devices -l"
+  ./scripts/device-image.sh all
+}
+
 cmd_uninstall() {
   cmd_stop
   if [[ "${1:-}" == "--device" ]]; then
@@ -282,6 +289,7 @@ case "${1:-}" in
   stop) cmd_stop ;;
   run) cmd_run "${2:-}" ;;
   device) cmd_device ;;
+  image) cmd_image ;;
   uninstall) cmd_uninstall "${2:-}" ;;
   ''|-h|--help|help) usage ;;
   *) print -r -- "${RED}Don't know '$1'.${OFF}" >&2; print >&2; usage >&2; exit 2 ;;

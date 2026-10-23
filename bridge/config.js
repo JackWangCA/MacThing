@@ -21,8 +21,6 @@ export const config = {
   // so updates never need the read-only rootfs remounted.
   deviceDir: '/var/lib/carthing',
   deviceUiDir: '/var/lib/carthing/ui',
-  // What Chromium opens at boot (supervisord --app). scripts/setup-device.sh points it at deviceUiDir.
-  deviceBootUrl: 'file:///usr/share/qt-superbird-app/webapp/index.html',
 
   // Buttons → action. Keys are what the device reports to the page: top buttons 1–4, the
   // fifth (settings) button at the end of the top row (m) and the back button under the knob

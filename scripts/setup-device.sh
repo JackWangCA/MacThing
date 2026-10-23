@@ -14,6 +14,9 @@
 #     sp-als-backlight: same brightness curve, but it waits for the room to stay darker before
 #     dimming, so a hand reaching for the controls (and over the light sensor) doesn't dim it.
 #
+# Finally copies the result to the device's other system slot (device-image.sh mirror), which the
+# bootloader falls back to after a failed boot. On a MacThing image, only the daemons are pushed.
+#
 # Undo everything with scripts/restore-device.sh.
 set -euo pipefail
 
@@ -30,6 +33,13 @@ adb -s "$serial" shell '
 set -e
 mkdir -p /var/lib/carthing/ui
 [ -f /var/lib/carthing/ui/index.html ] || echo "<body style=\"background:#121212\"></body>" > /var/lib/carthing/ui/index.html
+
+# A MacThing image (scripts/device-image.sh) has all of this built in, and none of the Spotify
+# files patched below.
+if [ -f /etc/macthing-image ]; then
+  echo "• MacThing image $(cat /etc/macthing-image): boot setup is built in"
+  exit 0
+fi
 
 mount -o remount,rw /
 trap "sync; mount -o remount,ro /" EXIT
@@ -89,4 +99,7 @@ supervisorctl status backlight 2>/dev/null | grep -q STOPPED && lit=no
 supervisorctl reread >/dev/null 2>&1; supervisorctl update >/dev/null 2>&1
 [ "$lit" = no ] && supervisorctl stop backlight >/dev/null 2>&1
 supervisorctl start carthing-sleep >/dev/null 2>&1; supervisorctl status carthing-sleep backlight'
+# The bootloader falls back to the other system slot after a failed boot, and a slot without this
+# setup boots Spotify's app again. Keep both the same.
+"$here/device-image.sh" mirror
 echo "Done. Start the bridge (./macthing start) — it deploys the UI and takes over the screen."
