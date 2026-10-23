@@ -66,11 +66,11 @@ test('the fires follow the burn right now when there is one', () => {
   assert.equal(paceNumber(w({ percent: 0, ms: 15 * 60000 }, 80), SESSION_MS, now), '3x 🔥🔥');
 });
 
-test('the week shows at most one fire', () => {
+test('the week shows no fires, only its skull at the limit', () => {
   const now = 1800000000000;
   const week = (percent, elapsed) => ({ percent, resetsAt: now + WEEK_MS * (1 - elapsed) });
+  assert.equal(paceNumber(week(45, .2), WEEK_MS, now, { maxFires: 0 }), '3x');
+  assert.equal(paceNumber(week(22, .2), WEEK_MS, now, { maxFires: 0 }), '1.1x');
+  assert.equal(paceNumber(week(100, .2), WEEK_MS, now, { maxFires: 0 }), '💀');
   assert.equal(paceNumber(week(45, .2), WEEK_MS, now, { maxFires: 1 }), '3x 🔥');
-  assert.equal(paceNumber(week(22, .2), WEEK_MS, now, { maxFires: 1 }), '1.1x 🔥');
-  assert.equal(paceNumber(week(10, .2), WEEK_MS, now, { maxFires: 1 }), '0.4x');
-  assert.equal(paceNumber(week(100, .2), WEEK_MS, now, { maxFires: 1 }), '💀');
 });

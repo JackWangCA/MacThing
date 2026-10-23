@@ -46,8 +46,8 @@ export function fires(k) {
  *  gets longer for its decimal, then its fires; a skull alone at the limit. Any use above zero
  *  shows at least 0.1x, so 0.0x means none. With `updatedAt` (the session), the fires follow the
  *  burn right now when there is one: a 1.0x session suddenly burning at 4x reads 1.0x 🔥🔥, and
- *  a 3x session that has stopped reads 3x. `maxFires` caps them: the week takes one, since its
- *  average runs hot on weekdays and cools over the weekend. */
+ *  a 3x session that has stopped reads 3x. `maxFires` caps them: the week takes none, since its
+ *  average runs hot on weekdays and cools over the weekend, so only its 💀 means anything. */
 export function paceNumber(w, length, now, { updatedAt, maxFires = 2 } = {}) {
   const k = paceK(w, length, now);
   if (!Number.isFinite(k)) return '💀';

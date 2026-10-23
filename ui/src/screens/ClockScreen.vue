@@ -88,7 +88,7 @@ function usageRail(provider) {
     subtitleClass: 'usage-week',
     eyebrow: 'Session: ' + Math.round(u.session.percent) + '% used',
     title: paceNumber(u.session, SESSION_MS, state.now, { updatedAt: u.updatedAt }),
-    subtitle: 'Week: ' + paceNumber(u.week, WEEK_MS, state.now, { maxFires: 1 }),
+    subtitle: 'Week: ' + paceNumber(u.week, WEEK_MS, state.now, { maxFires: 0 }),
     subtitleNote: '· ' + Math.round(u.week.percent) + '%'
   };
 }
