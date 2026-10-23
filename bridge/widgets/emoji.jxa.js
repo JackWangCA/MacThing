@@ -10,9 +10,10 @@ function run([text, out, size]) {
     null, px, px, 8, 4, true, false, $.NSDeviceRGBColorSpace, 0, 0);
   $.NSGraphicsContext.setCurrentContext($.NSGraphicsContext.graphicsContextWithBitmapImageRep(rep));
   // The line box is taller than the glyph (room for descenders), so centre on the glyph's square,
-  // which Apple draws from a little below the baseline: lift by the descender, less 6%.
+  // which Apple draws from a little below the baseline: lift it so its ink has even margins top
+  // and bottom (about 5% each), which RailText's CSS relies on.
   const line = $(text).sizeWithAttributes(attrs);
-  const lift = (px - font.pointSize) / 2 + font.descender + px * 0.06;
+  const lift = (px - font.pointSize) / 2 + font.descender + px * 0.107;
   $(text).drawAtPointWithAttributes($.NSMakePoint((px - line.width) / 2, lift), attrs);
   $.NSGraphicsContext.currentContext.flushGraphics;
   if (!rep.representationUsingTypeProperties($.NSBitmapImageFileTypePNG, $()).writeToFileAtomically(out, true)) throw new Error('could not write ' + out);

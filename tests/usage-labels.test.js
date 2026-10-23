@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { burnK, paceK, paceNumber, SESSION_MS } from '../ui/src/usage.js';
+import { burnK, paceK, paceNumber, SESSION_MS, WEEK_MS } from '../ui/src/usage.js';
 
 test('legacy label choices are ignored and cannot be selected', async () => {
   const home = await fs.mkdtemp(path.join(os.tmpdir(),'macthing-settings-test-'));
@@ -55,14 +55,22 @@ test('the fires follow the burn right now when there is one', () => {
   const w = (burn, percent = 60) => ({ percent, resetsAt: now + SESSION_MS * .4, burn });
   // 40% to 60% in 15 minutes is 80%/h: out in 30 minutes, 4x the affordable pace.
   assert.ok(Math.abs(burnK(w({ percent: 20, ms: 15 * 60000 }), now, now) - 4) < 1e-9);
-  assert.equal(paceNumber(w(), SESSION_MS, now, now), '1.0x');
-  assert.equal(paceNumber(w({ percent: 4, ms: 15 * 60000 }), SESSION_MS, now, now), '1.0x');
-  assert.equal(paceNumber(w({ percent: 6, ms: 15 * 60000 }), SESSION_MS, now, now), '1.0x 🔥');
-  assert.equal(paceNumber(w({ percent: 20, ms: 15 * 60000 }), SESSION_MS, now, now), '1.0x 🔥🔥');
+  assert.equal(paceNumber(w(), SESSION_MS, now, { updatedAt: now }), '1.0x');
+  assert.equal(paceNumber(w({ percent: 4, ms: 15 * 60000 }), SESSION_MS, now, { updatedAt: now }), '1.0x');
+  assert.equal(paceNumber(w({ percent: 6, ms: 15 * 60000 }), SESSION_MS, now, { updatedAt: now }), '1.0x 🔥');
+  assert.equal(paceNumber(w({ percent: 20, ms: 15 * 60000 }), SESSION_MS, now, { updatedAt: now }), '1.0x 🔥🔥');
   // A burn measured more than 20 minutes ago falls back to the average.
-  assert.equal(paceNumber(w({ percent: 20, ms: 15 * 60000 }), SESSION_MS, now, now - 21 * 60000), '1.0x');
-  // A hot session that has stopped won't run out, so it's calm; without updatedAt (the week) the
-  // average decides.
-  assert.equal(paceNumber(w({ percent: 0, ms: 15 * 60000 }, 80), SESSION_MS, now, now), '3x');
+  assert.equal(paceNumber(w({ percent: 20, ms: 15 * 60000 }), SESSION_MS, now, { updatedAt: now - 21 * 60000 }), '1.0x');
+  // A hot session that has stopped won't run out, so it's calm; without updatedAt the average decides.
+  assert.equal(paceNumber(w({ percent: 0, ms: 15 * 60000 }, 80), SESSION_MS, now, { updatedAt: now }), '3x');
   assert.equal(paceNumber(w({ percent: 0, ms: 15 * 60000 }, 80), SESSION_MS, now), '3x 🔥🔥');
+});
+
+test('the week shows at most one fire', () => {
+  const now = 1800000000000;
+  const week = (percent, elapsed) => ({ percent, resetsAt: now + WEEK_MS * (1 - elapsed) });
+  assert.equal(paceNumber(week(45, .2), WEEK_MS, now, { maxFires: 1 }), '3x 🔥');
+  assert.equal(paceNumber(week(22, .2), WEEK_MS, now, { maxFires: 1 }), '1.1x 🔥');
+  assert.equal(paceNumber(week(10, .2), WEEK_MS, now, { maxFires: 1 }), '0.4x');
+  assert.equal(paceNumber(week(100, .2), WEEK_MS, now, { maxFires: 1 }), '💀');
 });

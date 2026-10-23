@@ -8,7 +8,7 @@ import { log } from '../log.js';
 const DIR = path.join(os.homedir(), 'Library', 'Application Support', 'carthing-now-playing', 'emoji');
 const SCRIPT = fileURLToPath(new URL('./emoji.jxa.js', import.meta.url));
 // Part of each cached file's name: bump it when emoji.jxa.js draws differently.
-const VERSION = 2;
+const VERSION = 3;
 
 /**
  * The Mac's own Apple emoji for the device, which has no emoji font: each one drawn once with

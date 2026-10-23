@@ -275,6 +275,6 @@ test('Mac emoji are drawn once, cached, and left out when they cannot be drawn',
     assert.equal(first['🔥'], 'data:image/png;base64,' + Buffer.from('png').toString('base64'));
     await macEmoji(['🔥'], { dir, render });
     assert.deepEqual(drawn, ['🔥', '💀']);
-    assert.ok(await fs.stat(path.join(dir, '1f525-128-v2.png')));
+    assert.ok(await fs.stat(path.join(dir, '1f525-128-v3.png')));
   } finally { await fs.rm(dir, { recursive: true, force: true }); }
 });

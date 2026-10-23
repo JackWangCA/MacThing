@@ -12,7 +12,7 @@ const FIRE = 'images/emoji/1f525.svg';
 const parts = computed(() => {
   const [, body, run] = String(props.text).match(/^(.*?)\s*((?:🔥|💀)*)$/su);
   const icons = [...run];
-  const images = icons.flatMap(e => state.emoji[e] ? [state.emoji[e]] : e === '💀' ? [FIRE, FIRE, FIRE] : [FIRE]);
+  const images = icons.flatMap(e => state.emoji[e] ? [{ src: state.emoji[e], mac: true }] : Array(e === '💀' ? 3 : 1).fill({ src: FIRE }));
   return { body, icons: icons.join(''), images, skull: icons.length === 1 && icons[0] === '💀' && images.length === 1 };
 });
 const hasItalicSuffix = computed(() => props.italicSuffix && parts.value.body.endsWith(props.italicSuffix));
@@ -21,5 +21,5 @@ const hasItalicSuffix = computed(() => props.italicSuffix && parts.value.body.en
 <template>
   <template v-if="hasItalicSuffix">{{ parts.body.slice(0, -italicSuffix.length) }}<i>{{ italicSuffix }}</i></template>
   <template v-else>{{ parts.body }}</template>
-  <span v-if="parts.images.length" class="rail-fires" :class="{ 'rail-fires-after': parts.body, 'rail-skull': parts.skull }" role="img" :aria-label="parts.icons"><img v-for="(src, n) in parts.images" :key="n" class="rail-emoji" :src="src" alt="" /></span>
+  <span v-if="parts.images.length" class="rail-fires" :class="{ 'rail-fires-after': parts.body, 'rail-skull': parts.skull }" role="img" :aria-label="parts.icons"><img v-for="(img, n) in parts.images" :key="n" class="rail-emoji" :class="{ 'rail-emoji-mac': img.mac }" :src="img.src" alt="" /></span>
 </template>
