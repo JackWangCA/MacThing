@@ -142,6 +142,5 @@ watch(() => state.calendar, () => {
 function finish() {
   timer.status = 'done';
   timer.left = 0;
-  CT.flash('timer', 'var(--orange)');
 }
 CT.onSecond(now => { if (timer.status === 'running' && now >= timer.endsAt) finish(); });

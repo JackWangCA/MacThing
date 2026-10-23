@@ -5,9 +5,11 @@ export const state = reactive({
   // screenSwitch: how the current screen is coming in ('fade', 'next', 'previous'), until it has (core.js).
   current: 'nowplaying', leaving: '', screenSwitch: 'fade', offline: true, asleep: false, light: false,
   lock: null, // 'lock' | 'lockTrack' while the Mac is locked and the sheet is up; else null
-  settings: { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', brightness: 0, meetingAlert: 0, usageSource: 'bottlerocket', knobVolume: 'auto', idleMinutes: 0, idleScreen: 'clock', screenSleep: 'mac', whenLocked: 'unlocked', lockFace: 'match', location: { mode: 'auto' } },
+  settings: { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', brightness: 0, meetingAlert: 0, usageSource: 'bottlerocket', knobVolume: 'auto', idleMinutes: 0, idleScreen: 'clock', smartSwitch: false, screenSleep: 'mac', whenLocked: 'unlocked', lockFace: 'match', location: { mode: 'auto' } },
   now: Date.now(), np: { active: false }, npAt: 0, artwork: null,
   weather: { status: 'loading' }, calendar: { status: 'loading' }, dueReminders: { status: 'loading' }, perpetual: { status: 'loading' }, usage: { status: 'loading' }, chatgptUsage: { status: 'loading' },
+  // The Mac's Apple emoji as data URLs, {'🔥': …, '💀': …}; empty until the Mac sends them.
+  emoji: {},
   volume: 0, volumeUnsupported: false, volumeNote: '', volumeIcon: '', showVolume: false,
   flash: { icon: 'play', color: '', key: 0 }, flashing: false, toast: '',
   // The back button's usage refresh: '' idle, 'spin' (the ⟳ turns once), 'pending' (••• until the
@@ -75,14 +77,14 @@ export const ambientPreBlurred = computed(() => state.np.active ? !!shownBlur.va
 export const hasArt = computed(() => !!(state.np.active && (shownArt.value || state.np.artworkKey)));
 CT.onSecond(now => { state.now = now; });
 // The Mac's tick arrives every 2s at a phase of its own, and writing state.now from each one
-// used to knock the clock off the aligned second: measured on the device, state.now advanced by
-// 683ms, then 318ms, then 1000ms, over and over. Anything counting in whole seconds inherits
-// that — the timer held some seconds for 1.3s and dropped others after 0.7s, which reads as the
-// countdown stuttering. The aligned tick is never more than a second behind, so an ordinary tick
-// is left to it. Two cases still need this one: with the backlight off the aligned tick stops
-// calling its subscribers, so nothing else is moving state.now; and a real jump — the Mac slept,
-// or its clock was set — shouldn't wait even that second. Routine staleness is at most the ~1s
-// since the last aligned tick, so the threshold sits above it.
+// knocks the clock off the aligned second: measured on the device, state.now advanced by 683ms,
+// then 318ms, then 1000ms, over and over. Anything counting in whole seconds inherits that — the
+// timer held some seconds for 1.3s and dropped others after 0.7s. The aligned tick is never more
+// than a second behind, so an ordinary tick is left to it. Two cases still need this one: with
+// the backlight off the aligned tick stops calling its subscribers, so nothing else is moving
+// state.now; and a real jump — the Mac slept, or its clock was set — shouldn't wait even that
+// second. Routine staleness is at most the ~1s since the last aligned tick, so the threshold
+// sits above it.
 const CLOCK_JUMP_MS = 1500;
 CT.on('tick', () => {
   const now = CT.now();
@@ -111,6 +113,7 @@ CT.on('weather', msg => { state.weather = msg.weather; });
 CT.on('calendar', msg => { state.calendar = msg.calendar; });
 CT.on('dueReminders', msg => { state.dueReminders = msg.dueReminders; });
 CT.on('perpetual', msg => { state.perpetual = msg.perpetual; });
+CT.on('emoji', msg => { state.emoji = msg.emoji || {}; });
 CT.on('usage', msg => { state.usage = msg.usage; });
 CT.on('chatgptUsage', msg => { state.chatgptUsage = msg.usage; });
 
@@ -144,6 +147,8 @@ CT.on('command', action => {
     if (state.current !== 'nowplaying' || !np.active || np.playing) CT.flash(!np.active || np.playing ? 'play' : 'pause');
   } else if (action === 'next' || action === 'previous') CT.flash(action);
 });
+// Skips made on the Mac (keyboard, Music, Spotify…) show here the same way.
+CT.on('skip', msg => { if (msg.action === 'next' || msg.action === 'previous') CT.flash(msg.action); });
 CT.on('favorite', msg => {
   CT.flash(msg.favorited ? 'heart' : 'heart-off');
   CT.toast(msg.favorited ? 'Added to Favorites' : 'Removed from Favorites');

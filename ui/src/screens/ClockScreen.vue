@@ -12,7 +12,7 @@ import { timer, total, remaining, timerLabel, timerTitle, timerUnit, stepPreset,
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
-// The digital face stacks the hours over the minutes, both two digits (5:01 → 05 over 01).
+// The digital face stacks the hours over the minutes, both two digits (5:01 → 05 over :  01).
 const digits = computed(() => { const [hours, minutes] = time.value.time.split(':'); return { hours: hours.padStart(2, '0'), minutes }; });
 const next = computed(() => state.calendar.status === 'ok' ? state.calendar.events.find(e => !e.allDay && e.start > state.now && CT.dayNumber(e.start) === CT.dayNumber(state.now)) : null);
 // The clock button, pressed on the clock, steps it to the timer, then each usage Settings → Usage
@@ -104,8 +104,8 @@ function usageRail(provider) {
     italicSuffix: 'x',
     subtitleClass: 'usage-week',
     eyebrow: 'Session: ' + Math.round(u.session.percent) + '% used',
-    title: paceNumber(u.session, SESSION_MS, state.now),
-    subtitle: 'Week: ' + paceNumber(u.week, WEEK_MS, state.now),
+    title: paceNumber(u.session, SESSION_MS, state.now, { updatedAt: u.updatedAt }),
+    subtitle: 'Week: ' + paceNumber(u.week, WEEK_MS, state.now, { maxFires: 0 }),
     subtitleNote: '· ' + Math.round(u.week.percent) + '%'
   };
 }
@@ -129,6 +129,13 @@ watch(currentMeetingKey, key => { if (key && mode.value === 'timer') pickMeeting
 // The meeting alert's start button: brings the timer up on the clock screen.
 CT.showTimer = () => {
   mode.value = 'timer';
+  CT.show('clock');
+};
+// Smart switching: brings a provider's usage up on the clock screen.
+CT.showUsage = provider => {
+  if (!providers.value.includes(provider)) return;
+  if (!(mode.value === provider && state.current === 'clock')) CT.send({ type: 'refreshUsage' });
+  mode.value = provider;
   CT.show('clock');
 };
 // A finished timer counts up past its time until you leave it, then goes back to its preset.
@@ -167,7 +174,7 @@ screen.press = () => {
       <div v-for="p in providers" :key="p" class="fade-view fill" :class="{ on: mode === p }"><ClaudeUsage :provider="p" /></div>
       <div class="fade-view fill" :class="{ on: mode === 'clock' }">
         <AnalogClock v-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />
-        <div v-else class="c-digital fill"><span>{{ digits.hours }}</span><span>{{ digits.minutes }}</span></div>
+        <div v-else class="c-digital fill"><span>{{ digits.hours }}</span><span class="c-digital-minutes"><span>:</span><span>{{ digits.minutes }}</span></span></div>
       </div>
     </ScreenStage>
   </section>

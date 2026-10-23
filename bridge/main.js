@@ -29,7 +29,9 @@ import { DueReminders } from './widgets/due-reminders.js';
 import { PerpetualCover } from './widgets/perpetual.js';
 import { BottlerocketUsage } from './widgets/bottlerocket-usage.js';
 import { CodexUsage } from './widgets/codex-usage.js';
+import { macEmoji } from './widgets/emoji.js';
 import { Weather } from './widgets/weather.js';
+import { SkipDetector } from './nowplaying/skips.js';
 
 // Behind a network that re-signs TLS (a corporate proxy), the root the Mac trusts is in its
 // keychain and not in the list Node ships with, so every request dies as UNABLE_TO_GET_ISSUER_
@@ -43,6 +45,10 @@ if (tls.getCACertificates && tls.setDefaultCACertificates) {
 }
 
 const source = new MediaRemoteSource(paths.bin);
+const skips = new SkipDetector();
+// A press on the device already shows its own flash, so a skip seen this soon after one is that press.
+const OWN_PRESS_MS = 3000;
+let lastDeviceCommand = 0;
 const volume = new Volume(paths.bin);
 const appVolume = new AppVolume();
 const apps = new AppInfo(paths.bin);
@@ -67,6 +73,8 @@ const reminders = new Reminders({
 
 /** @type {DeviceLink|null} */
 let link = null;
+// The Mac's Apple emoji for the usage labels (🔥, and 💀 at the limit), once drawn.
+let emoji = {};
 let connecting = false;
 
 // ---- Now Playing ----------------------------------------------------------
@@ -225,6 +233,7 @@ function pushAll(target) {
   target.send({ type: 'calendar', calendar: calendar.state });
   target.send({ type: 'dueReminders', dueReminders: dueReminders.state });
   target.send({ type: 'perpetual', perpetual: perpetual.state });
+  target.send({ type: 'emoji', emoji });
   target.send({ type: 'usage', usage: usage.state });
   target.send({ type: 'chatgptUsage', usage: chatgptUsage.state });
   target.send({ type: 'screen', on: screenOn !== false }); // the page may have gone dark by itself
@@ -360,6 +369,7 @@ function musicctl(command, argument) {
 
 async function runCommand(action) {
   log.info(`[input] ${action}`);
+  lastDeviceCommand = Date.now();
   if (action === 'library') return toggleLibrary();
   if (action === 'favorite') return toggleFavorite();
   try {
@@ -740,7 +750,15 @@ function debounce(fn, ms) {
 // ---- Start ----------------------------------------------------------------
 
 log.info('Car Thing bridge starting');
-source.on('change', (s) => onNowPlaying(s).catch((err) => log.warn('[now playing]', err.message)));
+source.on('change', (s) => {
+  // Skips made on the Mac show on the device the same way as its own.
+  const skip = skips.observe(s);
+  if (skip && Date.now() - lastDeviceCommand > OWN_PRESS_MS) {
+    log.info(`[now playing] skipped: ${skip}`);
+    link?.send({ type: 'skip', action: skip });
+  }
+  onNowPlaying(s).catch((err) => log.warn('[now playing]', err.message));
+});
 volume.on('change', (v) => {
   pressLanded();
   if (appVol && knobApp() !== appVol.bundleId) appVol = null;
@@ -798,6 +816,7 @@ weather.start();
 calendar.start();
 dueReminders.start();
 perpetual.start();
+macEmoji(['🔥', '💀']).then((drawn) => { emoji = drawn; link?.send({ type: 'emoji', emoji }); });
 usage.start();
 chatgptUsage.start();
 appearance.start();

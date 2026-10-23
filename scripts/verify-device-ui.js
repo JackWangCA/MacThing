@@ -119,6 +119,8 @@ try {
   assert.equal(await shownTime(), '1:40', 'a sub-second correction is drift, and is ignored');
   await message({ type: 'nowPlaying', np: { ...paused, elapsed: 200 } });
   assert.equal(await shownTime(), '3:20', 'a real seek is still obeyed');
+  await message({ type: 'skip', action: 'next' });
+  assert.equal(await evaluate('document.querySelector(".flash use").getAttribute("href")'), '#i-next', 'A skip made on the Mac flashes on the device');
   await message({ type: 'settings', settings });
   await message({ type: 'perpetual', perpetual: { status: 'ok', day: 20718, dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' } });
   await message({ type: 'nowPlaying', np: { active: false } });

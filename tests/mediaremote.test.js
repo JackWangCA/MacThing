@@ -205,9 +205,14 @@ test('an ordinary resume is unaffected', () => {
  *
  * Nothing is given up by ignoring a lone 0: a real pause leads with `{playing: false}`, which is
  * believed on its own (the test above), so the rate that follows never has to carry the pause by
- * itself. What is avoided is the skip below, and sources that report a stopped rate over running
- * audio — which normalize() implies exist, since `rate: playing ? (raw.playbackRate > 0 ? ... : 1)
- * : 0` reads a rate of 0 while `playing` as a rate of 1 rather than trusting it.
+ * itself. What is avoided is a source that reports a stopped rate over running audio — which
+ * normalize() implies exists, since `rate: playing ? (raw.playbackRate > 0 ? ... : 1) : 0` reads
+ * a rate of 0 while `playing` as a rate of 1 rather than trusting it. For such a source a lone 0
+ * would show paused over playing audio, which is the bug this whole change exists to fix.
+ *
+ * So this one passes against the unpatched source too. It is here to fail against the wider rule
+ * — `this.raw.playing = msg.payload.playbackRate > 0`, believing the rate both ways — which is
+ * the tempting symmetrical version and the one that reintroduces the bug.
  */
 test('a rate of 0 arriving alone is ignored, leaving the pause to the playing flag', () => {
   const source = new MediaRemoteSource('/nowhere');

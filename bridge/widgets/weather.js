@@ -30,6 +30,7 @@ export class Weather extends EventEmitter {
     this.settings = settings;
     this.state = { status: 'loading' };
     this.auto = null; // last Mac-located position
+    this.named = null; // {name, lat, lon}: where a geocode last actually resolved a name
     this.inflight = null;
     this.retryWait = RETRY_FIRST_MS;
     this.retryAt = 0; // no asking again before this
@@ -99,22 +100,33 @@ export class Weather extends EventEmitter {
   }
 
   /// The place name for a located fix. A reply can carry good coordinates and no name: the
-  /// helper answers on a deadline, and if it expires with no fix delivered or the geocode still
-  /// out, it sends what CoreLocation already holds, unnamed but `ok`. Taken at face value that
-  /// turns a resolved town into "Current location" while the forecast under it stays correct.
-  /// So a name already resolved for this spot stands. Moving invalidates it: the coordinates are
-  /// sound even in the unnamed reply, so a fix that is no longer near the named one falls back
-  /// rather than labelling the new place with the old town's name.
+  /// helper answers on a 20s deadline, and if the reverse geocode is still out when it expires
+  /// it sends the fix CoreLocation already holds, unnamed but `ok`. Taken at face value that
+  /// turns a resolved town into "Current location" until some later geocode happens to land —
+  /// which is the whole of the bug, since the forecast itself was right all along. So a name
+  /// already resolved for this spot stands. Moving invalidates it: the coordinates are sound
+  /// even in the unnamed reply, so a fix that is no longer near the named one falls back rather
+  /// than labelling the new place with the old town's name.
+  ///
+  /// "Near" is measured from where the geocode actually resolved the name, not from the last fix
+  /// to inherit it. Those differ once an unnamed fix is accepted, because it keeps the name while
+  /// carrying its own coordinates: anchoring to it would let each hop re-centre the circle on the
+  /// edge of the last one, so the name could walk any distance in 5 km steps while every single
+  /// step passed the check. Holding the anchor still bounds the error at 5 km from the one place
+  /// the name was ever known to be right.
   ///
   /// The helper no longer hits that path in normal use — it answers in about 0.1s, named — but
   /// this stays as the backstop for a cold start with no fix to hand. If it starts showing up
   /// again, the reply carries `nameError` saying which half fell short.
   #name(r) {
-    if (r.name) return r.name;
-    const near = this.auto
-      && Math.abs(this.auto.lat - r.lat) < NEARBY_DEG
-      && Math.abs(this.auto.lon - r.lon) < NEARBY_DEG;
-    return near ? this.auto.name : 'Current location';
+    if (r.name) {
+      this.named = { name: r.name, lat: r.lat, lon: r.lon };
+      return r.name;
+    }
+    const near = this.named
+      && Math.abs(this.named.lat - r.lat) < NEARBY_DEG
+      && Math.abs(this.named.lon - r.lon) < NEARBY_DEG;
+    return near ? this.named.name : 'Current location';
   }
 
   #set(state) {

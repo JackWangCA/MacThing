@@ -66,6 +66,11 @@ const screen = CT.screen("weather");
 screen.show = () => {
   if (data.value.status === "error") CT.send({ type: "retryWeather", quiet: true });
 };
+// Smart switching: rain or snow is coming, so the forecast's next hours.
+CT.showForecast = () => {
+  view.value = "forecast";
+  CT.show("weather");
+};
 screen.reselect = () => {
   if (data.value.status === "error") return CT.send({ type: "retryWeather" });
   view.value = VIEWS[(VIEWS.indexOf(view.value) + 1) % VIEWS.length];
