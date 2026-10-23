@@ -7,6 +7,8 @@ export const state = reactive({
   settings: { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', meetingAlert: 0, usageSource: 'claude', knobVolume: 'auto', idleMinutes: 0, idleScreen: 'clock', smartSwitch: false, screenSleep: 'mac', whenLocked: 'unlocked', location: { mode: 'auto' } },
   now: Date.now(), np: { active: false }, npAt: 0, artwork: null,
   weather: { status: 'loading' }, calendar: { status: 'loading' }, perpetual: { status: 'loading' }, usage: { status: 'loading' }, chatgptUsage: { status: 'loading' },
+  // The Mac's Apple emoji as data URLs, {'🔥': …, '💀': …}; empty until the Mac sends them.
+  emoji: {},
   volume: 0, volumeUnsupported: false, volumeNote: '', volumeIcon: '', showVolume: false,
   flash: { icon: 'play', color: '', key: 0 }, flashing: false, toast: '',
   // The back button's usage refresh: '' idle, 'spin' (the ⟳ turns once), 'pending' (••• until the
@@ -109,6 +111,7 @@ CT.on('artwork', msg => { state.artwork = msg; });
 CT.on('weather', msg => { state.weather = msg.weather; });
 CT.on('calendar', msg => { state.calendar = msg.calendar; });
 CT.on('perpetual', msg => { state.perpetual = msg.perpetual; });
+CT.on('emoji', msg => { state.emoji = msg.emoji || {}; });
 CT.on('usage', msg => { state.usage = msg.usage; });
 CT.on('chatgptUsage', msg => { state.chatgptUsage = msg.usage; });
 

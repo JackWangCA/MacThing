@@ -15,6 +15,9 @@ const CACHE_FILE = path.join(os.homedir(), 'Library', 'Application Support', 'ca
 const MAX_BACKOFF_MS = 60 * 60 * 1000;
 const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000;
 const ENDPOINT = 'https://api.anthropic.com/api/oauth/usage';
+// The session's recent burn is measured across the last BURN_MIN_MS to BURN_MAX_MS of readings.
+const BURN_MIN_MS = 10 * 60 * 1000;
+const BURN_MAX_MS = 20 * 60 * 1000;
 
 /**
  * Claude plan usage for the Clock screen's usage view: the current five-hour session and the
@@ -25,8 +28,10 @@ const ENDPOINT = 'https://api.anthropic.com/api/oauth/usage';
  * Code to renew its own credentials, without a model request or an interactive login.
  *
  * `state` is one of:
- *   { status: 'ok', session: {percent, resetsAt}, week: {percent, resetsAt}, updatedAt }
- *     (percent 0–100; resetsAt epoch ms, or null when no session has started)
+ *   { status: 'ok', session: {percent, resetsAt, burn?}, week: {percent, resetsAt}, updatedAt }
+ *     (percent 0–100; resetsAt epoch ms, or null when no session has started; burn
+ *     {percent, ms}: how much of the session was used over the last 10–20 minutes, once
+ *     this bridge has readings that far apart in the same session)
  *   { status: 'signedOut' }   no Claude Code sign-in on this Mac (`claude auth login` makes one)
  *   { status: 'expired' }     the sign-in needs Claude Code to renew it
  *   { status: 'rateLimited', retryAt } server asked us to wait before fetching again
@@ -56,6 +61,8 @@ export class ClaudeUsage extends EventEmitter {
     this.failures = 0;
     this.retryReason = 'rateLimited';
     this.running = false;
+    // Recent session readings, {at, used, resetsAt}, for the session's burn.
+    this.readings = [];
   }
 
   start() {
@@ -116,7 +123,10 @@ export class ClaudeUsage extends EventEmitter {
       const data = await res.json();
       this.retryAt = 0;
       this.failures = 0;
-      this.snapshot = { status: 'ok', session: windowOf(data.five_hour), week: windowOf(data.seven_day), updatedAt: this.now() };
+      const session = windowOf(data.five_hour);
+      const burn = this.#burn(data.five_hour, session.resetsAt);
+      if (burn) session.burn = burn;
+      this.snapshot = { status: 'ok', session, week: windowOf(data.seven_day), updatedAt: this.now() };
       this.#set(this.snapshot);
       await this.#saveCache();
     } catch (err) {
@@ -126,6 +136,18 @@ export class ClaudeUsage extends EventEmitter {
       this.#set(this.#usableSnapshot() ? { ...this.snapshot, stale: true, retryAt: this.retryAt } : { status: 'error', retryAt: this.retryAt });
       await this.#saveCache();
     }
+  }
+
+  /** Session use since the oldest reading 10–20 minutes back in the same session, or null. Readings
+   *  keep the API's unrounded utilization so a short span isn't lost to rounding. */
+  #burn(raw, resetsAt) {
+    const now = this.now(), used = Number(raw?.utilization);
+    // A new session (its reset moved) or a gap starts the history again.
+    this.readings = this.readings.filter(r => now - r.at <= BURN_MAX_MS && sameReset(r.resetsAt, resetsAt));
+    if (!Number.isFinite(used) || !resetsAt) { this.readings = []; return null; }
+    this.readings.push({ at: now, used, resetsAt });
+    const from = this.readings.find(r => now - r.at >= BURN_MIN_MS);
+    return from ? { percent: Math.max(0, used - from.used), ms: now - from.at } : null;
   }
 
   #schedule() {
@@ -223,6 +245,9 @@ export class ClaudeUsage extends EventEmitter {
     this.emit('change', state);
   }
 }
+
+// The API's reset time can wobble by a second or so between readings of the same session.
+const sameReset = (a, b) => a && b && Math.abs(a - b) < 60 * 1000;
 
 function windowOf(w) {
   const resetsAt = w?.resets_at ? Date.parse(w.resets_at) : NaN;

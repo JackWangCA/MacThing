@@ -458,6 +458,35 @@ h3 {
   letter-spacing: 0;
   word-spacing: 0;
 }
+/* Fires after a pace number (2x and up) are smaller, so "4.6x" and two fires fit the rail. */
+.rail-fires-after {
+  margin-left: 0.1em;
+}
+/* Fires after a pace number stand as tall as its digits, on its baseline: the span's font-size is
+   the digit height (Merriweather 0.775em, Inter 0.74em) and the images sit on the baseline. */
+.rail-fires-after,
+.font-huge .rail-fires-after {
+  display: inline-block;
+  font-size: 0.775em;
+  vertical-align: baseline;
+}
+.usage-week .rail-fires.rail-fires-after {
+  font-size: 0.74em;
+}
+.rail-fires-after .rail-emoji {
+  vertical-align: baseline;
+}
+/* The Mac's emoji (emoji.jxa.js) have ink in the middle 92% of their height with about 13% clear
+   each side: scale them up so the ink is the digit height, and pull in the clear edges. */
+.rail-fires-after .rail-emoji-mac {
+  width: 1.087em;
+  height: 1.087em;
+  margin: 0 -0.12em -0.034em;
+}
+/* At the limit the Mac's skull stands alone, about the height of the pace's digits. */
+.font-huge .rail-skull {
+  font-size: 0.85em;
+}
 /* Keep the 32px weekly pace and percentage together in the 272px rail. */
 .usage-week {
   letter-spacing: -0.02em;
@@ -467,6 +496,9 @@ h3 {
 /* Leave room for the weekly percentage beside three flames. */
 .usage-week .rail-fires {
   font-size: 0.625em;
+}
+.usage-week .rail-skull {
+  font-size: 0.9em;
 }
 /* The big label sits close under its eyebrow, with more room below it. */
 .left-rail .left-rail-content > .font-huge {
