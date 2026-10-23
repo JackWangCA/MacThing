@@ -1134,14 +1134,13 @@ h3 {
   letter-spacing: -0.02em;
 }
 
-/* Digital face: hours stacked over minutes, filling the stage. Right aligned, lined up with the
-   rest of the stage content's right edge. */
+/* Digital face: hours stacked over minutes, filling the stage's clear area. Hours on its right
+   edge (clear of the dial); below them a colon on the left edge and the minutes on the right. */
 .c-digital {
   display: grid;
   align-content: center;
-  justify-content: end;
   justify-items: end;
-  padding-right: var(--stage-safe-right);
+  padding: 0 var(--stage-safe-right) 0 var(--panel-inset-x);
   box-sizing: border-box;
   font-family: Merriweather, Georgia, serif;
   font-weight: 900;
@@ -1149,6 +1148,11 @@ h3 {
   line-height: 0.86;
   letter-spacing: -0.04em;
   font-variant-numeric: lining-nums tabular-nums;
+}
+.c-digital-minutes {
+  justify-self: stretch;
+  display: flex;
+  justify-content: space-between;
 }
 
 /* ===== timer ===== */

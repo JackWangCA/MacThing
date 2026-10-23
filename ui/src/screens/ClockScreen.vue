@@ -12,7 +12,7 @@ import { timer, total, remaining, timerLabel, timerTitle, timerUnit, stepPreset,
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
-// The digital face stacks the hours over the minutes, both two digits (5:01 → 05 over 01).
+// The digital face stacks the hours over the minutes, both two digits (5:01 → 05 over :  01).
 const digits = computed(() => { const [hours, minutes] = time.value.time.split(':'); return { hours: hours.padStart(2, '0'), minutes }; });
 const next = computed(() => state.calendar.status === 'ok' ? state.calendar.events.find(e => !e.allDay && e.start > state.now && CT.dayNumber(e.start) === CT.dayNumber(state.now)) : null);
 // The clock button, pressed on the clock, steps it to the timer, then each usage Settings → Usage
@@ -147,7 +147,7 @@ screen.press = () => {
       <div v-for="p in providers" :key="p" class="fade-view fill" :class="{ on: mode === p }"><ClaudeUsage :provider="p" /></div>
       <div class="fade-view fill" :class="{ on: mode === 'clock' }">
         <AnalogClock v-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />
-        <div v-else class="c-digital fill"><span>{{ digits.hours }}</span><span>{{ digits.minutes }}</span></div>
+        <div v-else class="c-digital fill"><span>{{ digits.hours }}</span><span class="c-digital-minutes"><span>:</span><span>{{ digits.minutes }}</span></span></div>
       </div>
     </ScreenStage>
   </section>
