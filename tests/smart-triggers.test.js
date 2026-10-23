@@ -32,8 +32,14 @@ test('usage: a burn heating up switches, even on a calm session', () => {
     session: { percent: 30, resetsAt: half, burn: burn && { percent: burn, ms: 15 * MIN } } });
   assert.equal(check(reading(0, T0), T0), '');
   assert.equal(check(reading(15, T0 + 5 * MIN), T0 + 5 * MIN), 'hot');
-  assert.equal(check(reading(0, T0 + 10 * MIN), T0 + 10 * MIN), ''); // cooled off
-  assert.equal(check(reading(15, T0 + 15 * MIN), T0 + 15 * MIN), ''); // already had two fires this session
+  assert.equal(check(reading(0, T0 + 10 * MIN), T0 + 10 * MIN), ''); // fires gone
+  assert.equal(check(reading(15, T0 + 15 * MIN), T0 + 15 * MIN), ''); // back too soon to count
+  assert.equal(check(reading(0, T0 + 20 * MIN), T0 + 20 * MIN), '');
+  assert.equal(check(reading(0, T0 + 34 * MIN), T0 + 34 * MIN), ''); // 14 minutes calm
+  assert.equal(check(reading(15, T0 + 35 * MIN), T0 + 35 * MIN), ''); // still not 15
+  assert.equal(check(reading(0, T0 + 40 * MIN), T0 + 40 * MIN), '');
+  assert.equal(check(reading(0, T0 + 55 * MIN), T0 + 55 * MIN), ''); // 15 minutes calm: cooled off
+  assert.equal(check(reading(15, T0 + 60 * MIN), T0 + 60 * MIN), 'hot'); // fires are back
 });
 
 test('usage: the first reading is only a baseline, even when hot', () => {

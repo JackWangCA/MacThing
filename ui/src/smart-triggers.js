@@ -16,14 +16,18 @@ export function heat(usage, now) {
 // A window that ends after this much use is worth showing: the allowance is back.
 export const RESET_MIN_PERCENT = 80;
 
+// No fires for this long and the session counts as cooled off: fires coming back are news again.
+export const COOL_MS = 15 * 60000;
+
 /**
  * Watches one provider's usage. check(usage, now) returns 'hot' when the session's fires climb
- * higher than they have been this session (see heat; once each per session), 'reset' when a
+ * higher than they have been this session (see heat), or come back after COOL_MS without any,
+ * 'reset' when a
  * session or week that was at least RESET_MIN_PERCENT used runs out, else ''. The first reading
  * only sets the baseline, so a page load never switches anything.
  */
 export function usageWatch() {
-  let session = null, week = null; // { resetsAt, percent, tier?, ended? }
+  let session = null, week = null; // { resetsAt, percent, tier?, calmSince?, ended? }
   function ended(win, now) {
     if (!win || !win.resetsAt || win.ended || now < win.resetsAt) return false;
     win.ended = true;
@@ -44,6 +48,9 @@ export function usageWatch() {
     week = track(week, usage.week);
     const tier = heat(usage, now);
     if (fresh) session.tier = first ? tier : 0;
+    if (tier) session.calmSince = null;
+    else if (session.calmSince == null) session.calmSince = now;
+    else if (now - session.calmSince >= COOL_MS) session.tier = 0;
     if (reset) return 'reset';
     if (tier > session.tier) { session.tier = tier; return 'hot'; }
     return '';

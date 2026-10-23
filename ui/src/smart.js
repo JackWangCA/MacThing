@@ -6,8 +6,8 @@ import { usageWatch, weatherWatch } from './smart-triggers.js';
 
 // Settings → Smart switching: the screen moves by itself when something is worth a look.
 //   Claude or ChatGPT usage heats up (the Claude-o-meter gains a 🔥, a second 🔥 or the 💀, which
-//   follow the burn of the last 10–20 minutes) or comes back (a session or week that was well used
-//   resets): that usage, on the clock screen.
+//   follow the burn of the last 10–20 minutes; again when fires come back after 15 calm minutes)
+//   or comes back (a session or week that was well used resets): that usage, on the clock screen.
 //   Rain or snow is due within the hour: the weather's forecast.
 // Taken off Now Playing, it goes back there on the first song change after HOLD_MS, so the screen
 // it put up stays at least that long but not for as long as the music goes on. Moving the screen,
