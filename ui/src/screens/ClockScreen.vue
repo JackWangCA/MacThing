@@ -87,8 +87,8 @@ function usageRail(provider) {
     italicSuffix: 'x',
     subtitleClass: 'usage-week',
     eyebrow: 'Session: ' + Math.round(u.session.percent) + '% used',
-    title: paceNumber(u.session, SESSION_MS, state.now),
-    subtitle: 'Week: ' + paceNumber(u.week, WEEK_MS, state.now),
+    title: paceNumber(u.session, SESSION_MS, state.now, { updatedAt: u.updatedAt }),
+    subtitle: 'Week: ' + paceNumber(u.week, WEEK_MS, state.now, { maxFires: 0 }),
     subtitleNote: '· ' + Math.round(u.week.percent) + '%'
   };
 }
@@ -110,6 +110,13 @@ watch(currentMeetingKey, key => { if (key && mode.value === 'timer') pickMeeting
 // The meeting alert's start button: brings the timer up on the clock screen.
 CT.showTimer = () => {
   mode.value = 'timer';
+  CT.show('clock');
+};
+// Smart switching: brings a provider's usage up on the clock screen.
+CT.showUsage = provider => {
+  if (!providers.value.includes(provider)) return;
+  if (!(mode.value === provider && state.current === 'clock')) CT.send({ type: 'refreshUsage' });
+  mode.value = provider;
   CT.show('clock');
 };
 // A finished timer counts up past its time until you leave it, then goes back to its preset.

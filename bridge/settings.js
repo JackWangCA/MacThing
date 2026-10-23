@@ -25,6 +25,9 @@ export const DEFAULTS = {
   knobVolume: 'auto',
   idleMinutes: 0, // once nothing has played this long on Now Playing, show idleScreen (0 = never)
   idleScreen: 'clock', // 'clock' | 'calendar' | 'weather'
+  // Smart switching: the screen moves to Claude or ChatGPT usage when it speeds up or resets, and
+  // to the weather before rain or snow, then back to Now Playing if it came from there (ui/src/smart.js)
+  smartSwitch: false,
   // When the screen turns off: 'mac' = while the Mac's display sleeps or the Mac is locked |
   // minutes the Mac has been idle (no keyboard or mouse, like a screen saver) | 'never'
   screenSleep: 'mac',
@@ -55,6 +58,7 @@ const VALID = {
   knobVolume: (v) => ['auto', 'system', 'spotify', 'music'].includes(v),
   idleMinutes: (v) => [0, 1, 2, 5, 10].includes(v),
   idleScreen: (v) => ['clock', 'calendar', 'weather'].includes(v),
+  smartSwitch: (v) => typeof v === 'boolean',
   screenSleep: (v) => ['mac', 30, 60, 120, 240, 'never'].includes(v),
   whenLocked: (v) => ['unlocked', 'nowplaying', 'weather', 'calendar', 'clock'].includes(v),
   reminders: (v) =>
