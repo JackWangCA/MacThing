@@ -1,6 +1,6 @@
 // What Smart switching reacts to (smart.js does the switching). Plain functions over the Mac's
 // readings, with no Vue, so the tests can drive them.
-import { SESSION_MS, paceK, burnK, fires } from './usage.js';
+import { SESSION_MS, WEEK_MS, paceK, burnK, fires } from './usage.js';
 import { isWet } from './weather.js';
 
 const HOUR = 3600000;
@@ -56,6 +56,57 @@ export function usageWatch() {
     if (reset) return 'reset';
     if (tier > session.tier) { session.tier = tier; return 'hot'; }
     return '';
+  };
+}
+
+// ---- Bottlerocket: a weekly spend against a dollar limit ------------------------------------
+
+// Shares of the weekly limit worth a look as each is crossed.
+export const SPEND_THRESHOLDS = [75, 90, 100];
+// Pace alerts wait out the week's first day: a morning's work against a week that has barely
+// started reads as a runaway pace (the 10% floor in paceK only goes so far), and says nothing yet.
+export const SPEND_PACE_AFTER_MS = 24 * 3600000;
+
+/** How hot the week's spend is running, as fires: '' on pace to stay under the limit, 🔥 on pace
+ *  to reach it before the reset, 🔥🔥 to reach it with more than half the week still to go, 💀 at
+ *  it. The same measure as the Claude-o-meter's (paceK), over Bottlerocket's Monday–Monday week.
+ *  '' with no limit, since there's nothing to run out of. */
+export function spendFires(usage, now) {
+  if (!usage || usage.status !== 'ok' || !(usage.limit > 0)) return '';
+  const k = paceK({ percent: usage.percent, resetsAt: usage.resetsAt }, WEEK_MS, now);
+  return Number.isFinite(k) ? fires(k) : '💀';
+}
+
+/**
+ * Watches the Bottlerocket spend. check(usage, now) returns what's new since the last reading:
+ * { threshold: 90 } when the spend crosses one of SPEND_THRESHOLDS (the highest, if a reading
+ * jumps several), { pace: '🔥' } when the fires climb higher than they have been this week, or
+ * null. Each happens once a week: a new week (a new resetsAt) starts over. The first reading only
+ * sets the baseline, so a page load never alerts for where the week already is.
+ */
+export function spendWatch() {
+  let week = null; // { resetsAt, crossed, tier }
+  const tierOf = f => (f === '💀' ? 3 : [...f].length);
+  return function check(usage, now) {
+    if (!usage || usage.status !== 'ok' || !(usage.limit > 0)) return null;
+    const crossed = SPEND_THRESHOLDS.filter(t => usage.percent >= t).pop() || 0;
+    const early = now - (usage.resetsAt - WEEK_MS) < SPEND_PACE_AFTER_MS;
+    const tier = early ? 0 : tierOf(spendFires(usage, now));
+    if (!week || week.resetsAt !== usage.resetsAt) {
+      const first = !week;
+      week = { resetsAt: usage.resetsAt, crossed: first ? crossed : 0, tier: first ? tier : 0 };
+      if (first) return null;
+    }
+    if (crossed > week.crossed) {
+      week.crossed = crossed;
+      week.tier = Math.max(week.tier, tier); // one alert for the reading, the bigger news
+      return { threshold: crossed };
+    }
+    if (tier > week.tier) {
+      week.tier = tier;
+      return { pace: spendFires(usage, now) };
+    }
+    return null;
   };
 }
 

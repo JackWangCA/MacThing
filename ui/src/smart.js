@@ -2,12 +2,14 @@ import { watch } from 'vue';
 import { state, CT } from './state.js';
 import { timer } from './timer.js';
 import { usageProviders } from './usage.js';
-import { usageWatch, weatherWatch } from './smart-triggers.js';
+import { spendWatch, usageWatch, weatherWatch } from './smart-triggers.js';
 
 // Settings → Smart switching: the screen moves by itself when something is worth a look.
 //   Claude or ChatGPT usage heats up (the Claude-o-meter gains a 🔥, a second 🔥 or the 💀, which
 //   follow the burn of the last 10–20 minutes; again when fires come back after 15 calm minutes)
 //   or comes back (a session or week that was well used resets): that usage, on the clock screen.
+//   Bottlerocket spend crosses 75%, 90% or 100% of the weekly limit, or its pace gains a fire
+//   (on course to hit the limit before the week resets): the spend, with a toast saying which.
 //   Rain or snow is due within the hour: the weather's forecast.
 // Taken off Now Playing, it goes back there on the first song change after HOLD_MS, so the screen
 // it put up stays at least that long but not for as long as the music goes on. Moving the screen,
@@ -18,6 +20,9 @@ const QUIET_MS = 10000; // after a button or the knob, wait this long: someone i
 const PENDING_MS = 3 * 60000; // something in the way for longer than this: let the moment go
 
 const usageChecks = { claude: usageWatch(), chatgpt: usageWatch() };
+const spendCheck = spendWatch();
+const spendToast = e => e.threshold ? (e.threshold >= 100 ? 'Weekly limit reached' : e.threshold + '% of weekly limit')
+  : e.pace === '🔥🔥' ? 'Well ahead of pace for the week' : 'Ahead of pace for the week';
 const weatherCheck = weatherWatch();
 let pending = null; // { show: () => void, until }
 let placed = ''; // the screen this put up, until someone moves off it
@@ -54,6 +59,14 @@ CT.onSecond(now => {
     const event = usageChecks[provider](usage, now);
     if (event && shown.includes(provider)) want(() => CT.showUsage && CT.showUsage(provider));
   });
+  // Bottlerocket's reading shares state.usage with Claude's: each watcher ignores the other's.
+  const spend = spendCheck(state.usage, now);
+  if (spend && shown.includes('bottlerocket')) {
+    want(() => {
+      CT.showUsage && CT.showUsage('bottlerocket');
+      if (state.current === 'clock') CT.toast(spendToast(spend));
+    });
+  }
   if (weatherCheck(state.weather, now)) want(() => CT.showForecast && CT.showForecast());
   if (!pending) return;
   if (!enabled() || performance.now() > pending.until) pending = null;

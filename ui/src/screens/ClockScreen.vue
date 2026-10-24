@@ -9,6 +9,7 @@ import ClaudeUsage from '../components/ClaudeUsage.vue';
 import BackActionIcon from '../components/BackActionIcon.vue';
 import { SESSION_MS, WEEK_MS, moneyRound, moneyText, paceNumber, untilText, usageProviders, usageOf, usageName, usageUpdatedText } from '../usage.js';
 import { timer, total, remaining, timerLabel, timerTitle, timerUnit, stepPreset, currentMeetingKey, pickMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
+import { spendFires } from '../smart-triggers.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
@@ -97,7 +98,8 @@ function usageRail(provider) {
       // size (99% is 234), four need 96 (100% is 287 otherwise), more need 64. That covers a
       // spend well past its limit, 455%, as well as dollars.
       titleClass: title.length <= 3 ? '' : title.length === 4 ? 'usage-tight' : 'usage-tighter',
-      subtitle: limited ? 'of ' + moneyText(u.limit) : 'No weekly limit'
+      // The pace's fires ride on the limit line rather than the share, which is sized to fit.
+      subtitle: limited ? ('of ' + moneyText(u.limit) + ' ' + spendFires(u, state.now)).trim() : 'No weekly limit'
     };
   }
   return {
